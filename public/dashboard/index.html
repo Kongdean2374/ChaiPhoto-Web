@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>回報管理 | ChaiPhoto</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main>
+  <div class="hero">
+    <p class="muted">ChaiPhoto Dashboard</p>
+    <h1>回報管理</h1>
+    <p>這裡只顯示 ChaiPhoto 問題回報。頁面已由 Cloudflare Access 保護。</p>
+  </div>
+
+  <section>
+    <div class="dashboard-summary" id="summary"></div>
+    <div class="dashboard-toolbar">
+      <label>
+        篩選狀態
+        <select id="status-filter">
+          <option value="">全部</option>
+          <option value="new">未處理</option>
+          <option value="in_progress">處理中</option>
+          <option value="resolved">已解決</option>
+          <option value="closed">已關閉</option>
+        </select>
+      </label>
+      <button class="button dashboard-refresh" id="refresh-button" type="button">重新整理</button>
+    </div>
+    <p id="dashboard-status" class="muted" role="status" aria-live="polite">正在載入…</p>
+  </section>
+
+  <div id="feedback-list"></div>
+
+  <footer>© 2026 ChaiPhoto</footer>
+</main>
+
+<script>
+const statusLabels = {
+  new: "未處理",
+  in_progress: "處理中",
+  resolved: "已解決",
+  closed: "已關閉"
+};
+
+const categoryLabels = {
+  crash: "App 閃退",
+  performance: "卡頓／效能",
+  photos: "照片整理",
+  videos: "影片功能",
+  icloud: "iCloud",
+  ui: "介面／顯示",
+  suggestion: "功能建議",
+  other: "其他"
+};
+
+const summary = document.getElementById("summary");
+const list = document.getElementById("feedback-list");
+const statusText = document.getElementById("dashboard-status");
+const filter = document.getElementById("status-filter");
+const refresh = document.getElementById("refresh-button");
+
+function make(tag, text, className) {
+  const el = document.createElement(tag);
+  if (text !== undefined && text !== null) el.textContent = text;
+  if (className) el.className = className;
+  return el;
+}
+
+function addMetaRow(container, label, value) {
+  if (!value) return;
+  const row = make("div", null, "feedback-meta-row");
+  row.append(make("strong", label), make("span", value));
+  container.append(row);
+}
+
+function renderSummary(counts) {
+  summary.replaceChildren();
+  for (const key of ["new", "in_progress", "resolved", "closed"]) {
+    const card = make("button", null, "summary-card");
+    card.type = "button";
+    card.dataset.status = key;
+    card.append(
+      make("span", statusLabels[key], "summary-label"),
+      make("strong", String(counts[key] || 0), "summary-count")
+    );
+    card.addEventListener("click", () => {
+      filter.value = key;
+      loadFeedback();
+    });
+    summary.append(card);
+  }
+}
+
+function renderFeedback(items) {
+  list.replaceChildren();
+
+  if (!items.length) {
+    const empty = make("section");
+    empty.append(make("h2", "目前沒有符合條件的回報"), make("p", "乾淨得有點可疑，但先享受一下。", "muted"));
+    list.append(empty);
+    return;
+  }
+
+  for (const item of items) {
+    const card = make("section", null, "feedback-card");
+
+    const top = make("div", null, "feedback-card-top");
+    const titleBox = make("div");
+    titleBox.append(
+      make("span", categoryLabels[item.category] || item.category, "feedback-category"),
+      make("h2", item.description)
+    );
+
+    const select = make("select", null, "status-select");
+    for (const key of ["new", "in_progress", "resolved", "closed"]) {
+      const option = make("option", statusLabels[key]);
+      option.value = key;
+      option.selected = item.status === key;
+      select.append(option);
+    }
+
+    select.addEventListener("change", async () => {
+      const previous = item.status;
+      select.disabled = true;
+      try {
+        const response = await fetch("/dashboard/api/feedback", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: item.id, status: select.value })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error();
+        item.status = select.value;
+        await loadFeedback();
+      } catch {
+        select.value = previous;
+        statusText.textContent = "更新狀態失敗，請稍後再試。";
+      } finally {
+        select.disabled = false;
+      }
+    });
+
+    top.append(titleBox, select);
+    card.append(top);
+
+    const meta = make("div", null, "feedback-meta");
+    addMetaRow(meta, "時間", new Date(item.created_at).toLocaleString("zh-TW"));
+    addMetaRow(meta, "App", item.app_version ? item.app_version + (item.build_number ? " (" + item.build_number + ")" : "") : item.build_number);
+    addMetaRow(meta, "iOS", item.ios_version);
+    addMetaRow(meta, "裝置", item.device_model);
+    addMetaRow(meta, "來源", item.source);
+    card.append(meta);
+
+    if (item.steps) {
+      const steps = make("div", null, "feedback-steps");
+      steps.append(make("strong", "重現步驟"), make("p", item.steps));
+      card.append(steps);
+    }
+
+    card.append(make("p", "回報編號：" + item.id, "feedback-id"));
+    list.append(card);
+  }
+}
+
+async function loadFeedback() {
+  refresh.disabled = true;
+  statusText.textContent = "正在載入…";
+  const query = filter.value ? "?status=" + encodeURIComponent(filter.value) : "";
+
+  try {
+    const response = await fetch("/dashboard/api/feedback" + query, {
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error();
+    renderSummary(result.counts);
+    renderFeedback(result.feedback);
+    statusText.textContent = "共顯示 " + result.feedback.length + " 筆回報。";
+  } catch {
+    statusText.textContent = "讀取失敗。若剛完成部署，稍等一下再重新整理。";
+    list.replaceChildren();
+  } finally {
+    refresh.disabled = false;
+  }
+}
+
+filter.addEventListener("change", loadFeedback);
+refresh.addEventListener("click", loadFeedback);
+loadFeedback();
+</script>
+</body>
+</html>
