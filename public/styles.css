@@ -73,3 +73,59 @@ footer {
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+form {
+  display: grid;
+  gap: 18px;
+}
+label {
+  display: grid;
+  gap: 7px;
+  font-weight: 600;
+}
+input, select, textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: var(--accent);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.primary-button {
+  appearance: none;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  padding: 13px 18px;
+  cursor: pointer;
+}
+.primary-button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+.honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (max-width: 620px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
