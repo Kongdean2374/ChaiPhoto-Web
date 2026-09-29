@@ -126,6 +126,106 @@ input:focus, select:focus, textarea:focus {
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+.dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.summary-card {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.summary-card:hover { border-color: var(--accent); }
+.summary-label {
+  display: block;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.summary-count {
+  display: block;
+  font-size: 1.8rem;
+  margin-top: 4px;
+}
+.dashboard-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+.dashboard-refresh {
+  cursor: pointer;
+  font: inherit;
+}
+.dashboard-refresh:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+.feedback-card {
+  overflow-wrap: anywhere;
+}
+.feedback-card-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 16px;
+  align-items: start;
+}
+.feedback-card-top h2 {
+  margin: 6px 0 0;
+  font-size: 1.2rem;
+  white-space: pre-wrap;
+}
+.feedback-category {
+  display: inline-block;
+  color: var(--accent);
+  font-size: .88rem;
+  font-weight: 700;
+}
+.status-select {
+  min-width: 0;
+}
+.feedback-meta {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.feedback-meta-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+}
+.feedback-meta-row strong {
+  color: var(--muted);
+  font-weight: 600;
+}
+.feedback-steps {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bg);
+}
+.feedback-steps p {
+  white-space: pre-wrap;
+}
+.feedback-id {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8rem;
+  margin-top: 18px;
+}
+
 @media (max-width: 620px) {
   .form-grid { grid-template-columns: 1fr; }
+  .dashboard-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-toolbar { grid-template-columns: 1fr; }
+  .feedback-card-top { grid-template-columns: 1fr; }
 }
