@@ -10,9 +10,136 @@ const json = (data, status = 200) =>
 const clean = (value, max) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+const allowedStatuses = new Set(["new", "in_progress", "resolved", "closed"]);
+const dashboardHost = "photo.chaihome.cc";
+
+function isDashboardRequest(url) {
+  return url.pathname === "/dashboard" || url.pathname.startsWith("/dashboard/");
+}
+
+function hasAccessIdentity(request) {
+  return Boolean(
+    request.headers.get("Cf-Access-Authenticated-User-Email") ||
+    request.headers.get("Cf-Access-Jwt-Assertion")
+  );
+}
+
+async function handleDashboardApi(request, env, url) {
+  if (url.pathname === "/dashboard/api/feedback" && request.method === "GET") {
+    const status = clean(url.searchParams.get("status"), 20);
+    const filter = allowedStatuses.has(status) ? status : null;
+
+    const listQuery = filter
+      ? env.DB.prepare(
+          `SELECT id, created_at, status, category, description, steps,
+                  app_version, build_number, ios_version, device_model, source
+             FROM feedback
+            WHERE status = ?
+            ORDER BY created_at DESC
+            LIMIT 200`
+        ).bind(filter)
+      : env.DB.prepare(
+          `SELECT id, created_at, status, category, description, steps,
+                  app_version, build_number, ios_version, device_model, source
+             FROM feedback
+            ORDER BY created_at DESC
+            LIMIT 200`
+        );
+
+    const [list, counts] = await Promise.all([
+      listQuery.all(),
+      env.DB.prepare(
+        `SELECT status, COUNT(*) AS count
+           FROM feedback
+          GROUP BY status`
+      ).all()
+    ]);
+
+    const summary = { new: 0, in_progress: 0, resolved: 0, closed: 0 };
+    for (const row of counts.results || []) {
+      if (Object.hasOwn(summary, row.status)) {
+        summary[row.status] = Number(row.count) || 0;
+      }
+    }
+
+    return json({
+      ok: true,
+      feedback: list.results || [],
+      counts: summary
+    });
+  }
+
+  if (url.pathname === "/dashboard/api/feedback" && request.method === "PATCH") {
+    const origin = request.headers.get("Origin");
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    const type = request.headers.get("Content-Type") || "";
+    if (!type.includes("application/json")) {
+      return json({ ok: false, error: "JSON required" }, 415);
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "Invalid JSON" }, 400);
+    }
+
+    const id = clean(body.id, 80);
+    const status = clean(body.status, 20);
+
+    if (!id || !allowedStatuses.has(status)) {
+      return json({ ok: false, error: "Invalid update" }, 400);
+    }
+
+    const result = await env.DB.prepare(
+      "UPDATE feedback SET status = ? WHERE id = ?"
+    ).bind(status, id).run();
+
+    if (!result.meta?.changes) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    return json({ ok: true });
+  }
+
+  return null;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    if (isDashboardRequest(url)) {
+      // The dashboard is intentionally available only through the protected
+      // custom hostname. workers.dev is disabled as a second layer of defense.
+      if (url.hostname !== dashboardHost || !hasAccessIdentity(request)) {
+        return new Response("Not found", {
+          status: 404,
+          headers: {
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff"
+          }
+        });
+      }
+
+      const apiResponse = await handleDashboardApi(request, env, url);
+      if (apiResponse) return apiResponse;
+
+      const assetResponse = await env.ASSETS.fetch(request);
+      const headers = new Headers(assetResponse.headers);
+      headers.set("Cache-Control", "no-store");
+      headers.set("X-Frame-Options", "DENY");
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("Referrer-Policy", "no-referrer");
+      return new Response(assetResponse.body, {
+        status: assetResponse.status,
+        statusText: assetResponse.statusText,
+        headers
+      });
+    }
 
     if (url.pathname === "/api/health") {
       return json({
@@ -45,7 +172,6 @@ export default {
         return json({ ok: false, error: "Invalid JSON" }, 400);
       }
 
-      // Honeypot field for simple bot filtering. Real users never fill this.
       if (clean(body.website, 200)) {
         return json({ ok: true });
       }
@@ -105,6 +231,10 @@ export default {
       return json({ ok: true, id }, 201);
     }
 
-    return json({ ok: false, error: "Not found" }, 404);
+    if (url.pathname.startsWith("/api/")) {
+      return json({ ok: false, error: "Not found" }, 404);
+    }
+
+    return env.ASSETS.fetch(request);
   }
 };
