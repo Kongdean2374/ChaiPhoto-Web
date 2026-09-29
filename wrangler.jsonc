@@ -9,5 +9,13 @@
     "run_worker_first": ["/api/*"],
     "html_handling": "drop-trailing-slash",
     "not_found_handling": "404-page"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "chaiphoto-feedback",
+      "database_id": "91dadc10-8e16-4015-b4ad-282a667488ee",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
