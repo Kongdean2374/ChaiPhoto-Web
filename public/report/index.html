@@ -2,38 +2,28 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1">
-
-  <meta
-    name="description"
-    content="回報 ChaiPhoto 問題並查看已知問題與修復進度">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="回報 ChaiPhoto 問題並查看已知問題與修復進度">
   <title>問題回報 | ChaiPhoto</title>
-
-  <link
-    rel="stylesheet"
-    href="/styles.css">
+  <link rel="stylesheet" href="/styles.css">
 
   <style>
     .tabs {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin: 16px 0;
-      padding: 5px;
-      border-radius: 16px;
-      background: var(--card);
+      gap: 6px;
+      margin: 14px 0;
+      padding: 4px;
       border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--card);
     }
 
     .tab-button {
       appearance: none;
       border: 0;
-      border-radius: 12px;
-      padding: 11px 12px;
+      border-radius: 11px;
+      padding: 10px 8px;
       background: transparent;
       color: var(--muted);
       font: inherit;
@@ -50,164 +40,233 @@
       display: none;
     }
 
+    .issues-header {
+      padding: 18px;
+      margin: 14px 0 10px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: var(--card);
+    }
+
+    .issues-header h2 {
+      margin: 0 0 5px;
+      font-size: 1.25rem;
+    }
+
+    .issues-header p {
+      margin: 0;
+      font-size: .9rem;
+    }
+
     .issue-toolbar {
       display: grid;
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .issue-search {
+      padding: 10px 13px;
     }
 
     .issue-filter-row {
       display: flex;
-      gap: 8px;
+      gap: 7px;
       overflow-x: auto;
-      padding-bottom: 3px;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+
+    .issue-filter-row::-webkit-scrollbar {
+      display: none;
     }
 
     .issue-filter {
       appearance: none;
       flex: 0 0 auto;
       border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--text);
+      background: var(--bg);
+      color: var(--muted);
       border-radius: 999px;
-      padding: 8px 12px;
+      padding: 6px 10px;
       font: inherit;
-      font-size: .9rem;
+      font-size: .82rem;
+      font-weight: 650;
       cursor: pointer;
+      white-space: nowrap;
     }
 
     .issue-filter.active {
       border-color: var(--accent);
       color: var(--accent);
-      font-weight: 700;
-    }
-
-    .issue-list {
-      display: grid;
-      gap: 14px;
-    }
-
-    .issue-card {
-      margin: 0;
-    }
-
-    .issue-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .issue-title {
-      margin: 8px 0 0;
-      font-size: 1.15rem;
-      line-height: 1.45;
-    }
-
-    .issue-status {
-      flex: 0 0 auto;
-      border-radius: 999px;
-      padding: 6px 10px;
-      font-size: .78rem;
-      font-weight: 800;
-      border: 1px solid var(--line);
-      white-space: nowrap;
-    }
-
-    .status-new {
-      color: #4384e6;
-    }
-
-    .status-in_progress {
-      color: #d89a24;
-    }
-
-    .status-resolved {
-      color: #2fa36b;
-    }
-
-    .status-closed {
-      color: var(--muted);
-    }
-
-    .issue-note {
-      margin-top: 14px;
-      white-space: pre-wrap;
-    }
-
-    .issue-meta {
-      display: grid;
-      gap: 5px;
-      margin-top: 16px;
-      padding-top: 14px;
-      border-top: 1px solid var(--line);
-      color: var(--muted);
-      font-size: .86rem;
-    }
-
-    .issue-fixed {
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: var(--bg);
-      border: 1px solid var(--line);
-    }
-
-    .issue-fixed strong {
-      display: block;
-      margin-bottom: 3px;
-    }
-
-    .issue-id {
-      font-family:
-        ui-monospace,
-        SFMono-Regular,
-        Menlo,
-        monospace;
-      font-size: .78rem;
-      overflow-wrap: anywhere;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 32px 18px;
-      color: var(--muted);
+      background: color-mix(in srgb, var(--accent) 8%, var(--bg));
     }
 
     .result-count {
       color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .issue-list {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--card);
+    }
+
+    .issue-row {
+      margin: 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+    }
+
+    .issue-row:last-child {
+      border-bottom: 0;
+    }
+
+    .issue-row summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 13px 14px;
+      user-select: none;
+    }
+
+    .issue-row summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .issue-summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .issue-main {
+      min-width: 0;
+    }
+
+    .issue-title {
+      margin: 0;
+      font-size: .98rem;
+      line-height: 1.35;
+      font-weight: 720;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .issue-subtitle {
+      margin-top: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      color: var(--muted);
+      font-size: .77rem;
+    }
+
+    .issue-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .issue-status {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 7px;
+      font-size: .72rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-new { color: #4384e6; }
+    .status-in_progress { color: #d89a24; }
+    .status-resolved { color: #2fa36b; }
+    .status-closed { color: var(--muted); }
+
+    .chevron {
+      color: var(--muted);
+      font-size: 1rem;
+      transition: transform .18s ease;
+    }
+
+    .issue-row[open] .chevron {
+      transform: rotate(90deg);
+    }
+
+    .issue-detail {
+      padding: 0 14px 15px;
+      border-top: 1px solid var(--line);
+    }
+
+    .issue-detail-inner {
+      padding-top: 13px;
+    }
+
+    .issue-note {
+      margin: 0 0 12px;
+      white-space: pre-wrap;
+    }
+
+    .issue-fixed {
+      padding: 10px 12px;
+      margin: 10px 0;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg);
       font-size: .9rem;
     }
 
+    .issue-meta {
+      display: grid;
+      gap: 3px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: .76rem;
+    }
+
+    .issue-id {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .empty-state {
+      padding: 30px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+
     .success-box {
-      margin-top: 14px;
-      padding: 14px;
+      padding: 13px;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: var(--bg);
     }
 
-    .success-box strong {
-      display: block;
-      margin-bottom: 5px;
-    }
-
     @media (max-width: 620px) {
-      .issue-top {
-        flex-direction: column;
+      main {
+        width: min(100% - 22px, 900px);
+        padding-top: 20px;
+      }
+
+      .hero {
+        padding: 18px;
+      }
+
+      .issue-row summary {
+        padding: 12px;
       }
 
       .issue-status {
-        align-self: flex-start;
+        padding: 3px 6px;
       }
     }
   </style>
 </head>
 
 <body>
-
 <main>
-
   <nav>
     <a href="/">首頁</a>
     <a href="/privacy">隱私政策</a>
@@ -216,118 +275,41 @@
     <a href="/report">問題回報</a>
   </nav>
 
-
   <div class="hero">
-
-    <p class="muted">
-      ChaiPhoto Feedback
-    </p>
-
-    <h1>
-      問題回報
-    </h1>
-
-    <p>
-      發現 Beta 版本有問題？
-      可以在這裡送出回報，
-      也可以查看目前已知問題與修復進度。
-    </p>
-
+    <p class="muted">ChaiPhoto Feedback</p>
+    <h1>問題回報</h1>
+    <p>發現 Beta 版本有問題？可以送出回報，也可以查看目前已知問題與處理進度。</p>
   </div>
 
-
-  <div
-    class="tabs"
-    role="tablist">
-
-    <button
-      id="report-tab"
-      class="tab-button active"
-      type="button"
-      role="tab"
-      aria-selected="true">
-
+  <div class="tabs" role="tablist">
+    <button id="report-tab" class="tab-button active" type="button" role="tab" aria-selected="true">
       回報問題
-
     </button>
 
-    <button
-      id="issues-tab"
-      class="tab-button"
-      type="button"
-      role="tab"
-      aria-selected="false">
-
+    <button id="issues-tab" class="tab-button" type="button" role="tab" aria-selected="false">
       已知問題與進度
-
     </button>
-
   </div>
 
-
-  <!-- ========================================= -->
-  <!-- 回報問題 -->
-  <!-- ========================================= -->
-
-  <div
-    id="report-panel"
-    class="tab-panel">
-
+  <div id="report-panel" class="tab-panel">
     <section>
-
       <form id="feedback-form">
-
         <label>
           問題類型
-
-          <select
-            name="category"
-            required>
-
-            <option value="crash">
-              App 閃退
-            </option>
-
-            <option value="performance">
-              卡頓／效能
-            </option>
-
-            <option value="photos">
-              照片整理
-            </option>
-
-            <option value="videos">
-              影片功能
-            </option>
-
-            <option value="icloud">
-              iCloud
-            </option>
-
-            <option value="ui">
-              介面／顯示
-            </option>
-
-            <option value="suggestion">
-              功能建議
-            </option>
-
-            <option
-              value="other"
-              selected>
-
-              其他
-
-            </option>
-
+          <select name="category" required>
+            <option value="crash">App 閃退</option>
+            <option value="performance">卡頓／效能</option>
+            <option value="photos">照片整理</option>
+            <option value="videos">影片功能</option>
+            <option value="icloud">iCloud</option>
+            <option value="ui">介面／顯示</option>
+            <option value="suggestion">功能建議</option>
+            <option value="other" selected>其他</option>
           </select>
-
         </label>
-
 
         <label>
           問題描述
-
           <textarea
             name="description"
             rows="7"
@@ -335,573 +317,114 @@
             maxlength="5000"
             required
             placeholder="例如：滑到第三張照片時畫面卡住，返回首頁後恢復。"></textarea>
-
         </label>
-
 
         <label>
           重現步驟（選填）
-
           <textarea
             name="steps"
             rows="5"
             maxlength="5000"
             placeholder="例如：打開 App → 選 2026 年 9 月 → 連續右滑三張照片。"></textarea>
-
         </label>
 
-
         <div class="form-grid">
-
           <label>
             App 版本（選填）
-
-            <input
-              name="appVersion"
-              maxlength="40"
-              placeholder="例如 1.0 Beta">
+            <input name="appVersion" maxlength="40" placeholder="例如 1.0 Beta">
           </label>
-
 
           <label>
             Build（選填）
-
-            <input
-              name="buildNumber"
-              maxlength="40"
-              placeholder="例如 5">
+            <input name="buildNumber" maxlength="40" placeholder="例如 5">
           </label>
-
 
           <label>
             iOS 版本（選填）
-
-            <input
-              name="iosVersion"
-              maxlength="80"
-              placeholder="例如 iOS 27.0">
+            <input name="iosVersion" maxlength="80" placeholder="例如 iOS 27.0">
           </label>
-
 
           <label>
             iPhone 型號（選填）
-
-            <input
-              name="deviceModel"
-              maxlength="120"
-              placeholder="例如 iPhone 17 Pro">
+            <input name="deviceModel" maxlength="120" placeholder="例如 iPhone 17 Pro">
           </label>
-
         </div>
 
-
-        <label
-          class="honeypot"
-          aria-hidden="true">
-
+        <label class="honeypot" aria-hidden="true">
           Website
-
-          <input
-            name="website"
-            tabindex="-1"
-            autocomplete="off">
-
+          <input name="website" tabindex="-1" autocomplete="off">
         </label>
 
-
-        <button
-          id="submit-button"
-          class="primary-button"
-          type="submit">
-
+        <button id="submit-button" class="primary-button" type="submit">
           送出回報
-
         </button>
 
-
-        <p
-          id="form-status"
-          class="muted"
-          role="status"
-          aria-live="polite">
-        </p>
-
-
-        <div
-          id="submit-result"
-          class="success-box"
-          hidden>
-        </div>
-
+        <p id="form-status" class="muted" role="status" aria-live="polite"></p>
+        <div id="submit-result" class="success-box" hidden></div>
       </form>
-
     </section>
-
 
     <section>
-
-      <h2>
-        提交前請注意
-      </h2>
-
-      <p>
-        請不要附上私密照片、位置、Apple ID、
-        電話或其他敏感個人資料。
-      </p>
-
-      <p class="muted">
-        回報送出後，開發者會先確認內容。
-        並不是所有回報都會公開顯示。
-      </p>
-
+      <h2>提交前請注意</h2>
+      <p>請不要附上私密照片、位置、Apple ID、電話或其他敏感個人資料。</p>
+      <p class="muted">回報送出後會先經過確認，並不是所有回報都會公開顯示。</p>
     </section>
-
 
     <section>
-
-      <h2>
-        TestFlight 使用者
-      </h2>
-
-      <p>
-        如果問題包含閃退或需要附圖，
-        也可以同時使用 TestFlight 內建的 Beta Feedback。
-        網站回報與 TestFlight 回報可以並存。
-      </p>
-
+      <h2>TestFlight 使用者</h2>
+      <p>如果問題包含閃退或需要附圖，也可以同時使用 TestFlight 內建的 Beta Feedback。</p>
     </section>
-
   </div>
 
-
-  <!-- ========================================= -->
-  <!-- 已知問題 -->
-  <!-- ========================================= -->
-
-  <div
-    id="issues-panel"
-    class="tab-panel"
-    hidden>
-
-    <section>
-
-      <h2>
-        已知問題與處理進度
-      </h2>
-
-      <p>
-        這裡只顯示經開發者確認後公開的問題。
-        原始回報內容與裝置資訊不會公開。
-      </p>
-
+  <div id="issues-panel" class="tab-panel" hidden>
+    <div class="issues-header">
+      <h2>已知問題與處理進度</h2>
+      <p class="muted">只顯示經確認後公開的問題。點擊項目即可查看詳細資訊。</p>
 
       <div class="issue-toolbar">
-
         <input
           id="issue-search"
+          class="issue-search"
           type="search"
-          placeholder="搜尋已知問題">
+          placeholder="搜尋問題、進度或版本">
 
-
-        <div
-          class="issue-filter-row"
-          aria-label="問題狀態篩選">
-
-          <button
-            class="issue-filter active"
-            type="button"
-            data-status="">
-
-            全部
-
-          </button>
-
-          <button
-            class="issue-filter"
-            type="button"
-            data-status="new">
-
-            已收到
-
-          </button>
-
-          <button
-            class="issue-filter"
-            type="button"
-            data-status="in_progress">
-
-            處理中
-
-          </button>
-
-          <button
-            class="issue-filter"
-            type="button"
-            data-status="resolved">
-
-            已修復
-
-          </button>
-
-          <button
-            class="issue-filter"
-            type="button"
-            data-status="closed">
-
-            已關閉
-
-          </button>
-
+        <div class="issue-filter-row">
+          <button class="issue-filter active" type="button" data-status="">全部</button>
+          <button class="issue-filter" type="button" data-status="new">已收到</button>
+          <button class="issue-filter" type="button" data-status="in_progress">處理中</button>
+          <button class="issue-filter" type="button" data-status="resolved">已修復</button>
+          <button class="issue-filter" type="button" data-status="closed">已關閉</button>
         </div>
 
-
-        <div
-          id="issue-count"
-          class="result-count">
-        </div>
-
+        <div id="issue-count" class="result-count"></div>
       </div>
-
-    </section>
-
-
-    <div
-      id="issue-list"
-      class="issue-list">
     </div>
 
+    <div id="issue-list" class="issue-list"></div>
   </div>
 
-
-  <footer>
-    © 2026 ChaiPhoto
-  </footer>
-
+  <footer>© 2026 ChaiPhoto</footer>
 </main>
 
-
 <script>
+const form = document.getElementById("feedback-form");
+const formStatus = document.getElementById("form-status");
+const submitButton = document.getElementById("submit-button");
+const submitResult = document.getElementById("submit-result");
 
-const form =
-  document.getElementById(
-    "feedback-form"
-  );
+const reportTab = document.getElementById("report-tab");
+const issuesTab = document.getElementById("issues-tab");
+const reportPanel = document.getElementById("report-panel");
+const issuesPanel = document.getElementById("issues-panel");
 
-const formStatus =
-  document.getElementById(
-    "form-status"
-  );
-
-const submitButton =
-  document.getElementById(
-    "submit-button"
-  );
-
-const submitResult =
-  document.getElementById(
-    "submit-result"
-  );
-
-
-const reportTab =
-  document.getElementById(
-    "report-tab"
-  );
-
-const issuesTab =
-  document.getElementById(
-    "issues-tab"
-  );
-
-const reportPanel =
-  document.getElementById(
-    "report-panel"
-  );
-
-const issuesPanel =
-  document.getElementById(
-    "issues-panel"
-  );
-
-
-const issueList =
-  document.getElementById(
-    "issue-list"
-  );
-
-const issueCount =
-  document.getElementById(
-    "issue-count"
-  );
-
-const issueSearch =
-  document.getElementById(
-    "issue-search"
-  );
-
-
-const filterButtons =
-  Array.from(
-    document.querySelectorAll(
-      ".issue-filter"
-    )
-  );
-
+const issueList = document.getElementById("issue-list");
+const issueCount = document.getElementById("issue-count");
+const issueSearch = document.getElementById("issue-search");
+const filterButtons = [...document.querySelectorAll(".issue-filter")];
 
 let allIssues = [];
 let activeStatus = "";
-
-
-/*
- * =============================================
- * Tab 切換
- * =============================================
- */
-
-function setTab(name) {
-
-  const showIssues =
-    name === "issues";
-
-
-  reportTab.classList.toggle(
-    "active",
-    !showIssues
-  );
-
-  issuesTab.classList.toggle(
-    "active",
-    showIssues
-  );
-
-
-  reportTab.setAttribute(
-    "aria-selected",
-    String(!showIssues)
-  );
-
-  issuesTab.setAttribute(
-    "aria-selected",
-    String(showIssues)
-  );
-
-
-  reportPanel.hidden =
-    showIssues;
-
-  issuesPanel.hidden =
-    !showIssues;
-
-
-  if (showIssues) {
-
-    history.replaceState(
-      null,
-      "",
-      "#issues"
-    );
-
-    loadIssues();
-
-  } else {
-
-    history.replaceState(
-      null,
-      "",
-      location.pathname +
-      location.search
-    );
-  }
-}
-
-
-reportTab.addEventListener(
-  "click",
-  () => setTab("report")
-);
-
-
-issuesTab.addEventListener(
-  "click",
-  () => setTab("issues")
-);
-
-
-/*
- * =============================================
- * App 參數自動填入
- * =============================================
- */
-
-const params =
-  new URLSearchParams(
-    location.search
-  );
-
-
-for (
-  const [key, param] of [
-    ["appVersion", "version"],
-    ["buildNumber", "build"],
-    ["iosVersion", "ios"],
-    ["deviceModel", "device"]
-  ]
-) {
-
-  const value =
-    params.get(param);
-
-  if (
-    value &&
-    form.elements[key]
-  ) {
-
-    form.elements[key].value =
-      value.slice(
-        0,
-        120
-      );
-  }
-}
-
-
-/*
- * =============================================
- * 問題回報
- * =============================================
- */
-
-form.addEventListener(
-  "submit",
-  async event => {
-
-    event.preventDefault();
-
-    submitButton.disabled =
-      true;
-
-    formStatus.textContent =
-      "正在送出…";
-
-    submitResult.hidden =
-      true;
-
-    submitResult.replaceChildren();
-
-
-    const data =
-      Object.fromEntries(
-        new FormData(
-          form
-        ).entries()
-      );
-
-
-    try {
-
-      const response =
-        await fetch(
-          "/api/feedback",
-          {
-            method:
-              "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-
-            body:
-              JSON.stringify(
-                data
-              )
-          }
-        );
-
-
-      const result =
-        await response.json();
-
-
-      if (
-        !response.ok ||
-        !result.ok
-      ) {
-
-        throw new Error(
-          result.error ||
-          "提交失敗"
-        );
-      }
-
-
-      form.reset();
-
-      formStatus.textContent =
-        "";
-
-
-      const title =
-        document.createElement(
-          "strong"
-        );
-
-      title.textContent =
-        "回報已收到";
-
-
-      const text =
-        document.createElement(
-          "p"
-        );
-
-      text.textContent =
-        "回報編號：" +
-        result.id;
-
-
-      const hint =
-        document.createElement(
-          "p"
-        );
-
-      hint.className =
-        "muted";
-
-      hint.textContent =
-        "如果這個問題經確認並公開，之後可以在「已知問題與進度」中查看處理狀態。";
-
-
-      submitResult.append(
-        title,
-        text,
-        hint
-      );
-
-
-      submitResult.hidden =
-        false;
-
-
-    } catch (error) {
-
-      formStatus.textContent =
-        "送出失敗，請稍後再試。";
-
-    } finally {
-
-      submitButton.disabled =
-        false;
-    }
-  }
-);
-
-
-/*
- * =============================================
- * 公開問題
- * =============================================
- */
+let issuesLoaded = false;
 
 const statusLabels = {
   new: "已收到",
@@ -909,7 +432,6 @@ const statusLabels = {
   resolved: "已修復",
   closed: "已關閉"
 };
-
 
 const categoryLabels = {
   crash: "App 閃退",
@@ -922,476 +444,326 @@ const categoryLabels = {
   other: "其他"
 };
 
+function formatDate(value, short = false) {
+  if (!value) return "";
 
-function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
 
-  if (!value) {
-    return "";
-  }
+  return short
+    ? date.toLocaleDateString("zh-TW", {
+        month: "numeric",
+        day: "numeric"
+      })
+    : date.toLocaleString("zh-TW");
+}
 
-  try {
+function setTab(name) {
+  const showIssues = name === "issues";
 
-    return new Date(value)
-      .toLocaleString(
-        "zh-TW"
-      );
+  reportTab.classList.toggle("active", !showIssues);
+  issuesTab.classList.toggle("active", showIssues);
 
-  } catch {
+  reportTab.setAttribute("aria-selected", String(!showIssues));
+  issuesTab.setAttribute("aria-selected", String(showIssues));
 
-    return value;
+  reportPanel.hidden = showIssues;
+  issuesPanel.hidden = !showIssues;
+
+  if (showIssues) {
+    history.replaceState(null, "", "#issues");
+
+    if (!issuesLoaded) {
+      loadIssues();
+    }
+  } else {
+    history.replaceState(null, "", location.pathname + location.search);
   }
 }
 
+reportTab.addEventListener("click", () => setTab("report"));
+issuesTab.addEventListener("click", () => setTab("issues"));
+
+const params = new URLSearchParams(location.search);
+
+for (const [key, param] of [
+  ["appVersion", "version"],
+  ["buildNumber", "build"],
+  ["iosVersion", "ios"],
+  ["deviceModel", "device"]
+]) {
+  const value = params.get(param);
+
+  if (value && form.elements[key]) {
+    form.elements[key].value = value.slice(0, 120);
+  }
+}
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  submitButton.disabled = true;
+  formStatus.textContent = "正在送出…";
+  submitResult.hidden = true;
+  submitResult.replaceChildren();
+
+  const data = Object.fromEntries(new FormData(form).entries());
+
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || "提交失敗");
+    }
+
+    form.reset();
+    formStatus.textContent = "";
+
+    const title = document.createElement("strong");
+    title.textContent = "回報已收到";
+
+    const id = document.createElement("p");
+    id.textContent = "回報編號：" + result.id;
+
+    const hint = document.createElement("p");
+    hint.className = "muted";
+    hint.textContent = "經確認並公開後，可以在「已知問題與進度」查看處理狀態。";
+
+    submitResult.append(title, id, hint);
+    submitResult.hidden = false;
+  } catch {
+    formStatus.textContent = "送出失敗，請稍後再試。";
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+function updateFilterCounts() {
+  const counts = {
+    new: 0,
+    in_progress: 0,
+    resolved: 0,
+    closed: 0
+  };
+
+  for (const item of allIssues) {
+    if (Object.hasOwn(counts, item.status)) {
+      counts[item.status]++;
+    }
+  }
+
+  for (const button of filterButtons) {
+    const status = button.dataset.status;
+
+    if (!status) {
+      button.textContent = `全部 ${allIssues.length}`;
+    } else {
+      button.textContent = `${statusLabels[status]} ${counts[status] || 0}`;
+    }
+  }
+}
 
 function renderIssues() {
-
   issueList.replaceChildren();
 
+  const keyword = issueSearch.value.trim().toLowerCase();
 
-  const keyword =
-    issueSearch.value
-      .trim()
+  const filtered = allIssues.filter(item => {
+    if (activeStatus && item.status !== activeStatus) {
+      return false;
+    }
+
+    if (!keyword) return true;
+
+    const haystack = [
+      item.public_title,
+      item.public_note,
+      item.fixed_version,
+      item.fixed_build,
+      item.id,
+      categoryLabels[item.category]
+    ]
+      .filter(Boolean)
+      .join(" ")
       .toLowerCase();
 
+    return haystack.includes(keyword);
+  });
 
-  const filtered =
-    allIssues.filter(
-      item => {
-
-        if (
-          activeStatus &&
-          item.status !==
-            activeStatus
-        ) {
-
-          return false;
-        }
-
-
-        if (!keyword) {
-          return true;
-        }
-
-
-        const haystack = [
-          item.public_title,
-          item.public_note,
-          item.fixed_version,
-          item.fixed_build,
-          item.id
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-
-        return haystack.includes(
-          keyword
-        );
-      }
-    );
-
-
-  issueCount.textContent =
-    "共 " +
-    filtered.length +
-    " 個公開問題";
-
+  issueCount.textContent = `顯示 ${filtered.length} / ${allIssues.length} 個公開問題`;
 
   if (!filtered.length) {
-
-    const empty =
-      document.createElement(
-        "section"
-      );
-
-    empty.className =
-      "empty-state";
-
-    empty.textContent =
-      "目前沒有符合條件的公開問題。";
-
-    issueList.append(
-      empty
-    );
-
+    const empty = document.createElement("div");
+    empty.className = "empty-state";
+    empty.textContent = "目前沒有符合條件的公開問題。";
+    issueList.append(empty);
     return;
   }
 
+  for (const item of filtered) {
+    const row = document.createElement("details");
+    row.className = "issue-row";
 
-  for (
-    const item of filtered
-  ) {
+    const summary = document.createElement("summary");
 
-    const card =
-      document.createElement(
-        "section"
-      );
+    const summaryGrid = document.createElement("div");
+    summaryGrid.className = "issue-summary";
 
-    card.className =
-      "issue-card";
+    const main = document.createElement("div");
+    main.className = "issue-main";
 
+    const title = document.createElement("div");
+    title.className = "issue-title";
+    title.textContent = item.public_title || "未命名問題";
 
-    const top =
-      document.createElement(
-        "div"
-      );
+    const subtitle = document.createElement("div");
+    subtitle.className = "issue-subtitle";
 
-    top.className =
-      "issue-top";
+    const category = document.createElement("span");
+    category.textContent = categoryLabels[item.category] || item.category || "問題";
 
+    const separator = document.createElement("span");
+    separator.textContent = "·";
 
-    const left =
-      document.createElement(
-        "div"
-      );
+    const updated = document.createElement("span");
+    updated.textContent =
+      "更新 " + formatDate(item.updated_at || item.created_at, true);
 
+    subtitle.append(category, separator, updated);
+    main.append(title, subtitle);
 
-    const category =
-      document.createElement(
-        "span"
-      );
+    const right = document.createElement("div");
+    right.className = "issue-right";
 
-    category.className =
-      "feedback-category";
+    const status = document.createElement("span");
+    status.className = "issue-status status-" + item.status;
+    status.textContent = statusLabels[item.status] || item.status;
 
-    category.textContent =
-      categoryLabels[
-        item.category
-      ] ||
-      item.category ||
-      "問題";
+    const chevron = document.createElement("span");
+    chevron.className = "chevron";
+    chevron.textContent = "›";
 
+    right.append(status, chevron);
+    summaryGrid.append(main, right);
+    summary.append(summaryGrid);
 
-    const title =
-      document.createElement(
-        "h2"
-      );
+    const detail = document.createElement("div");
+    detail.className = "issue-detail";
 
-    title.className =
-      "issue-title";
+    const inner = document.createElement("div");
+    inner.className = "issue-detail-inner";
 
-    title.textContent =
-      item.public_title ||
-      "未命名問題";
-
-
-    left.append(
-      category,
-      title
-    );
-
-
-    const status =
-      document.createElement(
-        "span"
-      );
-
-    status.className =
-      "issue-status status-" +
-      item.status;
-
-    status.textContent =
-      statusLabels[
-        item.status
-      ] ||
-      item.status;
-
-
-    top.append(
-      left,
-      status
-    );
-
-
-    card.append(
-      top
-    );
-
-
-    if (
-      item.public_note
-    ) {
-
-      const note =
-        document.createElement(
-          "p"
-        );
-
-      note.className =
-        "issue-note";
-
-      note.textContent =
-        item.public_note;
-
-      card.append(
-        note
-      );
+    if (item.public_note) {
+      const note = document.createElement("p");
+      note.className = "issue-note";
+      note.textContent = item.public_note;
+      inner.append(note);
     }
 
+    if (item.fixed_version || item.fixed_build) {
+      const fixed = document.createElement("div");
+      fixed.className = "issue-fixed";
 
-    if (
-      item.fixed_version ||
-      item.fixed_build
-    ) {
-
-      const fixed =
-        document.createElement(
-          "div"
-        );
-
-      fixed.className =
-        "issue-fixed";
-
-
-      const fixedTitle =
-        document.createElement(
-          "strong"
-        );
-
-
-      fixedTitle.textContent =
-        item.status ===
-          "resolved"
+      const label = document.createElement("strong");
+      label.textContent =
+        item.status === "resolved"
           ? "修復版本"
-          : "預計／相關版本";
-
-
-      const fixedText =
-        document.createElement(
-          "span"
-        );
-
+          : "相關版本";
 
       let value = "";
 
-
-      if (
-        item.fixed_version
-      ) {
-
-        value +=
-          item.fixed_version;
+      if (item.fixed_version) {
+        value += item.fixed_version;
       }
 
-
-      if (
-        item.fixed_build
-      ) {
-
-        if (value) {
-          value += " · ";
-        }
-
-        value +=
-          "Build " +
-          item.fixed_build;
+      if (item.fixed_build) {
+        if (value) value += " · ";
+        value += "Build " + item.fixed_build;
       }
 
+      const text = document.createElement("div");
+      text.textContent = value;
 
-      fixedText.textContent =
-        value;
-
-
-      fixed.append(
-        fixedTitle,
-        fixedText
-      );
-
-
-      card.append(
-        fixed
-      );
+      fixed.append(label, text);
+      inner.append(fixed);
     }
 
+    const meta = document.createElement("div");
+    meta.className = "issue-meta";
 
-    const meta =
-      document.createElement(
-        "div"
-      );
+    const created = document.createElement("div");
+    created.textContent = "首次回報：" + formatDate(item.created_at);
 
-    meta.className =
-      "issue-meta";
+    const lastUpdated = document.createElement("div");
+    lastUpdated.textContent =
+      "最後更新：" + formatDate(item.updated_at || item.created_at);
 
+    const id = document.createElement("div");
+    id.className = "issue-id";
+    id.textContent = "回報編號：" + item.id;
 
-    const id =
-      document.createElement(
-        "div"
-      );
+    meta.append(created, lastUpdated, id);
+    inner.append(meta);
 
-    id.className =
-      "issue-id";
-
-    id.textContent =
-      "回報編號：" +
-      item.id;
-
-
-    const created =
-      document.createElement(
-        "div"
-      );
-
-    created.textContent =
-      "首次回報：" +
-      formatDate(
-        item.created_at
-      );
-
-
-    meta.append(
-      id,
-      created
-    );
-
-
-    if (
-      item.updated_at
-    ) {
-
-      const updated =
-        document.createElement(
-          "div"
-        );
-
-      updated.textContent =
-        "最後更新：" +
-        formatDate(
-          item.updated_at
-        );
-
-      meta.append(
-        updated
-      );
-    }
-
-
-    card.append(
-      meta
-    );
-
-
-    issueList.append(
-      card
-    );
+    detail.append(inner);
+    row.append(summary, detail);
+    issueList.append(row);
   }
 }
 
-
 async function loadIssues() {
-
-  issueCount.textContent =
-    "正在讀取公開問題…";
-
+  issueCount.textContent = "正在讀取公開問題…";
 
   try {
+    const response = await fetch("/api/public-feedback", {
+      headers: {
+        "Accept": "application/json"
+      },
+      cache: "no-store"
+    });
 
-    const response =
-      await fetch(
-        "/api/public-feedback",
-        {
-          headers: {
-            "Accept":
-              "application/json"
-          },
+    const result = await response.json();
 
-          cache:
-            "no-store"
-        }
-      );
-
-
-    const result =
-      await response.json();
-
-
-    if (
-      !response.ok ||
-      !result.ok
-    ) {
-
+    if (!response.ok || !result.ok) {
       throw new Error();
     }
 
+    allIssues = result.feedback || [];
+    issuesLoaded = true;
 
-    allIssues =
-      result.feedback || [];
-
-
+    updateFilterCounts();
     renderIssues();
-
-
   } catch {
-
-    issueCount.textContent =
-      "目前無法讀取公開問題。";
-
+    issueCount.textContent = "目前無法讀取公開問題。";
     issueList.replaceChildren();
-
   }
 }
 
+for (const button of filterButtons) {
+  button.addEventListener("click", () => {
+    activeStatus = button.dataset.status || "";
 
-/*
- * =============================================
- * 篩選
- * =============================================
- */
-
-for (
-  const button of
-    filterButtons
-) {
-
-  button.addEventListener(
-    "click",
-    () => {
-
-      activeStatus =
-        button.dataset.status ||
-        "";
-
-
-      for (
-        const other of
-          filterButtons
-      ) {
-
-        other.classList.toggle(
-          "active",
-          other === button
-        );
-      }
-
-
-      renderIssues();
+    for (const other of filterButtons) {
+      other.classList.toggle("active", other === button);
     }
-  );
+
+    renderIssues();
+  });
 }
 
+issueSearch.addEventListener("input", renderIssues);
 
-issueSearch.addEventListener(
-  "input",
-  renderIssues
-);
-
-
-/*
- * =============================================
- * 如果網址是 /report#issues
- * 直接開啟已知問題
- * =============================================
- */
-
-if (
-  location.hash ===
-    "#issues"
-) {
-
+if (location.hash === "#issues") {
   setTab("issues");
 }
-
 </script>
-
 </body>
 </html>
