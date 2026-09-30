@@ -2,9 +2,18 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="ChaiPhoto Beta - 更直覺地整理 iPhone 相簿">
+
+  <meta
+    name="description"
+    content="ChaiPhoto Beta - 更直覺地整理 iPhone 相簿"
+  >
 
   <title>ChaiPhoto Beta</title>
 
@@ -26,15 +35,22 @@
     body {
       margin: 0;
       padding: 0;
+
       background: var(--bg);
       color: var(--text);
+
       font-family:
         -apple-system,
         BlinkMacSystemFont,
         "SF Pro Text",
         "Segoe UI",
         sans-serif;
+
       overflow-x: hidden;
+    }
+
+    body {
+      min-height: 100vh;
     }
 
     a {
@@ -44,96 +60,156 @@
 
     .page {
       width: min(680px, calc(100% - 32px));
+
       margin: 0 auto;
-      padding: 24px 0 80px;
+
+      padding:
+        max(24px, env(safe-area-inset-top))
+        0
+        calc(80px + env(safe-area-inset-bottom));
     }
 
-    /* 頂部 */
+    /* =========================
+       頂部
+       ========================= */
+
     .topbar {
       display: flex;
+
       align-items: center;
       justify-content: space-between;
+
       gap: 16px;
-      margin-bottom: 24px;
+
+      margin-bottom: 25px;
     }
 
     .topbar a {
       font-size: 17px;
+      font-weight: 500;
     }
 
     .topbar span {
       color: var(--secondary);
+
       font-size: 15px;
     }
 
-    /* App Header */
+    /* =========================
+       App Header
+       ========================= */
+
     .app-header {
       display: grid;
+
       grid-template-columns: 118px minmax(0, 1fr);
+
       gap: 20px;
+
       align-items: center;
+
       padding-bottom: 26px;
     }
 
     .app-icon {
       width: 118px;
       height: 118px;
-      border-radius: 26px;
+
       overflow: hidden;
-      background: #111;
+
+      border-radius: 26px;
+
+      background: #111111;
+
       box-shadow:
         0 10px 30px rgba(0, 0, 0, .45),
         inset 0 0 0 1px rgba(255, 255, 255, .10);
     }
 
     .app-icon img {
+      display: block;
+
       width: 100%;
       height: 100%;
+
       object-fit: cover;
-      display: block;
+    }
+
+    .app-info {
+      min-width: 0;
     }
 
     .app-info h1 {
-      margin: 0 0 6px;
+      margin: 0 0 5px;
+
       font-size: 32px;
       line-height: 1.08;
-      letter-spacing: -.6px;
+
+      letter-spacing: -.7px;
     }
 
     .subtitle {
+      margin-bottom: 4px;
+
       color: var(--secondary);
+
       font-size: 18px;
-      margin-bottom: 5px;
     }
 
     .developer {
+      margin-bottom: 15px;
+
       color: var(--blue);
+
       font-size: 15px;
-      margin-bottom: 17px;
     }
 
     .get-button {
       display: inline-flex;
+
       align-items: center;
       justify-content: center;
+
       min-width: 78px;
       height: 34px;
+
       padding: 0 20px;
+
       border-radius: 999px;
+
       background: var(--blue);
-      color: #fff;
+      color: #ffffff;
+
       font-size: 16px;
       font-weight: 700;
     }
 
-    /* Summary */
+    .install-note {
+      margin-top: 8px;
+
+      color: var(--secondary);
+
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    /* =========================
+       App Store 類型資訊列
+       ========================= */
+
     .summary {
       display: flex;
+
       overflow-x: auto;
-      scrollbar-width: none;
+
+      padding: 16px 0;
+
       border-top: 1px solid var(--line);
       border-bottom: 1px solid var(--line);
-      padding: 16px 0;
+
+      scrollbar-width: none;
+
+      scroll-snap-type: x proximity;
     }
 
     .summary::-webkit-scrollbar {
@@ -142,10 +218,16 @@
 
     .summary-item {
       flex: 0 0 125px;
-      min-height: 78px;
-      text-align: center;
+
+      min-height: 76px;
+
       padding: 0 14px;
+
+      text-align: center;
+
       border-right: 1px solid var(--line);
+
+      scroll-snap-align: start;
     }
 
     .summary-item:first-child {
@@ -157,44 +239,58 @@
     }
 
     .summary-label {
+      margin-bottom: 6px;
+
       color: var(--secondary);
+
       font-size: 12px;
       font-weight: 600;
-      margin-bottom: 6px;
     }
 
     .summary-main {
+      white-space: nowrap;
+
       font-size: 24px;
       font-weight: 700;
       line-height: 1.2;
-      white-space: nowrap;
     }
 
     .summary-sub {
-      color: var(--secondary);
-      font-size: 13px;
       margin-top: 5px;
+
+      color: var(--secondary);
+
+      font-size: 13px;
     }
 
-    /* Section */
+    /* =========================
+       一般 Section
+       ========================= */
+
     section {
       padding: 27px 0;
+
       border-bottom: 1px solid var(--line);
     }
 
     .section-head {
       display: flex;
+
       align-items: center;
       justify-content: space-between;
+
       gap: 15px;
+
       margin-bottom: 12px;
     }
 
     h2 {
       margin: 0;
+
       font-size: 26px;
       line-height: 1.2;
-      letter-spacing: -.4px;
+
+      letter-spacing: -.5px;
     }
 
     .muted {
@@ -202,9 +298,11 @@
     }
 
     .version {
-      color: var(--secondary);
-      font-size: 16px;
       margin-bottom: 15px;
+
+      color: var(--secondary);
+
+      font-size: 16px;
     }
 
     .body-text {
@@ -214,50 +312,91 @@
 
     .changelog {
       display: grid;
+
       gap: 8px;
     }
 
-    /* Preview */
+    /* =========================
+       預覽
+       直式長方形 + 下方文字
+       ========================= */
+
     .preview-strip {
       display: flex;
-      gap: 14px;
+
+      gap: 16px;
+
       overflow-x: auto;
-      scrollbar-width: none;
+
       margin-right: -16px;
       padding-right: 16px;
+      padding-bottom: 4px;
+
+      scrollbar-width: none;
+
+      scroll-snap-type: x mandatory;
     }
 
     .preview-strip::-webkit-scrollbar {
       display: none;
     }
 
-    .preview-card {
-      flex: 0 0 250px;
+    .preview-item {
+      flex: 0 0 265px;
+
+      min-width: 0;
+
+      scroll-snap-align: start;
+    }
+
+    .preview-image-wrap {
+      position: relative;
+
+      width: 100%;
+
+      aspect-ratio: 9 / 16;
+
+      overflow: hidden;
+
+      border-radius: 24px;
+
+      background: #101010;
+
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, .08),
+        0 8px 28px rgba(0, 0, 0, .25);
     }
 
     .preview-image {
-      width: 100%;
-      aspect-ratio: 9 / 16;
       display: block;
+
+      width: 100%;
+      height: 100%;
+
       object-fit: cover;
-      border-radius: 22px;
-      background: #111;
     }
 
     .preview-title {
-      margin-top: 10px;
-      font-size: 15px;
+      margin-top: 13px;
+
+      font-size: 20px;
       font-weight: 700;
+      line-height: 1.3;
     }
 
     .preview-desc {
-      margin-top: 4px;
+      margin-top: 5px;
+
       color: var(--secondary);
-      font-size: 13px;
-      line-height: 1.45;
+
+      font-size: 15px;
+      line-height: 1.5;
     }
 
-    /* About */
+    /* =========================
+       About
+       ========================= */
+
     .about {
       font-size: 17px;
       line-height: 1.65;
@@ -265,26 +404,36 @@
 
     .feature-list {
       display: grid;
-      gap: 16px;
-      margin-top: 22px;
+
+      gap: 17px;
+
+      margin-top: 23px;
     }
 
     .feature {
       display: grid;
-      grid-template-columns: 40px minmax(0, 1fr);
+
+      grid-template-columns: 42px minmax(0, 1fr);
+
       gap: 12px;
+
       align-items: start;
     }
 
     .feature-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 11px;
-      background: #151518;
-      color: var(--blue);
       display: flex;
+
       align-items: center;
       justify-content: center;
+
+      width: 42px;
+      height: 42px;
+
+      border-radius: 12px;
+
+      background: #151518;
+      color: var(--blue);
+
       font-size: 20px;
       font-weight: 700;
     }
@@ -295,26 +444,39 @@
     }
 
     .feature-desc {
+      margin-top: 3px;
+
       color: var(--secondary);
+
       font-size: 14px;
       line-height: 1.45;
-      margin-top: 3px;
     }
 
-    /* Feedback */
+    /* =========================
+       Beta Feedback
+       ========================= */
+
     .feedback-note-top {
-      color: var(--secondary);
-      font-size: 14px;
       margin-bottom: 15px;
+
+      color: var(--secondary);
+
+      font-size: 14px;
     }
 
     .feedback-strip {
       display: flex;
+
       gap: 14px;
+
       overflow-x: auto;
-      scrollbar-width: none;
+
       margin-right: -16px;
       padding-right: 16px;
+
+      scrollbar-width: none;
+
+      scroll-snap-type: x mandatory;
     }
 
     .feedback-strip::-webkit-scrollbar {
@@ -323,20 +485,28 @@
 
     .feedback-card {
       flex: 0 0 300px;
-      background: var(--card);
+
+      padding: 19px;
+
       border-radius: 20px;
-      padding: 18px;
+
+      background: var(--card);
+
+      scroll-snap-align: start;
     }
 
     .feedback-card h3 {
       margin: 0 0 8px;
+
       font-size: 18px;
     }
 
     .feedback-meta {
-      color: var(--secondary);
-      font-size: 13px;
       margin-bottom: 12px;
+
+      color: var(--secondary);
+
+      font-size: 13px;
     }
 
     .feedback-text {
@@ -346,87 +516,127 @@
 
     .feedback-disclaimer {
       margin-top: 15px;
+
       color: var(--secondary);
+
       font-size: 12px;
       line-height: 1.5;
     }
 
     .actions {
       display: grid;
+
       grid-template-columns: 1fr 1fr;
+
       gap: 12px;
+
       margin-top: 20px;
     }
 
     .action {
       display: flex;
+
       align-items: center;
       justify-content: center;
+
       min-height: 52px;
+
       border-radius: 17px;
+
       background: var(--card);
-      color: #fff;
+      color: #ffffff;
+
       font-size: 16px;
       font-weight: 700;
     }
 
-    /* Privacy */
+    /* =========================
+       Privacy
+       ========================= */
+
     .privacy-intro {
       color: var(--secondary);
+
       font-size: 16px;
       line-height: 1.55;
     }
 
     .privacy-card {
       margin-top: 18px;
-      background: var(--card);
-      border-radius: 22px;
       padding: 24px;
+
+      border-radius: 22px;
+
+      background: var(--card);
     }
 
     .privacy-card h3 {
       margin: 0 0 16px;
+
       font-size: 21px;
     }
 
     .privacy-list {
       display: grid;
+
       gap: 11px;
+
       font-size: 16px;
     }
 
-    /* Info */
+    /* =========================
+       Info
+       ========================= */
+
     .info-table {
       margin-top: 18px;
+
       border-top: 1px solid var(--line);
     }
 
     .info-row {
       display: grid;
+
       grid-template-columns: 110px minmax(0, 1fr);
+
       gap: 15px;
+
       padding: 15px 0;
+
       border-bottom: 1px solid var(--line);
     }
 
     .info-key {
       color: var(--secondary);
+
       font-size: 16px;
     }
 
     .info-value {
       text-align: right;
+
       font-size: 16px;
     }
 
+    /* =========================
+       Footer
+       ========================= */
+
     footer {
       padding-top: 30px;
+
       color: var(--secondary);
-      font-size: 12px;
+
       text-align: center;
+
+      font-size: 12px;
+      line-height: 1.5;
     }
 
-    /* Mobile */
+    /* =========================
+       Mobile
+       ========================= */
+
     @media (max-width: 390px) {
       .page {
         width: min(100% - 24px, 680px);
@@ -434,12 +644,14 @@
 
       .app-header {
         grid-template-columns: 102px minmax(0, 1fr);
+
         gap: 16px;
       }
 
       .app-icon {
         width: 102px;
         height: 102px;
+
         border-radius: 22px;
       }
 
@@ -456,6 +668,14 @@
         margin-right: -12px;
         padding-right: 12px;
       }
+
+      .preview-item {
+        flex-basis: 245px;
+      }
+
+      .preview-title {
+        font-size: 19px;
+      }
     }
   </style>
 </head>
@@ -464,22 +684,32 @@
 
 <main class="page">
 
-  <!-- TOP -->
+  <!-- =========================
+       TOP
+       ========================= -->
+
   <div class="topbar">
     <a href="/">‹ ChaiPhoto</a>
+
     <span>Beta 安裝頁</span>
   </div>
 
-  <!-- APP HEADER -->
+
+  <!-- =========================
+       APP HEADER
+       ========================= -->
+
   <div class="app-header">
 
     <div class="app-icon">
       <img
-        src="images/icon.png"
-        alt="ChaiPhoto App Icon">
+        src="/beta/images/icon.png"
+        alt="ChaiPhoto App Icon"
+      >
     </div>
 
     <div class="app-info">
+
       <h1>ChaiPhoto</h1>
 
       <div class="subtitle">
@@ -492,77 +722,154 @@
 
       <a
         class="get-button"
-        href="itms-services://?action=download-manifest&url=https://pub-aced486ba4d34702842b3177a1c3e9c9.r2.dev/manifest.plist">
+        href="itms-services://?action=download-manifest&url=https://pub-aced486ba4d34702842b3177a1c3e9c9.r2.dev/manifest.plist"
+      >
         取得
       </a>
+
+      <div class="install-note">
+        僅限已登記測試裝置安裝
+      </div>
+
     </div>
 
   </div>
 
-  <!-- SUMMARY -->
+
+  <!-- =========================
+       SUMMARY
+       ========================= -->
+
   <div class="summary">
 
     <div class="summary-item">
       <div class="summary-label">版本</div>
-      <div class="summary-main">1.0 Beta</div>
-      <div class="summary-sub">Build 1</div>
+
+      <div class="summary-main">
+        1.0 Beta
+      </div>
+
+      <div class="summary-sub">
+        Build 1
+      </div>
     </div>
+
 
     <div class="summary-item">
       <div class="summary-label">年齡分級</div>
-      <div class="summary-main">12+</div>
-      <div class="summary-sub">歲</div>
+
+      <div class="summary-main">
+        12+
+      </div>
+
+      <div class="summary-sub">
+        歲
+      </div>
     </div>
+
 
     <div class="summary-item">
       <div class="summary-label">類別</div>
-      <div class="summary-main">工具</div>
-      <div class="summary-sub">工具程式</div>
+
+      <div class="summary-main">
+        工具
+      </div>
+
+      <div class="summary-sub">
+        工具程式
+      </div>
     </div>
+
 
     <div class="summary-item">
       <div class="summary-label">平台</div>
-      <div class="summary-main">iPhone</div>
-      <div class="summary-sub">iOS</div>
+
+      <div class="summary-main">
+        iPhone
+      </div>
+
+      <div class="summary-sub">
+        iOS
+      </div>
     </div>
 
   </div>
 
-  <!-- WHAT'S NEW -->
+
+  <!-- =========================
+       WHAT'S NEW
+       ========================= -->
+
   <section>
 
     <div class="section-head">
-      <h2>新功能</h2>
-      <span class="muted">Beta</span>
+
+      <h2>
+        新功能
+      </h2>
+
+      <span class="muted">
+        Beta
+      </span>
+
     </div>
+
 
     <div class="version">
       版本 1.0 Beta · Build 1
     </div>
 
+
     <div class="body-text changelog">
-      <div>• 支援照片快速整理，左滑待刪、右滑保留。</div>
-      <div>• 支援影片整理與上下滑動預覽。</div>
-      <div>• 提供待刪複查，刪除前可再次確認與還原。</div>
-      <div>• 可依照片、影片、相簿與時間切換整理範圍。</div>
+
+      <div>
+        • 支援照片快速整理，左滑待刪、右滑保留。
+      </div>
+
+      <div>
+        • 支援影片整理與上下滑動預覽。
+      </div>
+
+      <div>
+        • 提供待刪複查，刪除前可再次確認與還原。
+      </div>
+
+      <div>
+        • 可依照片、影片、相簿與時間切換整理範圍。
+      </div>
+
     </div>
 
   </section>
 
-  <!-- PREVIEW -->
+
+  <!-- =========================
+       PREVIEW
+       ========================= -->
+
   <section>
 
-    <h2 style="margin-bottom:16px;">
+    <h2 style="margin-bottom: 17px;">
       預覽
     </h2>
 
+
     <div class="preview-strip">
 
-      <div class="preview-card">
-        <img
-          class="preview-image"
-          src="images/photo-organize.png"
-          alt="快速整理照片">
+
+      <!-- 1 -->
+      <div class="preview-item">
+
+        <div class="preview-image-wrap">
+
+          <img
+            class="preview-image"
+            src="/beta/images/photo-organize.png"
+            alt="ChaiPhoto 快速整理照片"
+            loading="lazy"
+          >
+
+        </div>
 
         <div class="preview-title">
           快速整理照片
@@ -571,43 +878,73 @@
         <div class="preview-desc">
           左滑待刪，右滑保留，快速完成照片整理。
         </div>
+
       </div>
 
-      <div class="preview-card">
-        <img
-          class="preview-image"
-          src="images/video-organize.png"
-          alt="影片快速整理">
+
+      <!-- 2 -->
+      <div class="preview-item">
+
+        <div class="preview-image-wrap">
+
+          <img
+            class="preview-image"
+            src="/beta/images/video-organize.png"
+            alt="ChaiPhoto 影片快速整理"
+            loading="lazy"
+          >
+
+        </div>
 
         <div class="preview-title">
           影片也能快速整理
         </div>
 
         <div class="preview-desc">
-          上下滑動切換影片，並支援靜音、加入相簿、待刪與分享。
+          上下滑動切換影片，並提供靜音、加入相簿、待刪與分享等操作。
         </div>
+
       </div>
 
-      <div class="preview-card">
-        <img
-          class="preview-image"
-          src="images/delete-review.png"
-          alt="待刪複查">
+
+      <!-- 3 -->
+      <div class="preview-item">
+
+        <div class="preview-image-wrap">
+
+          <img
+            class="preview-image"
+            src="/beta/images/delete-review.png"
+            alt="ChaiPhoto 待刪複查"
+            loading="lazy"
+          >
+
+        </div>
 
         <div class="preview-title">
           待刪前先複查
         </div>
 
         <div class="preview-desc">
-          集中確認待刪項目，正式刪除前仍可快速還原。
+          集中確認待刪項目，正式刪除前仍能快速還原。
         </div>
+
       </div>
 
-      <div class="preview-card">
-        <img
-          class="preview-image"
-          src="images/filter.png"
-          alt="整理篩選">
+
+      <!-- 4 -->
+      <div class="preview-item">
+
+        <div class="preview-image-wrap">
+
+          <img
+            class="preview-image"
+            src="/beta/images/filter.png"
+            alt="ChaiPhoto 整理篩選"
+            loading="lazy"
+          >
+
+        </div>
 
         <div class="preview-title">
           用篩選更快找到目標
@@ -616,35 +953,49 @@
         <div class="preview-desc">
           可依照片、影片、相簿與時間快速切換整理範圍。
         </div>
+
       </div>
 
     </div>
 
   </section>
 
-  <!-- ABOUT -->
+
+  <!-- =========================
+       ABOUT
+       ========================= -->
+
   <section>
 
-    <h2 style="margin-bottom:14px;">
+    <h2 style="margin-bottom: 15px;">
       關於此 App
     </h2>
 
+
     <div class="about">
-      ChaiPhoto 是一款協助整理 iPhone 相簿的工具，
+
+      ChaiPhoto 是一款專為 iPhone 相簿整理設計的工具，
       希望讓大量照片與影片的日常整理變得更直接、更容易操作。
+
       <br><br>
+
       目前 Beta 版本主要提供照片與影片的手動整理流程，
       包含滑動標記、影片預覽、待刪複查以及整理篩選。
-      <br><br>
-      目前尚未提供照片辨識、相似內容辨識或自動智慧分析功能。
+
     </div>
+
 
     <div class="feature-list">
 
+
       <div class="feature">
-        <div class="feature-icon">↔</div>
+
+        <div class="feature-icon">
+          ↔
+        </div>
 
         <div>
+
           <div class="feature-title">
             照片快速整理
           </div>
@@ -652,27 +1003,41 @@
           <div class="feature-desc">
             左滑標記待刪，右滑保留照片。
           </div>
+
         </div>
+
       </div>
 
+
       <div class="feature">
-        <div class="feature-icon">▶</div>
+
+        <div class="feature-icon">
+          ▶
+        </div>
 
         <div>
+
           <div class="feature-title">
             影片整理
           </div>
 
           <div class="feature-desc">
-            上下滑動切換影片，並支援靜音、加入相簿、待刪與分享。
+            上下滑動切換影片，並提供靜音、加入相簿、待刪與分享操作。
           </div>
+
         </div>
+
       </div>
 
+
       <div class="feature">
-        <div class="feature-icon">✓</div>
+
+        <div class="feature-icon">
+          ✓
+        </div>
 
         <div>
+
           <div class="feature-title">
             待刪複查
           </div>
@@ -680,13 +1045,20 @@
           <div class="feature-desc">
             正式刪除前集中確認，並可還原不想刪除的項目。
           </div>
+
         </div>
+
       </div>
 
+
       <div class="feature">
-        <div class="feature-icon">≡</div>
+
+        <div class="feature-icon">
+          ≡
+        </div>
 
         <div>
+
           <div class="feature-title">
             整理篩選
           </div>
@@ -694,27 +1066,37 @@
           <div class="feature-desc">
             依照片、影片、相簿與時間縮小整理範圍。
           </div>
+
         </div>
+
       </div>
 
     </div>
 
   </section>
 
-  <!-- BETA FEEDBACK -->
+
+  <!-- =========================
+       BETA FEEDBACK
+       ========================= -->
+
   <section>
 
-    <h2 style="margin-bottom:10px;">
+    <h2 style="margin-bottom: 10px;">
       Beta 測試回饋
     </h2>
+
 
     <div class="feedback-note-top">
       以下內容為頁面展示用示意回饋。
     </div>
 
+
     <div class="feedback-strip">
 
+
       <div class="feedback-card">
+
         <h3>
           整理流程很直覺
         </h3>
@@ -724,11 +1106,15 @@
         </div>
 
         <div class="feedback-text">
-          左右滑動就能快速處理照片，整體操作方式很好理解。
+          左右滑動就能快速處理照片，
+          整體操作方式很好理解。
         </div>
+
       </div>
 
+
       <div class="feedback-card">
+
         <h3>
           待刪複查很好用
         </h3>
@@ -738,11 +1124,15 @@
         </div>
 
         <div class="feedback-text">
-          不用擔心滑錯，最後還能集中確認一次再刪除。
+          不用擔心滑錯，
+          最後還能集中確認一次再刪除。
         </div>
+
       </div>
 
+
       <div class="feedback-card">
+
         <h3>
           影片整理很方便
         </h3>
@@ -752,27 +1142,35 @@
         </div>
 
         <div class="feedback-text">
-          上下滑就能快速切換影片，比一個一個進相簿方便很多。
+          上下滑就能快速切換影片，
+          比一個一個進相簿方便很多。
         </div>
+
       </div>
 
     </div>
 
+
     <div class="feedback-disclaimer">
-      上述評論為 Beta 頁面版型展示用文字，不代表真實公開使用者評分。
+      上述文字為 Beta 頁面展示用示意回饋，
+      不代表真實公開使用者評分。
     </div>
+
 
     <div class="actions">
 
       <a
         class="action"
-        href="/report">
+        href="/report"
+      >
         提供回饋
       </a>
 
+
       <a
         class="action"
-        href="/support">
+        href="/support"
+      >
         App 支援
       </a>
 
@@ -780,18 +1178,27 @@
 
   </section>
 
-  <!-- PRIVACY -->
+
+  <!-- =========================
+       PRIVACY
+       ========================= -->
+
   <section>
 
-    <h2 style="margin-bottom:14px;">
+    <h2 style="margin-bottom: 15px;">
       App 隱私權
     </h2>
 
+
     <div class="privacy-intro">
+
       ChaiPhoto 的核心功能需要存取使用者授權的照片與影片，
-      以提供相簿整理與操作功能。
-      詳細內容請參閱隱私權政策。
+      以提供相簿整理與相關操作。
+
+      詳細資料處理方式請參閱隱私權政策。
+
     </div>
+
 
     <div class="privacy-card">
 
@@ -799,82 +1206,183 @@
         功能可能涉及的資料
       </h3>
 
+
       <div class="privacy-list">
-        <div>照片與影片</div>
-        <div>相簿資訊</div>
-        <div>裝置與 App 診斷資訊</div>
-        <div>使用者主動提交的錯誤回報內容</div>
+
+        <div>
+          照片與影片
+        </div>
+
+        <div>
+          相簿資訊
+        </div>
+
+        <div>
+          裝置與 App 診斷資訊
+        </div>
+
+        <div>
+          使用者主動提交的問題回報內容
+        </div>
+
       </div>
 
     </div>
 
   </section>
 
-  <!-- INFO -->
+
+  <!-- =========================
+       INFO
+       ========================= -->
+
   <section>
 
     <h2>
       資訊
     </h2>
 
+
     <div class="info-table">
 
-      <div class="info-row">
-        <div class="info-key">供應商</div>
-        <div class="info-value">ChaiPhoto</div>
-      </div>
 
       <div class="info-row">
-        <div class="info-key">類別</div>
-        <div class="info-value">工具程式</div>
-      </div>
 
-      <div class="info-row">
-        <div class="info-key">平台</div>
-        <div class="info-value">iPhone</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">版本</div>
-        <div class="info-value">1.0 Beta</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">Build</div>
-        <div class="info-value">1</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">測試方式</div>
-        <div class="info-value">Ad Hoc Beta</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">隱私權</div>
+        <div class="info-key">
+          供應商
+        </div>
 
         <div class="info-value">
+          ChaiPhoto
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          類別
+        </div>
+
+        <div class="info-value">
+          工具程式
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          平台
+        </div>
+
+        <div class="info-value">
+          iPhone
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          版本
+        </div>
+
+        <div class="info-value">
+          1.0 Beta
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          Build
+        </div>
+
+        <div class="info-value">
+          1
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          測試方式
+        </div>
+
+        <div class="info-value">
+          Ad Hoc Beta
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          安裝資格
+        </div>
+
+        <div class="info-value">
+          已登記裝置
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          隱私權
+        </div>
+
+        <div class="info-value">
+
           <a href="/privacy">
             查看政策
           </a>
+
         </div>
+
       </div>
 
+
       <div class="info-row">
-        <div class="info-key">問題回報</div>
+
+        <div class="info-key">
+          問題回報
+        </div>
 
         <div class="info-value">
+
           <a href="/report">
             開啟回報
           </a>
+
         </div>
+
       </div>
 
     </div>
 
   </section>
 
+
   <footer>
-    ChaiPhoto Beta · 非 App Store 正式上架版本
+
+    ChaiPhoto Beta
+
+    <br>
+
+    非 App Store 正式上架版本 · 僅已登記測試裝置可安裝
+
   </footer>
 
 </main>
