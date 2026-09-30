@@ -1,472 +1,494 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#000000">
-<meta name="description" content="ChaiPhoto Beta - 更直覺地整理 iPhone 相簿">
-<title>ChaiPhoto Beta</title>
-
-<style>
-:root{
-  --bg:#000;
-  --card:#1c1c1e;
-  --text:#f5f5f7;
-  --muted:#8e8e93;
-  --line:#2c2c2e;
-  --blue:#0a84ff;
-}
-
-*{
-  box-sizing:border-box;
-}
-
-html,body{
-  margin:0;
-  padding:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "SF Pro Text",
-    "Segoe UI",
-    sans-serif;
-}
-
-body{
-  overflow-x:hidden;
-}
-
-a{
-  color:var(--blue);
-  text-decoration:none;
-}
-
-.page{
-  width:min(680px,calc(100% - 32px));
-  margin:0 auto;
-  padding:24px 0 80px;
-}
-
-/* TOP */
-.top-note{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:26px;
-  font-size:15px;
-}
-
-.top-note .beta{
-  color:var(--muted);
-}
-
-/* APP HEADER */
-.app-header{
-  display:grid;
-  grid-template-columns:118px minmax(0,1fr);
-  gap:20px;
-  align-items:center;
-  padding-bottom:26px;
-}
-
-.app-icon{
-  width:118px;
-  height:118px;
-  border-radius:26px;
-  background:
-    linear-gradient(180deg,#3ec2ff 0%,#0a84ff 58%,#0061d8 100%);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:800;
-  font-size:39px;
-  color:#fff;
-  box-shadow:
-    0 10px 30px rgba(0,0,0,.4),
-    inset 0 0 0 1px rgba(255,255,255,.16);
-}
-
-.app-title h1{
-  margin:0 0 5px;
-  font-size:32px;
-  line-height:1.08;
-  letter-spacing:-.7px;
-}
-
-.subtitle{
-  color:var(--muted);
-  font-size:18px;
-  margin-bottom:5px;
-}
-
-.developer{
-  color:var(--blue);
-  font-size:15px;
-  margin-bottom:17px;
-}
-
-.get-button{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-width:78px;
-  height:34px;
-  padding:0 20px;
-  border-radius:999px;
-  background:var(--blue);
-  color:#fff;
-  font-weight:700;
-  font-size:16px;
-}
-
-/* SUMMARY */
-.summary{
-  display:flex;
-  overflow-x:auto;
-  scrollbar-width:none;
-  border-top:1px solid var(--line);
-  border-bottom:1px solid var(--line);
-  padding:15px 0;
-}
-
-.summary::-webkit-scrollbar{
-  display:none;
-}
-
-.summary-item{
-  flex:0 0 125px;
-  min-height:77px;
-  text-align:center;
-  padding:0 14px;
-  border-right:1px solid var(--line);
-}
-
-.summary-item:first-child{
-  padding-left:0;
-}
-
-.summary-item:last-child{
-  border-right:0;
-}
-
-.summary-label{
-  color:var(--muted);
-  font-size:12px;
-  font-weight:600;
-  margin-bottom:6px;
-}
-
-.summary-main{
-  font-size:24px;
-  font-weight:700;
-  white-space:nowrap;
-}
-
-.summary-sub{
-  color:var(--muted);
-  font-size:13px;
-  margin-top:5px;
-}
-
-/* GENERAL */
-section{
-  padding:27px 0;
-  border-bottom:1px solid var(--line);
-}
-
-.section-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:14px;
-  margin-bottom:12px;
-}
-
-h2{
-  margin:0;
-  font-size:26px;
-  letter-spacing:-.5px;
-}
-
-.small-muted{
-  color:var(--muted);
-  font-size:15px;
-}
-
-.version{
-  color:var(--muted);
-  font-size:16px;
-  margin-bottom:15px;
-}
-
-.text{
-  font-size:17px;
-  line-height:1.6;
-}
-
-.changelog{
-  display:grid;
-  gap:8px;
-}
-
-/* PREVIEW */
-.preview-strip{
-  display:flex;
-  gap:14px;
-  overflow-x:auto;
-  scrollbar-width:none;
-  margin-right:-16px;
-  padding-right:16px;
-}
-
-.preview-strip::-webkit-scrollbar{
-  display:none;
-}
-
-.preview-card{
-  flex:0 0 248px;
-}
-
-.preview-image{
-  width:100%;
-  aspect-ratio:9/16;
-  object-fit:cover;
-  border-radius:22px;
-  display:block;
-  background:#111;
-}
-
-.preview-caption{
-  margin-top:10px;
-  font-size:15px;
-  font-weight:600;
-}
-
-.preview-sub{
-  color:var(--muted);
-  font-size:13px;
-  line-height:1.45;
-  margin-top:4px;
-}
-
-/* ABOUT */
-.about-text{
-  font-size:17px;
-  line-height:1.65;
-}
-
-.feature-list{
-  display:grid;
-  gap:15px;
-  margin-top:20px;
-}
-
-.feature{
-  display:grid;
-  grid-template-columns:38px 1fr;
-  gap:12px;
-  align-items:start;
-}
-
-.feature-icon{
-  width:38px;
-  height:38px;
-  border-radius:10px;
-  background:#151518;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--blue);
-  font-weight:700;
-}
-
-.feature-title{
-  font-size:16px;
-  font-weight:700;
-}
-
-.feature-desc{
-  color:var(--muted);
-  font-size:14px;
-  margin-top:3px;
-  line-height:1.45;
-}
-
-/* FEEDBACK */
-.feedback-title{
-  font-size:19px;
-  font-weight:700;
-  margin-bottom:14px;
-}
-
-.feedback-strip{
-  display:flex;
-  gap:14px;
-  overflow-x:auto;
-  scrollbar-width:none;
-  margin-right:-16px;
-  padding-right:16px;
-}
-
-.feedback-strip::-webkit-scrollbar{
-  display:none;
-}
-
-.feedback-card{
-  flex:0 0 300px;
-  background:var(--card);
-  border-radius:20px;
-  padding:18px;
-}
-
-.feedback-card h3{
-  margin:0 0 7px;
-  font-size:18px;
-}
-
-.feedback-meta{
-  color:var(--muted);
-  font-size:13px;
-  margin-bottom:12px;
-}
-
-.feedback-body{
-  font-size:15px;
-  line-height:1.5;
-}
-
-.feedback-note{
-  margin-top:15px;
-  color:var(--muted);
-  font-size:13px;
-}
-
-.actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-  margin-top:20px;
-}
-
-.action{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  min-height:52px;
-  border-radius:17px;
-  background:var(--card);
-  color:#fff;
-  font-size:16px;
-  font-weight:700;
-}
-
-/* PRIVACY */
-.privacy-intro{
-  color:var(--muted);
-  font-size:16px;
-  line-height:1.55;
-}
-
-.privacy-card{
-  background:var(--card);
-  border-radius:22px;
-  padding:24px;
-  margin-top:18px;
-}
-
-.privacy-card h3{
-  margin:0 0 15px;
-  font-size:21px;
-}
-
-.privacy-list{
-  display:grid;
-  gap:11px;
-  font-size:16px;
-}
-
-/* INFO */
-.info-table{
-  border-top:1px solid var(--line);
-  margin-top:18px;
-}
-
-.info-row{
-  display:grid;
-  grid-template-columns:110px 1fr;
-  gap:15px;
-  padding:15px 0;
-  border-bottom:1px solid var(--line);
-}
-
-.info-key{
-  color:var(--muted);
-  font-size:16px;
-}
-
-.info-value{
-  text-align:right;
-  font-size:16px;
-}
-
-.footer{
-  padding-top:28px;
-  color:var(--muted);
-  font-size:12px;
-  text-align:center;
-}
-
-@media(max-width:390px){
-  .page{
-    width:min(100% - 24px,680px);
-  }
-
-  .app-header{
-    grid-template-columns:102px minmax(0,1fr);
-    gap:16px;
-  }
-
-  .app-icon{
-    width:102px;
-    height:102px;
-    border-radius:22px;
-    font-size:34px;
-  }
-
-  .app-title h1{
-    font-size:28px;
-  }
-
-  .subtitle{
-    font-size:16px;
-  }
-
-  .preview-strip,
-  .feedback-strip{
-    margin-right:-12px;
-    padding-right:12px;
-  }
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="ChaiPhoto Beta - 更直覺地整理 iPhone 相簿">
+
+  <title>ChaiPhoto Beta</title>
+
+  <style>
+    :root {
+      --bg: #000000;
+      --text: #f5f5f7;
+      --secondary: #8e8e93;
+      --line: #2c2c2e;
+      --card: #1c1c1e;
+      --blue: #0a84ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Text",
+        "Segoe UI",
+        sans-serif;
+      overflow-x: hidden;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    .page {
+      width: min(680px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 80px;
+    }
+
+    /* 頂部 */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .topbar a {
+      font-size: 17px;
+    }
+
+    .topbar span {
+      color: var(--secondary);
+      font-size: 15px;
+    }
+
+    /* App Header */
+    .app-header {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr);
+      gap: 20px;
+      align-items: center;
+      padding-bottom: 26px;
+    }
+
+    .app-icon {
+      width: 118px;
+      height: 118px;
+      border-radius: 26px;
+      overflow: hidden;
+      background: #111;
+      box-shadow:
+        0 10px 30px rgba(0, 0, 0, .45),
+        inset 0 0 0 1px rgba(255, 255, 255, .10);
+    }
+
+    .app-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .app-info h1 {
+      margin: 0 0 6px;
+      font-size: 32px;
+      line-height: 1.08;
+      letter-spacing: -.6px;
+    }
+
+    .subtitle {
+      color: var(--secondary);
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    .developer {
+      color: var(--blue);
+      font-size: 15px;
+      margin-bottom: 17px;
+    }
+
+    .get-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 78px;
+      height: 34px;
+      padding: 0 20px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    /* Summary */
+    .summary {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 16px 0;
+    }
+
+    .summary::-webkit-scrollbar {
+      display: none;
+    }
+
+    .summary-item {
+      flex: 0 0 125px;
+      min-height: 78px;
+      text-align: center;
+      padding: 0 14px;
+      border-right: 1px solid var(--line);
+    }
+
+    .summary-item:first-child {
+      padding-left: 0;
+    }
+
+    .summary-item:last-child {
+      border-right: none;
+    }
+
+    .summary-label {
+      color: var(--secondary);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .summary-main {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .summary-sub {
+      color: var(--secondary);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    /* Section */
+    section {
+      padding: 27px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: -.4px;
+    }
+
+    .muted {
+      color: var(--secondary);
+    }
+
+    .version {
+      color: var(--secondary);
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+
+    .body-text {
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    .changelog {
+      display: grid;
+      gap: 8px;
+    }
+
+    /* Preview */
+    .preview-strip {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      margin-right: -16px;
+      padding-right: 16px;
+    }
+
+    .preview-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .preview-card {
+      flex: 0 0 250px;
+    }
+
+    .preview-image {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      display: block;
+      object-fit: cover;
+      border-radius: 22px;
+      background: #111;
+    }
+
+    .preview-title {
+      margin-top: 10px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .preview-desc {
+      margin-top: 4px;
+      color: var(--secondary);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    /* About */
+    .about {
+      font-size: 17px;
+      line-height: 1.65;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .feature {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      background: #151518;
+      color: var(--blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .feature-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .feature-desc {
+      color: var(--secondary);
+      font-size: 14px;
+      line-height: 1.45;
+      margin-top: 3px;
+    }
+
+    /* Feedback */
+    .feedback-note-top {
+      color: var(--secondary);
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .feedback-strip {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      margin-right: -16px;
+      padding-right: 16px;
+    }
+
+    .feedback-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .feedback-card {
+      flex: 0 0 300px;
+      background: var(--card);
+      border-radius: 20px;
+      padding: 18px;
+    }
+
+    .feedback-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .feedback-meta {
+      color: var(--secondary);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .feedback-text {
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .feedback-disclaimer {
+      margin-top: 15px;
+      color: var(--secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .action {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      border-radius: 17px;
+      background: var(--card);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    /* Privacy */
+    .privacy-intro {
+      color: var(--secondary);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .privacy-card {
+      margin-top: 18px;
+      background: var(--card);
+      border-radius: 22px;
+      padding: 24px;
+    }
+
+    .privacy-card h3 {
+      margin: 0 0 16px;
+      font-size: 21px;
+    }
+
+    .privacy-list {
+      display: grid;
+      gap: 11px;
+      font-size: 16px;
+    }
+
+    /* Info */
+    .info-table {
+      margin-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .info-row {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 15px;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .info-key {
+      color: var(--secondary);
+      font-size: 16px;
+    }
+
+    .info-value {
+      text-align: right;
+      font-size: 16px;
+    }
+
+    footer {
+      padding-top: 30px;
+      color: var(--secondary);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    /* Mobile */
+    @media (max-width: 390px) {
+      .page {
+        width: min(100% - 24px, 680px);
+      }
+
+      .app-header {
+        grid-template-columns: 102px minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .app-icon {
+        width: 102px;
+        height: 102px;
+        border-radius: 22px;
+      }
+
+      .app-info h1 {
+        font-size: 28px;
+      }
+
+      .subtitle {
+        font-size: 16px;
+      }
+
+      .preview-strip,
+      .feedback-strip {
+        margin-right: -12px;
+        padding-right: 12px;
+      }
+    }
+  </style>
 </head>
 
 <body>
+
 <main class="page">
 
-  <div class="top-note">
+  <!-- TOP -->
+  <div class="topbar">
     <a href="/">‹ ChaiPhoto</a>
-    <span class="beta">Beta 安裝頁</span>
+    <span>Beta 安裝頁</span>
   </div>
 
+  <!-- APP HEADER -->
   <div class="app-header">
-    <div class="app-icon">CP</div>
 
-    <div class="app-title">
+    <div class="app-icon">
+      <img
+        src="images/icon.png"
+        alt="ChaiPhoto App Icon">
+    </div>
+
+    <div class="app-info">
       <h1>ChaiPhoto</h1>
-      <div class="subtitle">柴柴相簿整理</div>
-      <div class="developer">ChaiPhoto</div>
+
+      <div class="subtitle">
+        柴柴相簿整理
+      </div>
+
+      <div class="developer">
+        ChaiPhoto
+      </div>
 
       <a
         class="get-button"
@@ -474,9 +496,12 @@ h2{
         取得
       </a>
     </div>
+
   </div>
 
+  <!-- SUMMARY -->
   <div class="summary">
+
     <div class="summary-item">
       <div class="summary-label">版本</div>
       <div class="summary-main">1.0 Beta</div>
@@ -500,28 +525,36 @@ h2{
       <div class="summary-main">iPhone</div>
       <div class="summary-sub">iOS</div>
     </div>
+
   </div>
 
-
+  <!-- WHAT'S NEW -->
   <section>
+
     <div class="section-head">
       <h2>新功能</h2>
-      <span class="small-muted">Beta</span>
+      <span class="muted">Beta</span>
     </div>
 
-    <div class="version">版本 1.0 Beta · Build 1</div>
+    <div class="version">
+      版本 1.0 Beta · Build 1
+    </div>
 
-    <div class="text changelog">
+    <div class="body-text changelog">
       <div>• 支援照片快速整理，左滑待刪、右滑保留。</div>
       <div>• 支援影片整理與上下滑動預覽。</div>
       <div>• 提供待刪複查，刪除前可再次確認與還原。</div>
       <div>• 可依照片、影片、相簿與時間切換整理範圍。</div>
     </div>
+
   </section>
 
-
+  <!-- PREVIEW -->
   <section>
-    <h2 style="margin-bottom:16px">預覽</h2>
+
+    <h2 style="margin-bottom:16px;">
+      預覽
+    </h2>
 
     <div class="preview-strip">
 
@@ -529,145 +562,242 @@ h2{
         <img
           class="preview-image"
           src="images/photo-organize.png"
-          alt="ChaiPhoto 照片快速整理">
-        <div class="preview-caption">快速整理照片</div>
-        <div class="preview-sub">左滑待刪，右滑保留。</div>
+          alt="快速整理照片">
+
+        <div class="preview-title">
+          快速整理照片
+        </div>
+
+        <div class="preview-desc">
+          左滑待刪，右滑保留，快速完成照片整理。
+        </div>
       </div>
 
       <div class="preview-card">
         <img
           class="preview-image"
           src="images/video-organize.png"
-          alt="ChaiPhoto 影片快速整理">
-        <div class="preview-caption">影片也能快速整理</div>
-        <div class="preview-sub">上下滑動預覽，並提供靜音、加入相簿、待刪與分享操作。</div>
+          alt="影片快速整理">
+
+        <div class="preview-title">
+          影片也能快速整理
+        </div>
+
+        <div class="preview-desc">
+          上下滑動切換影片，並支援靜音、加入相簿、待刪與分享。
+        </div>
       </div>
 
       <div class="preview-card">
         <img
           class="preview-image"
           src="images/delete-review.png"
-          alt="ChaiPhoto 待刪複查">
-        <div class="preview-caption">待刪前先複查</div>
-        <div class="preview-sub">集中確認待刪項目，正式刪除前仍可快速還原。</div>
+          alt="待刪複查">
+
+        <div class="preview-title">
+          待刪前先複查
+        </div>
+
+        <div class="preview-desc">
+          集中確認待刪項目，正式刪除前仍可快速還原。
+        </div>
       </div>
 
       <div class="preview-card">
         <img
           class="preview-image"
           src="images/filter.png"
-          alt="ChaiPhoto 整理篩選">
-        <div class="preview-caption">用篩選更快找到目標</div>
-        <div class="preview-sub">依照片、影片、相簿與時間快速切換整理範圍。</div>
+          alt="整理篩選">
+
+        <div class="preview-title">
+          用篩選更快找到目標
+        </div>
+
+        <div class="preview-desc">
+          可依照片、影片、相簿與時間快速切換整理範圍。
+        </div>
       </div>
 
     </div>
+
   </section>
 
-
+  <!-- ABOUT -->
   <section>
-    <h2 style="margin-bottom:14px">關於此 App</h2>
 
-    <div class="about-text">
+    <h2 style="margin-bottom:14px;">
+      關於此 App
+    </h2>
+
+    <div class="about">
       ChaiPhoto 是一款協助整理 iPhone 相簿的工具，
       希望讓大量照片與影片的日常整理變得更直接、更容易操作。
       <br><br>
-      目前版本主要提供照片與影片的手動整理流程，
+      目前 Beta 版本主要提供照片與影片的手動整理流程，
       包含滑動標記、影片預覽、待刪複查以及整理篩選。
+      <br><br>
+      目前尚未提供照片辨識、相似內容辨識或自動智慧分析功能。
     </div>
 
     <div class="feature-list">
 
       <div class="feature">
         <div class="feature-icon">↔</div>
+
         <div>
-          <div class="feature-title">照片快速整理</div>
-          <div class="feature-desc">左滑標記待刪，右滑保留照片。</div>
+          <div class="feature-title">
+            照片快速整理
+          </div>
+
+          <div class="feature-desc">
+            左滑標記待刪，右滑保留照片。
+          </div>
         </div>
       </div>
 
       <div class="feature">
         <div class="feature-icon">▶</div>
+
         <div>
-          <div class="feature-title">影片整理</div>
-          <div class="feature-desc">上下滑動切換影片，並支援靜音、加入相簿、待刪與分享。</div>
+          <div class="feature-title">
+            影片整理
+          </div>
+
+          <div class="feature-desc">
+            上下滑動切換影片，並支援靜音、加入相簿、待刪與分享。
+          </div>
         </div>
       </div>
 
       <div class="feature">
         <div class="feature-icon">✓</div>
+
         <div>
-          <div class="feature-title">待刪複查</div>
-          <div class="feature-desc">正式刪除前集中確認，並可還原不想刪除的項目。</div>
+          <div class="feature-title">
+            待刪複查
+          </div>
+
+          <div class="feature-desc">
+            正式刪除前集中確認，並可還原不想刪除的項目。
+          </div>
         </div>
       </div>
 
       <div class="feature">
         <div class="feature-icon">≡</div>
+
         <div>
-          <div class="feature-title">整理篩選</div>
-          <div class="feature-desc">依照片、影片、相簿與時間縮小整理範圍。</div>
+          <div class="feature-title">
+            整理篩選
+          </div>
+
+          <div class="feature-desc">
+            依照片、影片、相簿與時間縮小整理範圍。
+          </div>
         </div>
       </div>
 
     </div>
+
   </section>
 
-
+  <!-- BETA FEEDBACK -->
   <section>
-    <h2 style="margin-bottom:18px">Beta 測試回饋</h2>
 
-    <div class="feedback-title">介面展示用測試回饋</div>
+    <h2 style="margin-bottom:10px;">
+      Beta 測試回饋
+    </h2>
+
+    <div class="feedback-note-top">
+      以下內容為頁面展示用示意回饋。
+    </div>
 
     <div class="feedback-strip">
 
       <div class="feedback-card">
-        <h3>整理流程很直覺</h3>
-        <div class="feedback-meta">★★★★★ · 示意回饋</div>
-        <div class="feedback-body">
-          左右滑動就能快速處理照片，操作方式很容易理解。
+        <h3>
+          整理流程很直覺
+        </h3>
+
+        <div class="feedback-meta">
+          ★★★★★ · 示意回饋
+        </div>
+
+        <div class="feedback-text">
+          左右滑動就能快速處理照片，整體操作方式很好理解。
         </div>
       </div>
 
       <div class="feedback-card">
-        <h3>待刪複查很好用</h3>
-        <div class="feedback-meta">★★★★★ · 示意回饋</div>
-        <div class="feedback-body">
+        <h3>
+          待刪複查很好用
+        </h3>
+
+        <div class="feedback-meta">
+          ★★★★★ · 示意回饋
+        </div>
+
+        <div class="feedback-text">
           不用擔心滑錯，最後還能集中確認一次再刪除。
         </div>
       </div>
 
       <div class="feedback-card">
-        <h3>影片整理很方便</h3>
-        <div class="feedback-meta">★★★★☆ · 示意回饋</div>
-        <div class="feedback-body">
-          上下滑就能快速切換影片，操作比一個一個進相簿方便很多。
+        <h3>
+          影片整理很方便
+        </h3>
+
+        <div class="feedback-meta">
+          ★★★★☆ · 示意回饋
+        </div>
+
+        <div class="feedback-text">
+          上下滑就能快速切換影片，比一個一個進相簿方便很多。
         </div>
       </div>
 
     </div>
 
-    <div class="feedback-note">
-      上述內容為 Beta 頁面版型展示用示意回饋，不代表公開使用者評分。
+    <div class="feedback-disclaimer">
+      上述評論為 Beta 頁面版型展示用文字，不代表真實公開使用者評分。
     </div>
 
     <div class="actions">
-      <a class="action" href="/report">提供回饋</a>
-      <a class="action" href="/support">App 支援</a>
+
+      <a
+        class="action"
+        href="/report">
+        提供回饋
+      </a>
+
+      <a
+        class="action"
+        href="/support">
+        App 支援
+      </a>
+
     </div>
+
   </section>
 
-
+  <!-- PRIVACY -->
   <section>
-    <h2 style="margin-bottom:14px">App 隱私權</h2>
+
+    <h2 style="margin-bottom:14px;">
+      App 隱私權
+    </h2>
 
     <div class="privacy-intro">
       ChaiPhoto 的核心功能需要存取使用者授權的照片與影片，
-      以提供相簿整理與操作功能。詳細處理方式請參閱隱私權政策。
+      以提供相簿整理與操作功能。
+      詳細內容請參閱隱私權政策。
     </div>
 
     <div class="privacy-card">
-      <h3>功能可能涉及的資料</h3>
+
+      <h3>
+        功能可能涉及的資料
+      </h3>
 
       <div class="privacy-list">
         <div>照片與影片</div>
@@ -675,12 +805,17 @@ h2{
         <div>裝置與 App 診斷資訊</div>
         <div>使用者主動提交的錯誤回報內容</div>
       </div>
+
     </div>
+
   </section>
 
-
+  <!-- INFO -->
   <section>
-    <h2>資訊</h2>
+
+    <h2>
+      資訊
+    </h2>
 
     <div class="info-table">
 
@@ -716,22 +851,33 @@ h2{
 
       <div class="info-row">
         <div class="info-key">隱私權</div>
-        <div class="info-value"><a href="/privacy">查看政策</a></div>
+
+        <div class="info-value">
+          <a href="/privacy">
+            查看政策
+          </a>
+        </div>
       </div>
 
       <div class="info-row">
         <div class="info-key">問題回報</div>
-        <div class="info-value"><a href="/report">開啟回報</a></div>
+
+        <div class="info-value">
+          <a href="/report">
+            開啟回報
+          </a>
+        </div>
       </div>
 
     </div>
+
   </section>
 
-
-  <div class="footer">
+  <footer>
     ChaiPhoto Beta · 非 App Store 正式上架版本
-  </div>
+  </footer>
 
 </main>
+
 </body>
 </html>
