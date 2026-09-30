@@ -24,7 +24,9 @@
       --secondary: #8e8e93;
       --line: #2c2c2e;
       --card: #1c1c1e;
+      --card-soft: #111113;
       --blue: #0a84ff;
+      --orange: #ff9f0a;
     }
 
     * {
@@ -60,7 +62,6 @@
 
     .page {
       width: min(680px, calc(100% - 32px));
-
       margin: 0 auto;
 
       padding:
@@ -70,7 +71,7 @@
     }
 
     /* =========================
-       頂部
+       TOP
        ========================= */
 
     .topbar {
@@ -91,12 +92,11 @@
 
     .topbar span {
       color: var(--secondary);
-
       font-size: 15px;
     }
 
     /* =========================
-       App Header
+       APP HEADER
        ========================= */
 
     .app-header {
@@ -194,7 +194,73 @@
     }
 
     /* =========================
-       App Store 類型資訊列
+       MAIN CTA
+       ========================= */
+
+    .beta-actions {
+      display: grid;
+
+      grid-template-columns: 1fr;
+
+      gap: 10px;
+
+      margin-top: 18px;
+    }
+
+    .beta-action {
+      display: flex;
+
+      align-items: center;
+      justify-content: space-between;
+
+      min-height: 56px;
+
+      padding: 0 18px;
+
+      border-radius: 17px;
+
+      background: var(--card);
+
+      color: #ffffff;
+
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .beta-action.primary {
+      background: var(--blue);
+    }
+
+    .beta-action.testflight {
+      background: var(--card-soft);
+
+      border: 1px solid var(--line);
+    }
+
+    .beta-action-text {
+      display: grid;
+      gap: 3px;
+    }
+
+    .beta-action-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .beta-action-sub {
+      color: rgba(255, 255, 255, .65);
+
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .beta-action-arrow {
+      font-size: 22px;
+      font-weight: 500;
+    }
+
+    /* =========================
+       SUMMARY
        ========================= */
 
     .summary {
@@ -264,7 +330,7 @@
     }
 
     /* =========================
-       一般 Section
+       GENERAL SECTION
        ========================= */
 
     section {
@@ -317,8 +383,7 @@
     }
 
     /* =========================
-       預覽
-       直式長方形 + 下方文字
+       PREVIEW
        ========================= */
 
     .preview-strip {
@@ -394,7 +459,7 @@
     }
 
     /* =========================
-       About
+       ABOUT
        ========================= */
 
     .about {
@@ -453,7 +518,87 @@
     }
 
     /* =========================
-       Beta Feedback
+       EARLY BETA INFO
+       ========================= */
+
+    .early-beta-card {
+      padding: 22px;
+
+      border: 1px solid rgba(255, 159, 10, .25);
+      border-radius: 22px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255, 159, 10, .10),
+          rgba(255, 255, 255, .025)
+        );
+    }
+
+    .early-badge {
+      display: inline-block;
+
+      margin-bottom: 12px;
+
+      padding: 6px 10px;
+
+      border-radius: 999px;
+
+      background: rgba(255, 159, 10, .15);
+      color: var(--orange);
+
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .early-beta-card h3 {
+      margin: 0 0 10px;
+
+      font-size: 21px;
+    }
+
+    .early-beta-card p {
+      margin: 0;
+
+      color: var(--secondary);
+
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .early-links {
+      display: grid;
+
+      grid-template-columns: 1fr 1fr;
+
+      gap: 10px;
+
+      margin-top: 17px;
+    }
+
+    .early-link {
+      display: flex;
+
+      align-items: center;
+      justify-content: center;
+
+      min-height: 47px;
+
+      border-radius: 15px;
+
+      background: var(--card);
+      color: #ffffff;
+
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .early-link.primary {
+      background: var(--blue);
+    }
+
+    /* =========================
+       FEEDBACK
        ========================= */
 
     .feedback-note-top {
@@ -551,7 +696,7 @@
     }
 
     /* =========================
-       Privacy
+       PRIVACY
        ========================= */
 
     .privacy-intro {
@@ -585,7 +730,7 @@
     }
 
     /* =========================
-       Info
+       INFO
        ========================= */
 
     .info-table {
@@ -619,7 +764,7 @@
     }
 
     /* =========================
-       Footer
+       FOOTER
        ========================= */
 
     footer {
@@ -634,7 +779,7 @@
     }
 
     /* =========================
-       Mobile
+       PHONE
        ========================= */
 
     @media (max-width: 390px) {
@@ -676,6 +821,91 @@
       .preview-title {
         font-size: 19px;
       }
+
+      .early-links {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =========================
+       DESKTOP
+       ========================= */
+
+    @media (min-width: 900px) {
+      .page {
+        width: min(1120px, calc(100% - 64px));
+      }
+
+      .app-header {
+        grid-template-columns: 150px minmax(0, 1fr);
+
+        gap: 28px;
+      }
+
+      .app-icon {
+        width: 150px;
+        height: 150px;
+
+        border-radius: 32px;
+      }
+
+      .app-info h1 {
+        font-size: 44px;
+      }
+
+      .subtitle {
+        font-size: 20px;
+      }
+
+      .developer {
+        font-size: 16px;
+      }
+
+      .beta-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .summary-item {
+        flex: 1 1 0;
+      }
+
+      .preview-strip {
+        display: grid;
+
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+
+        overflow: visible;
+
+        margin-right: 0;
+        padding-right: 0;
+      }
+
+      .preview-item {
+        min-width: 0;
+      }
+
+      .feedback-strip {
+        display: grid;
+
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+
+        overflow: visible;
+
+        margin-right: 0;
+        padding-right: 0;
+      }
+
+      .feedback-card {
+        min-width: 0;
+      }
+
+      .feature-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .early-beta-card {
+        padding: 28px;
+      }
     }
   </style>
 </head>
@@ -689,9 +919,15 @@
        ========================= -->
 
   <div class="topbar">
-    <a href="/">‹ ChaiPhoto</a>
 
-    <span>Beta 安裝頁</span>
+    <a href="/">
+      ‹ ChaiPhoto
+    </a>
+
+    <span>
+      Beta
+    </span>
+
   </div>
 
 
@@ -702,15 +938,20 @@
   <div class="app-header">
 
     <div class="app-icon">
+
       <img
         src="/beta/images/icon.png"
         alt="ChaiPhoto App Icon"
       >
+
     </div>
+
 
     <div class="app-info">
 
-      <h1>ChaiPhoto</h1>
+      <h1>
+        ChaiPhoto
+      </h1>
 
       <div class="subtitle">
         柴柴相簿整理
@@ -720,6 +961,7 @@
         ChaiPhoto
       </div>
 
+
       <a
         class="get-button"
         href="itms-services://?action=download-manifest&url=https://pub-aced486ba4d34702842b3177a1c3e9c9.r2.dev/manifest.plist"
@@ -727,11 +969,68 @@
         取得
       </a>
 
+
       <div class="install-note">
-        僅限已登記測試裝置安裝
+        僅限已登記 UDID 的測試裝置安裝
       </div>
 
     </div>
+
+  </div>
+
+
+  <!-- =========================
+       BETA ACTIONS
+       ========================= -->
+
+  <div class="beta-actions">
+
+    <a
+      class="beta-action primary"
+      href="/beta/apply"
+    >
+
+      <div class="beta-action-text">
+
+        <div class="beta-action-title">
+          申請成為先行 Beta 測試人員
+        </div>
+
+        <div class="beta-action-sub">
+          需要登記 UDID 與開啟 Developer Mode
+        </div>
+
+      </div>
+
+      <span class="beta-action-arrow">
+        ›
+      </span>
+
+    </a>
+
+
+    <a
+      class="beta-action testflight"
+      href="/beta/testflight"
+    >
+
+      <div class="beta-action-text">
+
+        <div class="beta-action-title">
+          公開 TestFlight
+        </div>
+
+        <div class="beta-action-sub">
+          尚未開放，可先收藏固定入口
+        </div>
+
+      </div>
+
+      <span class="beta-action-arrow">
+        ›
+      </span>
+
+    </a>
 
   </div>
 
@@ -743,7 +1042,10 @@
   <div class="summary">
 
     <div class="summary-item">
-      <div class="summary-label">版本</div>
+
+      <div class="summary-label">
+        版本
+      </div>
 
       <div class="summary-main">
         1.0 Beta
@@ -752,11 +1054,15 @@
       <div class="summary-sub">
         Build 1
       </div>
+
     </div>
 
 
     <div class="summary-item">
-      <div class="summary-label">年齡分級</div>
+
+      <div class="summary-label">
+        年齡分級
+      </div>
 
       <div class="summary-main">
         12+
@@ -765,11 +1071,15 @@
       <div class="summary-sub">
         歲
       </div>
+
     </div>
 
 
     <div class="summary-item">
-      <div class="summary-label">類別</div>
+
+      <div class="summary-label">
+        類別
+      </div>
 
       <div class="summary-main">
         工具
@@ -778,11 +1088,15 @@
       <div class="summary-sub">
         工具程式
       </div>
+
     </div>
 
 
     <div class="summary-item">
-      <div class="summary-label">平台</div>
+
+      <div class="summary-label">
+        平台
+      </div>
 
       <div class="summary-main">
         iPhone
@@ -791,6 +1105,7 @@
       <div class="summary-sub">
         iOS
       </div>
+
     </div>
 
   </div>
@@ -857,7 +1172,6 @@
     <div class="preview-strip">
 
 
-      <!-- 1 -->
       <div class="preview-item">
 
         <div class="preview-image-wrap">
@@ -882,7 +1196,6 @@
       </div>
 
 
-      <!-- 2 -->
       <div class="preview-item">
 
         <div class="preview-image-wrap">
@@ -907,7 +1220,6 @@
       </div>
 
 
-      <!-- 3 -->
       <div class="preview-item">
 
         <div class="preview-image-wrap">
@@ -932,7 +1244,6 @@
       </div>
 
 
-      <!-- 4 -->
       <div class="preview-item">
 
         <div class="preview-image-wrap">
@@ -1077,7 +1388,60 @@
 
 
   <!-- =========================
-       BETA FEEDBACK
+       EARLY BETA
+       ========================= -->
+
+  <section>
+
+    <div class="early-beta-card">
+
+      <span class="early-badge">
+        EARLY BETA
+      </span>
+
+      <h3>
+        想比公開 TestFlight 更早體驗？
+      </h3>
+
+      <p>
+        目前提供的是 Ad Hoc 先行測試版本。
+        這種方式需要先登記 iPhone UDID，
+        並在裝置上開啟 Developer Mode，
+        因此首次申請與安裝會比一般 App 或 TestFlight 稍微麻煩。
+      </p>
+
+      <p style="margin-top: 10px;">
+        如果只是想體驗較穩定、安裝較簡單的版本，
+        可以等待公開 TestFlight。
+      </p>
+
+
+      <div class="early-links">
+
+        <a
+          class="early-link primary"
+          href="/beta/apply"
+        >
+          了解先行測試申請
+        </a>
+
+
+        <a
+          class="early-link"
+          href="/beta/testflight"
+        >
+          查看 TestFlight 狀態
+        </a>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
+       FEEDBACK
        ========================= -->
 
   <section>
@@ -1331,7 +1695,24 @@
         </div>
 
         <div class="info-value">
-          已登記裝置
+          已登記 UDID 裝置
+        </div>
+
+      </div>
+
+
+      <div class="info-row">
+
+        <div class="info-key">
+          TestFlight
+        </div>
+
+        <div class="info-value">
+
+          <a href="/beta/testflight">
+            查看公開測試狀態
+          </a>
+
         </div>
 
       </div>
@@ -1375,13 +1756,21 @@
   </section>
 
 
+  <!-- =========================
+       FOOTER
+       ========================= -->
+
   <footer>
 
     ChaiPhoto Beta
 
     <br>
 
-    非 App Store 正式上架版本 · 僅已登記測試裝置可安裝
+    非 App Store 正式上架版本
+
+    <br>
+
+    Ad Hoc 安裝僅限已登記測試裝置
 
   </footer>
 
