@@ -1,18 +1,391 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ChaiPhoto Beta 測試版本">
   <title>ChaiPhoto Beta</title>
+
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --text: #1d1d1f;
+      --secondary: #6e6e73;
+      --line: #d2d2d7;
+      --blue: #007aff;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #000000;
+        --text: #f5f5f7;
+        --secondary: #98989d;
+        --line: #38383a;
+        --blue: #0a84ff;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Text",
+        "Segoe UI",
+        sans-serif;
+    }
+
+    main {
+      width: min(760px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 48px 0 80px;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 36px;
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .app-title {
+      min-width: 0;
+    }
+
+    .beta-label {
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 7vw, 48px);
+      line-height: 1.08;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--secondary);
+      font-size: 17px;
+    }
+
+    .developer {
+      margin-top: 4px;
+      color: var(--blue);
+      font-size: 14px;
+    }
+
+    .install-button {
+      flex-shrink: 0;
+      display: inline-block;
+      min-width: 78px;
+      text-align: center;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 22px 0;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+    }
+
+    .meta-item {
+      padding: 0 12px;
+      border-right: 1px solid var(--line);
+    }
+
+    .meta-item:last-child {
+      border-right: 0;
+    }
+
+    .meta-value {
+      display: block;
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .meta-label {
+      display: block;
+      margin-top: 3px;
+      color: var(--secondary);
+      font-size: 12px;
+    }
+
+    section {
+      padding: 30px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section:last-child {
+      border-bottom: 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      letter-spacing: -.3px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .secondary {
+      color: var(--secondary);
+    }
+
+    .version-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+
+    .version-number {
+      color: var(--secondary);
+      font-size: 14px;
+    }
+
+    .info-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      padding: 10px 0;
+      font-size: 15px;
+    }
+
+    .info-label {
+      color: var(--secondary);
+    }
+
+    footer {
+      margin-top: 35px;
+      text-align: center;
+      color: var(--secondary);
+      font-size: 12px;
+    }
+
+    @media (max-width: 560px) {
+      main {
+        width: min(100% - 32px, 760px);
+        padding-top: 28px;
+      }
+
+      .app-header {
+        align-items: center;
+      }
+
+      .meta {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .meta-item {
+        padding: 0 5px;
+      }
+
+      .meta-value {
+        font-size: 15px;
+      }
+
+      .info-row {
+        grid-template-columns: 110px 1fr;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <h1>ChaiPhoto Beta</h1>
 
-  <p>點擊下方按鈕安裝測試版本。</p>
+<main>
 
-  <a href="itms-services://?action=download-manifest&url=https://pub-aced486ba4d34702842b3177a1c3e9c9.r2.dev/manifest.plist">
-    安裝 App
-  </a>
+  <a class="back" href="/">‹ ChaiPhoto</a>
+
+  <div class="app-header">
+
+    <div class="app-title">
+      <div class="beta-label">BETA</div>
+
+      <h1>ChaiPhoto</h1>
+
+      <div class="subtitle">
+        柴柴相簿整理
+      </div>
+
+      <div class="developer">
+        ChaiPhoto
+      </div>
+    </div>
+
+    <a
+      class="install-button"
+      href="itms-services://?action=download-manifest&url=https://pub-aced486ba4d34702842b3177a1c3e9c9.r2.dev/manifest.plist">
+      取得
+    </a>
+
+  </div>
+
+
+  <div class="meta">
+
+    <div class="meta-item">
+      <span class="meta-value">1.0 Beta</span>
+      <span class="meta-label">版本</span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-value">1</span>
+      <span class="meta-label">BUILD</span>
+    </div>
+
+    <div class="meta-item">
+      <span class="meta-value">Ad Hoc</span>
+      <span class="meta-label">測試方式</span>
+    </div>
+
+  </div>
+
+
+  <section>
+
+    <div class="version-title">
+      <h2>最新版本內容</h2>
+      <span class="version-number">版本 1.0 Beta</span>
+    </div>
+
+    <p>
+      ChaiPhoto Beta 首個測試版本。
+      目前主要用於測試相簿整理、照片與影片分析、
+      相似媒體辨識以及整體使用體驗。
+    </p>
+
+  </section>
+
+
+  <section>
+
+    <h2>關於 ChaiPhoto</h2>
+
+    <p>
+      ChaiPhoto 是一款為 iPhone 相簿整理設計的工具，
+      希望用更直覺的方式協助使用者了解及整理裝置中的照片與影片。
+    </p>
+
+    <p style="margin-top: 14px;">
+      App 會優先利用 iOS Photos 提供的媒體資訊、
+      縮圖與預覽內容進行分析，
+      並提供照片、影片、相似內容以及其他相簿整理工具。
+    </p>
+
+  </section>
+
+
+  <section>
+
+    <h2>Beta 測試</h2>
+
+    <p>
+      此版本仍處於測試階段，部分功能、介面及辨識結果
+      可能在後續版本中調整。
+    </p>
+
+    <p class="secondary" style="margin-top: 12px;">
+      此 Beta 使用 Ad Hoc 方式提供，
+      僅已加入測試名單的裝置可以安裝。
+    </p>
+
+  </section>
+
+
+  <section>
+
+    <h2>資訊</h2>
+
+    <div class="info-row">
+      <span class="info-label">版本</span>
+      <span>1.0 Beta</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">Build</span>
+      <span>1</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">發布日期</span>
+      <span>2026 年 9 月 30 日</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">平台</span>
+      <span>iPhone</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">測試方式</span>
+      <span>Apple Developer Ad Hoc</span>
+    </div>
+
+    <div class="info-row">
+      <span class="info-label">開發者</span>
+      <span>ChaiPhoto</span>
+    </div>
+
+  </section>
+
+
+  <section>
+
+    <h2>支援</h2>
+
+    <p>
+      發現 App 閃退、介面異常、照片辨識錯誤或其他問題，
+      可以透過 ChaiPhoto 問題回報系統提供測試回饋。
+    </p>
+
+    <p style="margin-top: 12px;">
+      <a href="/report" style="color: var(--blue); text-decoration: none;">
+        問題回報 ›
+      </a>
+    </p>
+
+  </section>
+
+
+  <footer>
+    ChaiPhoto Beta · © 2026
+  </footer>
+
+</main>
+
 </body>
 </html>
