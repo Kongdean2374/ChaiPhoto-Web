@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>申請 ChaiPhoto Beta</title>
+
+<style>
+:root{
+  --bg:#000;
+  --card:#1c1c1e;
+  --card2:#111113;
+  --text:#f5f5f7;
+  --muted:#8e8e93;
+  --line:#2c2c2e;
+  --blue:#0a84ff;
+  --orange:#ff9f0a;
+}
+
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+}
+
+a{
+  color:var(--blue);
+  text-decoration:none;
+}
+
+.page{
+  width:min(900px,calc(100% - 32px));
+  margin:auto;
+  padding:32px 0 80px;
+}
+
+.back{
+  display:inline-block;
+  margin-bottom:30px;
+  font-size:17px;
+}
+
+.hero{
+  padding-bottom:30px;
+  border-bottom:1px solid var(--line);
+}
+
+.badge{
+  display:inline-block;
+  margin-bottom:10px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(255,159,10,.14);
+  color:var(--orange);
+  font-size:13px;
+  font-weight:700;
+}
+
+h1{
+  margin:0 0 12px;
+  font-size:clamp(34px,7vw,54px);
+  letter-spacing:-1px;
+}
+
+.hero p{
+  margin:0;
+  max-width:700px;
+  color:var(--muted);
+  font-size:18px;
+  line-height:1.65;
+}
+
+section{
+  padding:30px 0;
+  border-bottom:1px solid var(--line);
+}
+
+h2{
+  margin:0 0 15px;
+  font-size:27px;
+}
+
+p{
+  font-size:17px;
+  line-height:1.65;
+}
+
+.steps{
+  display:grid;
+  gap:14px;
+}
+
+.step{
+  display:grid;
+  grid-template-columns:42px 1fr;
+  gap:14px;
+  align-items:start;
+}
+
+.number{
+  width:42px;
+  height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:var(--card);
+  color:var(--blue);
+  font-weight:800;
+}
+
+.step strong{
+  display:block;
+  margin-bottom:5px;
+  font-size:17px;
+}
+
+.step span{
+  color:var(--muted);
+  line-height:1.55;
+}
+
+.notice{
+  padding:20px;
+  border-radius:20px;
+  background:var(--card);
+}
+
+.notice strong{
+  font-size:18px;
+}
+
+.notice p{
+  margin-bottom:0;
+  color:var(--muted);
+}
+
+.warning{
+  border:1px solid rgba(255,159,10,.35);
+}
+
+.contacts{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-top:20px;
+}
+
+.contact{
+  min-height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:18px;
+  background:var(--card);
+  color:#fff;
+  font-size:17px;
+  font-weight:700;
+}
+
+.contact.primary{
+  background:var(--blue);
+}
+
+.wait-card{
+  padding:24px;
+  border-radius:22px;
+  background:var(--card2);
+}
+
+.wait-card h3{
+  margin:0 0 10px;
+  font-size:22px;
+}
+
+.wait-card p{
+  color:var(--muted);
+}
+
+.testflight{
+  display:inline-flex;
+  min-height:46px;
+  align-items:center;
+  justify-content:center;
+  padding:0 18px;
+  border-radius:14px;
+  background:var(--blue);
+  color:white;
+  font-weight:700;
+}
+
+footer{
+  padding-top:30px;
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+}
+
+@media(min-width:800px){
+  .steps{
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+}
+
+@media(max-width:600px){
+  .page{
+    width:min(100% - 24px,900px);
+  }
+
+  .contacts{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+<main class="page">
+
+<a class="back" href="/beta">‹ 返回 ChaiPhoto Beta</a>
+
+<div class="hero">
+  <span class="badge">EARLY BETA</span>
+
+  <h1>申請先行測試</h1>
+
+  <p>
+    想比公開 TestFlight 更早體驗 ChaiPhoto？
+    目前提供的是 Ad Hoc 早期測試版本，因此首次申請與安裝會稍微麻煩一些。
+    如果覺得流程可以接受，再聯絡我申請即可。
+  </p>
+</div>
+
+<section>
+  <h2>申請前先了解流程</h2>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="number">1</div>
+      <div>
+        <strong>先透過 Discord、Facebook 或 LINE 聯絡</strong>
+        <span>
+          請告訴我是從 ChaiPhoto Beta 頁面看到的，
+          並表示想參加先行測試。
+        </span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="number">2</div>
+      <div>
+        <strong>取得你的 iPhone UDID</strong>
+        <span>
+          Ad Hoc 測試需要先登記測試裝置。
+          通過申請後，我會私訊提供較完整的 UDID 取得教學。
+          某些取得方式可能會短暫安裝描述檔，完成後即可移除。
+        </span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="number">3</div>
+      <div>
+        <strong>我將裝置加入測試資格</strong>
+        <span>
+          UDID 登記完成後，會重新產生包含你裝置的測試版本。
+          在這之前，即使按下「取得」也無法在未登記的裝置上正常安裝。
+        </span>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="number">4</div>
+      <div>
+        <strong>啟用 iPhone 開發者模式</strong>
+        <span>
+          第一次執行這類開發測試 App 時，需要開啟 Developer Mode。
+          開啟過程會重新啟動一次 iPhone，之後再確認即可。
+        </span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>Developer Mode 有什麼影響？</h2>
+
+  <div class="notice warning">
+    <strong>主要差異是開啟開發測試所需的系統功能。</strong>
+
+    <p>
+      Developer Mode 是 iOS 提供給 App 開發與測試使用的模式。
+      開啟後會降低部分針對開發功能的系統安全限制，因此不需要測試時可以關閉。
+      一般日常使用、App Store App 等通常不會因為開啟它而出現明顯差異。
+    </p>
+
+    <p>
+      如果之後關閉 Developer Mode，這類自行安裝的早期測試 App
+      可能就無法繼續啟動，直到再次開啟。
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2>早期 Beta 可能遇到什麼？</h2>
+
+  <div class="notice">
+    <p style="margin-top:0">
+      這不是正式版。測試期間可能會遇到介面調整、功能尚未完成、
+      閃退、效能問題或其他 Bug。
+    </p>
+
+    <p>
+      ChaiPhoto 會操作照片與影片，因此在測試涉及刪除功能時，
+      請特別確認待刪內容，重要照片也建議先確認已有妥善備份。
+    </p>
+
+    <p>
+      如果只是想正常使用 App，而不想處理 UDID、Developer Mode
+      和早期測試問題，可以直接等待公開 TestFlight。
+    </p>
+  </div>
+</section>
+
+<section>
+  <h2>申請先行測試</h2>
+
+  <p>
+    不需要填 Email 表單。直接透過下方其中一種方式聯絡即可。
+    Discord 是最推薦的方式，後續 UDID 教學、安裝連結與測試資訊也比較方便傳送。
+  </p>
+
+  <div class="contacts">
+
+    <a
+      class="contact primary"
+      href="https://discord.com/users/kongdean"
+      target="_blank"
+      rel="noopener noreferrer">
+      Discord
+    </a>
+
+    <a
+      class="contact"
+      href="https://www.facebook.com/share/1BRjbpSgp6/?mibextid=wwXIfr"
+      target="_blank"
+      rel="noopener noreferrer">
+      Facebook
+    </a>
+
+    <a
+      class="contact"
+      href="https://line.me/ti/p/UFLHPJnqcj"
+      target="_blank"
+      rel="noopener noreferrer">
+      LINE
+    </a>
+
+  </div>
+</section>
+
+<section>
+  <div class="wait-card">
+    <h3>覺得以上流程太麻煩？</h3>
+
+    <p>
+      公開 TestFlight 版本目前尚未開放。
+      等 Beta Review 通過後，公開測試將不需要提供 UDID，
+      安裝流程也會簡單很多。
+    </p>
+
+    <p>
+      你可以現在就收藏固定的公開測試入口。
+      在開放之前它只會顯示尚未開放；
+      等正式啟用後，同一個網址就會直接帶你前往 TestFlight。
+    </p>
+
+    <a class="testflight" href="/beta/testflight">
+      公開 TestFlight 入口
+    </a>
+  </div>
+</section>
+
+<footer>
+  ChaiPhoto Beta · 早期測試申請
+</footer>
+
+</main>
+</body>
+</html>
