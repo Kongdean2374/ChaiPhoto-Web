@@ -22,7 +22,7 @@
 
     .dashboard-summary {
       display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
+      grid-template-columns:repeat(5,minmax(0,1fr));
       gap:7px;
     }
 
@@ -61,6 +61,10 @@
     .feedback-item.status-in_progress { border-left:5px solid #d6a21e; }
     .feedback-item.status-resolved { border-left:5px solid #2fa36b; }
     .feedback-item.status-closed { border-left:5px solid #d04b4b; }
+    .feedback-item.status-deleted {
+      border-left:5px solid #777780;
+      opacity:.88;
+    }
 
     .feedback-item summary {
       list-style:none;
@@ -112,6 +116,7 @@
     .status-badge-in_progress { color:#d39a19; }
     .status-badge-resolved { color:#2fa36b; }
     .status-badge-closed { color:#d04b4b; }
+    .status-badge-deleted { color:#777780; }
     .visibility-public { color:#2fa36b; }
     .visibility-private { color:var(--muted); }
 
@@ -201,6 +206,7 @@
     }
 
     .save-button,
+    .restore-button,
     .danger-button {
       appearance:none;
       border:0;
@@ -213,8 +219,10 @@
     }
 
     .save-button { background:var(--accent); }
+    .restore-button { background:#2f9f68; }
     .danger-button { background:#c93f3f; }
     .save-button:disabled,
+    .restore-button:disabled,
     .danger-button:disabled { opacity:.55; }
 
     .save-status { color:var(--muted); font-size:.8rem; }
@@ -263,6 +271,7 @@
           <option value="in_progress">處理中</option>
           <option value="resolved">已更新</option>
           <option value="closed">無法處理</option>
+          <option value="deleted">已刪除</option>
         </select>
       </label>
 
@@ -309,7 +318,8 @@ const statusLabels = {
   new: "待處理",
   in_progress: "處理中",
   resolved: "已更新",
-  closed: "無法處理"
+  closed: "無法處理",
+  deleted: "已刪除"
 };
 
 const categoryLabels = {
@@ -346,6 +356,10 @@ function make(tag, text, className) {
 
 function reportId(item) {
   return "BETA-" + String(Number(item.report_number) || 0).padStart(3, "0");
+}
+
+function displayStatus(item) {
+  return item.deleted_at ? "deleted" : item.status;
 }
 
 function formatDate(value) {
@@ -405,7 +419,7 @@ function setupFilters() {
 function renderSummary(counts) {
   summary.replaceChildren();
 
-  ["new","in_progress","resolved","closed"].forEach(function(key) {
+  ["new","in_progress","resolved","closed","deleted"].forEach(function(key) {
     const button = make("button", null, "summary-card");
     button.type = "button";
     button.append(
@@ -423,7 +437,7 @@ function renderSummary(counts) {
 function matchesFilters(item) {
   const keyword = searchFilter.value.trim().toLowerCase();
 
-  if (statusFilter.value && item.status !== statusFilter.value) return false;
+  if (statusFilter.value && displayStatus(item) !== statusFilter.value) return false;
   if (categoryFilter.value && item.category !== categoryFilter.value) return false;
   if (versionFilter.value && item.app_version !== versionFilter.value) return false;
   if (buildFilter.value && item.build_number !== buildFilter.value) return false;
@@ -445,6 +459,7 @@ function matchesFilters(item) {
     item.fixed_version,
     item.fixed_build,
     item.unable_reason,
+    item.deletion_reason,
     categoryLabels[item.category]
   ]
     .filter(Boolean)
@@ -501,6 +516,89 @@ function createTextarea(labelText, value, placeholder) {
 
 function createEditor(item, details) {
   const section = make("div", null, "detail-section");
+
+  if (item.deleted_at) {
+    section.append(make("h3", "已刪除回報"));
+
+    const deletedInfo = make("div", null, "conditional");
+    deletedInfo.append(
+      make("strong", "刪除時間"),
+      make("div", formatDate(item.deleted_at) || "未知")
+    );
+
+    if (item.deletion_reason) {
+      deletedInfo.append(
+        make("strong", "刪除原因"),
+        make("div", item.deletion_reason)
+      );
+    }
+
+    const legacyScrubbed =
+      !String(item.description || "").trim() ||
+      item.source === "deleted";
+
+    if (legacyScrubbed) {
+      const warning = make(
+        "p",
+        "這筆回報是在舊版刪除機制下移除，當時原始內容已被清除，因此現在只能保留回報 ID 與刪除紀錄，無法完整復原。",
+        "save-status"
+      );
+      deletedInfo.append(warning);
+    } else {
+      const note = make(
+        "p",
+        "這筆回報只是從一般清單隱藏，原始內容仍保留，可以完整復原。",
+        "save-status"
+      );
+      deletedInfo.append(note);
+    }
+
+    section.append(deletedInfo);
+
+    const actionRow = make("div", null, "action-row");
+    const restore = make("button", "復原回報", "restore-button");
+    restore.type = "button";
+    restore.disabled = legacyScrubbed;
+    const restoreStatus = make("span", "", "save-status");
+
+    restore.addEventListener("click", async function() {
+      const confirmed = confirm("確定復原 " + reportId(item) + "？");
+      if (!confirmed) return;
+
+      restore.disabled = true;
+      restoreStatus.textContent = "正在復原…";
+
+      try {
+        const response = await fetch("/dashboard/api/feedback/restore", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body:JSON.stringify({ id:item.id })
+        });
+
+        const result = await response.json();
+
+        if (response.status === 409 &&
+            result.error === "legacy_deleted_content_unavailable") {
+          restoreStatus.textContent = "舊版已清除原始內容，無法完整復原。";
+          return;
+        }
+
+        if (!response.ok || !result.ok) throw new Error();
+
+        restoreStatus.textContent = "已復原。";
+        await loadFeedback();
+      } catch {
+        restoreStatus.textContent = "復原失敗，請稍後再試。";
+      } finally {
+        restore.disabled = legacyScrubbed;
+      }
+    });
+
+    actionRow.append(restore, restoreStatus);
+    section.append(actionRow);
+    return section;
+  }
+
   section.append(make("h3", "處理與公開設定"));
 
   const grid = make("div", null, "editor-grid");
@@ -628,13 +726,13 @@ function createEditor(item, details) {
 
   remove.addEventListener("click", async function() {
     const reason = prompt(
-      "刪除後會清除原始回報內容，但 " + reportId(item) + " 會保留為「已移除」且不會重新使用。\n\n可輸入移除原因（可留空）：",
+      "刪除後會移到「已刪除」，不再出現在公開進度；原始內容會保留在後台，之後仍可復原。\n\n可輸入刪除原因（可留空）：",
       ""
     );
 
     if (reason === null) return;
 
-    const confirmed = confirm("確定刪除 " + reportId(item) + " 的原始內容？");
+    const confirmed = confirm("確定將 " + reportId(item) + " 移到「已刪除」？");
     if (!confirmed) return;
 
     remove.disabled = true;
@@ -653,8 +751,7 @@ function createEditor(item, details) {
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error();
 
-      saveStatus.textContent = "已移除。";
-      details.remove();
+      saveStatus.textContent = "已移到「已刪除」。";
       await loadFeedback();
     } catch {
       saveStatus.textContent = "刪除失敗，請稍後再試。";
@@ -682,7 +779,8 @@ function renderFeedback() {
 
   items.forEach(function(item) {
     const details = document.createElement("details");
-    details.className = "feedback-item status-" + item.status;
+    const shownStatus = displayStatus(item);
+    details.className = "feedback-item status-" + shownStatus;
 
     const summaryEl = document.createElement("summary");
     const summaryGrid = make("div", null, "feedback-summary");
@@ -690,7 +788,11 @@ function renderFeedback() {
     const main = make("div");
     const title = make(
       "div",
-      reportId(item) + " · " + (item.description || "未提供描述").replace(/\s+/g, " "),
+      reportId(item) + " · " + (
+        shownStatus === "deleted"
+          ? (item.description || "已刪除回報")
+          : (item.description || "未提供描述")
+      ).replace(/\s+/g, " "),
       "feedback-title"
     );
 
@@ -712,13 +814,19 @@ function renderFeedback() {
     const right = make("div", null, "feedback-right");
     const statusBadge = make(
       "span",
-      statusLabels[item.status] || item.status,
-      "mini-badge status-badge-" + item.status
+      statusLabels[shownStatus] || shownStatus,
+      "mini-badge status-badge-" + shownStatus
     );
     const visibility = make(
       "span",
-      Number(item.is_public) === 1 ? "公開" : "私人",
-      "mini-badge " + (Number(item.is_public) === 1 ? "visibility-public" : "visibility-private")
+      shownStatus === "deleted"
+        ? "已隱藏"
+        : (Number(item.is_public) === 1 ? "公開" : "私人"),
+      "mini-badge " + (
+        shownStatus === "deleted"
+          ? "visibility-private"
+          : (Number(item.is_public) === 1 ? "visibility-public" : "visibility-private")
+      )
     );
     visibility.classList.add("visibility-label");
     right.append(statusBadge, visibility, make("span", "›", "chevron"));
@@ -745,6 +853,10 @@ function renderFeedback() {
     addMeta(meta, "iOS", item.ios_version);
     addMeta(meta, "裝置", item.device_model);
     addMeta(meta, "來源", item.source);
+    if (item.deleted_at) {
+      addMeta(meta, "刪除時間", formatDate(item.deleted_at));
+      addMeta(meta, "刪除原因", item.deletion_reason);
+    }
     reportSection.append(meta);
     detail.append(reportSection);
 
