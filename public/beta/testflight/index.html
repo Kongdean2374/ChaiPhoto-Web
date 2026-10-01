@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
-  <meta name="description" content="ChaiPhoto TestFlight 安裝與安全說明">
+  <meta name="description" content="ChaiPhoto TestFlight 安裝、安全與測試說明">
   <title>取得 ChaiPhoto Beta</title>
 
   <style>
@@ -32,14 +32,14 @@
     .page{
       width:min(620px,calc(100% - 28px));
       margin:0 auto;
-      padding:max(20px,env(safe-area-inset-top)) 0 calc(60px + env(safe-area-inset-bottom));
+      padding:max(20px,env(safe-area-inset-top)) 0 calc(66px + env(safe-area-inset-bottom));
     }
 
     a{text-decoration:none;color:inherit}
 
     .back{
       display:inline-block;
-      margin-bottom:26px;
+      margin-bottom:24px;
       color:var(--blue);
       font-size:16px;
     }
@@ -47,11 +47,11 @@
     .hero{text-align:center}
 
     .icon{
-      width:104px;
-      height:104px;
-      margin:0 auto 18px;
+      width:100px;
+      height:100px;
+      margin:0 auto 17px;
       overflow:hidden;
-      border-radius:24px;
+      border-radius:23px;
       box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);
     }
 
@@ -61,7 +61,7 @@
       display:inline-flex;
       align-items:center;
       gap:6px;
-      margin-bottom:12px;
+      margin-bottom:11px;
       padding:6px 10px;
       border-radius:999px;
       background:rgba(48,209,88,.13);
@@ -70,56 +70,14 @@
       font-weight:800;
     }
 
-    h1{
-      margin:0;
-      font-size:31px;
-      letter-spacing:-.5px;
-    }
+    h1{margin:0;font-size:30px;letter-spacing:-.5px}
 
     .subtitle{
-      margin:9px auto 0;
+      margin:8px auto 0;
       max-width:480px;
       color:var(--muted);
-      font-size:15px;
+      font-size:14px;
       line-height:1.55;
-    }
-
-    .card{
-      margin-top:22px;
-      padding:18px;
-      border:1px solid var(--line);
-      border-radius:20px;
-      background:var(--card);
-    }
-
-    .card h2{margin:0 0 9px;font-size:18px}
-    .card p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
-
-    .facts{
-      display:grid;
-      gap:9px;
-      margin-top:13px;
-    }
-
-    .fact{
-      display:grid;
-      grid-template-columns:26px minmax(0,1fr);
-      gap:9px;
-      align-items:start;
-    }
-
-    .fact-icon{
-      color:var(--green);
-      font-weight:900;
-      text-align:center;
-    }
-
-    .fact strong{display:block;font-size:14px}
-    .fact span{display:block;margin-top:2px;color:var(--muted);font-size:12px;line-height:1.45}
-
-    .warning{
-      border-color:rgba(255,159,10,.24);
-      background:linear-gradient(145deg,rgba(255,159,10,.08),rgba(255,255,255,.025));
     }
 
     .buttons{
@@ -133,7 +91,7 @@
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      min-height:62px;
+      min-height:64px;
       padding:12px 16px;
       border-radius:17px;
       border:1px solid var(--line);
@@ -145,60 +103,77 @@
       border-color:transparent;
     }
 
-    .button.disabled{
-      opacity:.45;
-      pointer-events:none;
-    }
-
     .button-title{font-weight:800}
     .button-sub{margin-top:2px;color:rgba(255,255,255,.64);font-size:12px;line-height:1.4}
     .arrow{font-size:23px}
 
-    .hint{
-      margin-top:12px;
-      color:var(--muted);
-      text-align:center;
-      font-size:12px;
-      line-height:1.5;
+    .card{
+      margin-top:18px;
+      padding:16px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--card);
     }
 
-    .steps{
-      margin-top:22px;
-      padding-top:20px;
-      border-top:1px solid var(--line);
+    .card h2{margin:0 0 8px;font-size:17px}
+    .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.58}
+
+    .warning{
+      border-color:rgba(255,159,10,.26);
+      background:linear-gradient(145deg,rgba(255,159,10,.09),rgba(255,255,255,.025));
     }
 
-    .steps h2{margin:0 0 12px;font-size:18px}
-
-    .step{
+    .fact-list{
       display:grid;
-      grid-template-columns:30px minmax(0,1fr);
       gap:9px;
-      margin:10px 0;
+      margin-top:10px;
+    }
+
+    .fact{
+      display:grid;
+      grid-template-columns:24px minmax(0,1fr);
+      gap:8px;
       align-items:start;
     }
 
-    .num{
-      width:30px;
-      height:30px;
+    .fact-icon{color:var(--green);font-weight:900;text-align:center}
+    .fact strong{display:block;font-size:13px}
+    .fact span{display:block;margin-top:2px;color:var(--muted);font-size:12px;line-height:1.45}
+
+    .update{
+      border-color:rgba(10,132,255,.24);
+      background:rgba(10,132,255,.08);
+    }
+
+    .links{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:9px;
+      margin-top:18px;
+    }
+
+    .link{
+      min-height:46px;
       display:flex;
       align-items:center;
       justify-content:center;
-      border-radius:50%;
+      border-radius:14px;
+      border:1px solid var(--line);
       background:var(--card);
-      color:var(--blue);
-      font-weight:800;
+      font-size:13px;
+      font-weight:750;
     }
 
-    .step strong{display:block;font-size:14px}
-    .step span{display:block;margin-top:2px;color:var(--muted);font-size:12px;line-height:1.45}
-
     footer{
-      margin-top:28px;
+      margin-top:27px;
       color:var(--muted);
       text-align:center;
       font-size:11px;
       line-height:1.5;
+    }
+
+    @media(max-width:480px){
+      .links{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -213,85 +188,13 @@
       <img src="/beta/images/icon.png" alt="ChaiPhoto">
     </div>
 
-    <div class="badge">✓ TestFlight 外部測試已核准</div>
+    <div class="badge">✓ Apple TestFlight 公開 Beta</div>
 
     <h1>取得 ChaiPhoto Beta</h1>
 
     <div class="subtitle">
-      ChaiPhoto 目前透過 Apple TestFlight 進行公開 Beta。
-      請先閱讀下方說明，再前往 TestFlight 加入測試。
+      第一次加入只要完成下面兩個步驟。已經安裝 TestFlight 的使用者可以直接前往第二步。
     </div>
-  </div>
-
-  <div class="card">
-    <h2>這是什麼測試方式？</h2>
-
-    <div class="facts">
-      <div class="fact">
-        <div class="fact-icon">✓</div>
-        <div>
-          <strong>TestFlight 是 Apple 官方 App</strong>
-          <span>TestFlight 由 Apple 在 App Store 提供，用於安裝與測試尚未正式上架的 Beta App。</span>
-        </div>
-      </div>
-
-      <div class="fact">
-        <div class="fact-icon">✓</div>
-        <div>
-          <strong>ChaiPhoto 外部測試版本已通過 Beta App Review</strong>
-          <span>首個外部測試 Build 需經 Apple 審查核准後，才能提供給外部測試者。</span>
-        </div>
-      </div>
-
-      <div class="fact">
-        <div class="fact-icon">✓</div>
-        <div>
-          <strong>不用 UDID，也不用 Developer Mode</strong>
-          <span>透過公開 TestFlight 連結加入即可，不需要另外安裝企業憑證或描述檔。</span>
-        </div>
-      </div>
-
-      <div class="fact">
-        <div class="fact-icon">✓</div>
-        <div>
-          <strong>最多可邀請 10,000 名外部測試者</strong>
-          <span>公開連結可讓符合條件的使用者直接加入測試。</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card warning">
-    <h2>安全性與 Beta 審查要怎麼理解？</h2>
-    <p>
-      ChaiPhoto 透過 Apple 官方 TestFlight 分發，Build 37 已完成外部測試所需的
-      Beta App Review；TestFlight 本身也由 Apple 從 App Store 提供。
-      這能確認目前使用的是 Apple 正式的 Beta 分發流程，但不代表 Apple 對每一行程式碼、
-      所有隱私行為、漏洞或程式錯誤做完整鑑識，也不代表「完全零風險」。
-      Beta 期間仍可能出現 App 自身的介面、顯示、功能、卡頓或穩定性問題。
-      ChaiPhoto 能使用的照片等內容仍受 iOS 權限系統控制。
-    </p>
-  </div>
-
-  <div class="card">
-    <h2>遇到 Bug 時，建議優先用網站回報</h2>
-    <p>
-      ChaiPhoto 的網站回報會直接進入開發者的問題整理與追蹤系統，
-      通常比零散回饋更容易被快速分類、追蹤與更新處理狀態。
-      開發者每天早上約 08:00 會固定查看新的網站回報、回報後台與相關通知。
-      也可以從 App 內的回報入口，或使用 TestFlight 內建的 Beta Feedback；
-      若是閃退或需要附圖，TestFlight 的內建回饋也很適合。
-    </p>
-  </div>
-
-  <div class="buttons">
-    <a class="button" href="/report">
-      <div>
-        <div class="button-title">回報 ChaiPhoto 問題</div>
-        <div class="button-sub">建議優先使用網站回報，方便較快進入問題追蹤清單</div>
-      </div>
-      <span class="arrow">›</span>
-    </a>
   </div>
 
   <div class="buttons">
@@ -302,81 +205,86 @@
     >
       <div>
         <div class="button-title">1. 取得 Apple TestFlight</div>
-        <div class="button-sub">尚未安裝 TestFlight 的使用者先從 App Store 取得</div>
+        <div class="button-sub">從 App Store 安裝 Apple 官方 TestFlight</div>
       </div>
       <span class="arrow">›</span>
     </a>
 
     <a
-      id="join-button"
-      class="button primary disabled"
-      href="#"
-      aria-disabled="true"
+      class="button primary"
+      href="https://testflight.apple.com/join/vHCZ7wZp"
+      rel="noopener"
     >
       <div>
         <div class="button-title">2. 加入 ChaiPhoto 公開測試</div>
-        <div class="button-sub" id="join-sub">ChaiPhoto 公開邀請連結尚未填入網站</div>
+        <div class="button-sub">前往 TestFlight 邀請頁並接受測試</div>
       </div>
       <span class="arrow">›</span>
     </a>
   </div>
 
-  <div class="hint" id="join-hint">
-    第二個按鈕會連到 ChaiPhoto 專屬的 testflight.apple.com 公開邀請頁。
+  <div class="card warning">
+    <h2>安全與 Beta 風險說明</h2>
+    <p>
+      ChaiPhoto 使用 Apple TestFlight 分發，不需要企業憑證、來源不明描述檔、UDID 或 Developer Mode。
+      App 能使用的照片與影片仍受 iOS 權限控制，透過 TestFlight 安裝不會自動取得額外系統權限。
+    </p>
+
+    <div class="fact-list">
+      <div class="fact">
+        <div class="fact-icon">✓</div>
+        <div>
+          <strong>目前已由開發者手動測試</strong>
+          <span>目前沒有發現會影響基本整理流程的已知運作問題。</span>
+        </div>
+      </div>
+
+      <div class="fact">
+        <div class="fact-icon">!</div>
+        <div>
+          <strong>但 Beta 不是零風險</strong>
+          <span>不同裝置、照片庫內容或操作方式仍可能遇到尚未發現的 Bug、介面異常、卡頓、閃退或其他使用體驗問題。</span>
+        </div>
+      </div>
+
+      <div class="fact">
+        <div class="fact-icon">✓</div>
+        <div>
+          <strong>這也是公開測試的目的</strong>
+          <span>希望透過更多實際使用情境找出問題，再持續修正與改善。</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="steps">
-    <h2>加入後怎麼做？</h2>
+  <div class="card update">
+    <h2>加入後，更新怎麼知道？</h2>
+    <p>
+      新的 Beta 版本會直接出現在 TestFlight。是否收到推播通知取決於 TestFlight 與 iOS 的通知設定；
+      每個版本的「測試項目」會寫上這次更新了什麼，以及希望測試者特別確認的內容。
+      所以一般使用者不需要記 Build 編號，只要看 TestFlight 顯示的版本與更新說明即可。
+    </p>
+  </div>
 
-    <div class="step">
-      <div class="num">1</div>
-      <div>
-        <strong>安裝 TestFlight</strong>
-        <span>如果已安裝，可以直接跳到下一步。</span>
-      </div>
-    </div>
+  <div class="card">
+    <h2>遇到 Bug 或覺得哪裡不好用？</h2>
+    <p>
+      建議優先使用 ChaiPhoto 網站回報，問題會直接進入開發者的追蹤系統。
+      開發者每天早上約 08:00 會固定查看新的網站回報與相關通知。
+      App 內回報與 TestFlight 內建 Beta Feedback 也可以使用。
+    </p>
+  </div>
 
-    <div class="step">
-      <div class="num">2</div>
-      <div>
-        <strong>打開 ChaiPhoto 公開測試連結</strong>
-        <span>在 TestFlight 頁面接受邀請。</span>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="num">3</div>
-      <div>
-        <strong>在 TestFlight 按「安裝」</strong>
-        <span>之後的新 Beta 版本也會由 TestFlight 提供更新。</span>
-      </div>
-    </div>
+  <div class="links">
+    <a class="link" href="/report">問題回報</a>
+    <a class="link" href="/report#issues">已知問題與進度</a>
   </div>
 
   <footer>
     ChaiPhoto Beta · Apple TestFlight 外部測試<br>
-    Beta 版本不是 App Store 正式版，仍可能包含尚未修正的問題
+    Beta 版本仍可能包含尚未發現的問題
   </footer>
 
 </main>
-
-<script>
-  // 將 ChaiPhoto 的公開 TestFlight 邀請連結貼在這裡。
-  // 格式：https://testflight.apple.com/join/XXXXXXXX
-  const CHAI_TESTFLIGHT_URL = "https://testflight.apple.com/join/vHCZ7wZp";
-
-  const joinButton = document.getElementById("join-button");
-  const joinSub = document.getElementById("join-sub");
-  const joinHint = document.getElementById("join-hint");
-
-  if (CHAI_TESTFLIGHT_URL.startsWith("https://testflight.apple.com/join/")) {
-    joinButton.href = CHAI_TESTFLIGHT_URL;
-    joinButton.classList.remove("disabled");
-    joinButton.removeAttribute("aria-disabled");
-    joinSub.textContent = "前往 Apple TestFlight，接受 ChaiPhoto Beta 邀請";
-    joinHint.textContent = "如果已安裝 TestFlight，點第二個按鈕即可直接加入 ChaiPhoto Beta。";
-  }
-</script>
-
 </body>
 </html>
