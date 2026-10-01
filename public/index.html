@@ -2,32 +2,342 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="ChaiPhoto 柴柴相簿整理官方資訊與支援網站">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="ChaiPhoto 柴柴相簿整理官方網站、TestFlight Beta、問題回報與支援">
   <title>ChaiPhoto 柴柴相簿整理</title>
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-<main>
-  <nav>
-    <a href="/">首頁</a>
-    <a href="/privacy">隱私政策</a>
-    <a href="/terms">使用政策</a>
-    <a href="/support">支援</a>
-  </nav>
 
-  <div class="hero">
-    <p class="muted">ChaiPhoto</p>
-    <h1>柴柴相簿整理</h1>
-    <p>用更直覺的方式整理 iPhone 相簿。這裡提供隱私政策、使用政策與支援資訊。</p>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#000;
+      --card:#171719;
+      --card2:#1f1f22;
+      --text:#f5f5f7;
+      --muted:#929298;
+      --line:rgba(255,255,255,.11);
+      --blue:#0a84ff;
+      --green:#30d158;
+    }
+
+    *{box-sizing:border-box}
+
+    html,body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+    }
+
+    body{min-height:100vh}
+    a{text-decoration:none;color:inherit}
+
+    .page{
+      width:min(820px,calc(100% - 28px));
+      margin:0 auto;
+      padding:max(20px,env(safe-area-inset-top)) 0 calc(72px + env(safe-area-inset-bottom));
+    }
+
+    .nav{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:28px;
+    }
+
+    .brand{font-size:17px;font-weight:780}
+    .nav-links{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+    .nav-link{
+      padding:7px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns:112px minmax(0,1fr);
+      gap:20px;
+      align-items:center;
+      padding:14px 0 26px;
+    }
+
+    .icon{
+      width:112px;
+      height:112px;
+      border-radius:26px;
+      overflow:hidden;
+      background:#111;
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);
+    }
+
+    .icon img{width:100%;height:100%;object-fit:cover;display:block}
+
+    .status{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-bottom:7px;
+      color:var(--green);
+      font-size:12px;
+      font-weight:800;
+    }
+
+    h1{
+      margin:0;
+      font-size:37px;
+      line-height:1.05;
+      letter-spacing:-.8px;
+    }
+
+    .subtitle{
+      margin-top:7px;
+      color:var(--muted);
+      font-size:16px;
+      line-height:1.45;
+    }
+
+    .version{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns:1.3fr 1fr;
+      gap:10px;
+      margin:6px 0 24px;
+    }
+
+    .action{
+      min-height:62px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 16px;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:var(--card);
+    }
+
+    .action.primary{background:var(--blue);border-color:transparent}
+    .action-title{font-weight:800}
+    .action-sub{margin-top:2px;color:rgba(255,255,255,.64);font-size:12px;line-height:1.35}
+    .arrow{font-size:22px}
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .card{
+      padding:17px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--card);
+    }
+
+    .card h2{margin:0 0 6px;font-size:17px}
+    .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+    .card-link{display:block}
+
+    .features{
+      margin-top:24px;
+      padding-top:22px;
+      border-top:1px solid var(--line);
+    }
+
+    .features h2{margin:0 0 14px;font-size:23px}
+
+    .feature-list{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .feature{
+      display:grid;
+      grid-template-columns:38px minmax(0,1fr);
+      gap:10px;
+      align-items:start;
+      padding:13px;
+      border-radius:16px;
+      background:var(--card);
+    }
+
+    .feature-icon{
+      width:38px;
+      height:38px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:11px;
+      background:var(--card2);
+      color:var(--blue);
+      font-weight:850;
+    }
+
+    .feature-title{font-weight:750;font-size:14px}
+    .feature-desc{margin-top:2px;color:var(--muted);font-size:12px;line-height:1.45}
+
+    .note{
+      margin-top:24px;
+      padding:14px 15px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.55;
+    }
+
+    footer{
+      margin-top:28px;
+      text-align:center;
+      color:var(--muted);
+      font-size:11px;
+      line-height:1.55;
+    }
+
+    @media(max-width:560px){
+      .page{width:min(100% - 22px,820px)}
+      .nav-links .optional{display:none}
+
+      .hero{
+        grid-template-columns:88px minmax(0,1fr);
+        gap:15px;
+      }
+
+      .icon{width:88px;height:88px;border-radius:21px}
+      h1{font-size:29px}
+
+      .actions,.grid,.feature-list{
+        grid-template-columns:1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<main class="page">
+
+  <div class="nav">
+    <div class="brand">ChaiPhoto</div>
+
+    <div class="nav-links">
+      <a class="nav-link" href="/beta">Beta</a>
+      <a class="nav-link" href="/report">問題回報</a>
+      <a class="nav-link optional" href="/support">支援</a>
+      <a class="nav-link optional" href="/privacy">隱私</a>
+    </div>
   </div>
 
-  <section>
-    <h2>Privacy & Support</h2>
-    <p>ChaiPhoto helps organize your iPhone photo library. This site contains the app's privacy policy, terms and support information.</p>
-  </section>
+  <div class="hero">
+    <div class="icon">
+      <img src="/beta/images/icon.png" alt="ChaiPhoto App Icon">
+    </div>
 
-  <footer>© 2026 ChaiPhoto</footer>
+    <div>
+      <div class="status">● TestFlight 公開 Beta 已開放</div>
+      <h1>ChaiPhoto</h1>
+      <div class="subtitle">用更直覺的方式整理 iPhone 照片與影片。</div>
+      <div class="version">目前測試版本 1.2.5 · Build 37</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <a class="action primary" href="/beta/testflight">
+      <div>
+        <div class="action-title">加入 TestFlight 測試</div>
+        <div class="action-sub">先閱讀安裝與安全說明，再前往 Apple TestFlight</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+
+    <a class="action" href="/report">
+      <div>
+        <div class="action-title">回報問題</div>
+        <div class="action-sub">網站回報會直接進入問題追蹤系統</div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+  </div>
+
+  <div class="grid">
+    <a class="card card-link" href="/beta">
+      <h2>Beta 資訊</h2>
+      <p>查看功能、測試方式、安全說明與目前版本。</p>
+    </a>
+
+    <a class="card card-link" href="/report#issues">
+      <h2>已知問題與進度</h2>
+      <p>查看已收到、處理中、已修復與已關閉的公開問題。</p>
+    </a>
+
+    <a class="card card-link" href="/support">
+      <h2>App 支援</h2>
+      <p>需要協助或想了解使用方式，可以從這裡開始。</p>
+    </a>
+
+    <a class="card card-link" href="/privacy">
+      <h2>隱私與政策</h2>
+      <p>查看資料處理、隱私權政策與使用條款。</p>
+    </a>
+  </div>
+
+  <div class="features">
+    <h2>目前 Beta 功能</h2>
+
+    <div class="feature-list">
+      <div class="feature">
+        <div class="feature-icon">↔</div>
+        <div>
+          <div class="feature-title">照片快速整理</div>
+          <div class="feature-desc">左滑待刪，右滑保留。</div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">▶</div>
+        <div>
+          <div class="feature-title">影片整理</div>
+          <div class="feature-desc">上下切換影片並快速操作。</div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">✓</div>
+        <div>
+          <div class="feature-title">待刪複查</div>
+          <div class="feature-desc">正式刪除前集中確認與還原。</div>
+        </div>
+      </div>
+
+      <div class="feature">
+        <div class="feature-icon">≡</div>
+        <div>
+          <div class="feature-title">整理篩選</div>
+          <div class="feature-desc">依照片、影片、相簿與時間整理。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    ChaiPhoto 目前透過 Apple TestFlight 提供 Beta 測試。Beta 版本仍可能包含介面、顯示、功能或穩定性問題。
+    若遇到異常，建議優先使用本站的問題回報頁。
+  </div>
+
+  <footer>
+    © 2026 ChaiPhoto<br>
+    TestFlight Beta · 非 App Store 正式版
+  </footer>
+
 </main>
 </body>
 </html>
