@@ -2,265 +2,247 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="回報 ChaiPhoto 問題並查看已知問題與修復進度">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="回報 ChaiPhoto 問題、查詢回報進度與查看已知問題">
   <title>問題回報 | ChaiPhoto</title>
   <link rel="stylesheet" href="/styles.css">
 
   <style>
+    main { width:min(940px,calc(100% - 24px)); padding-top:24px; }
+    .hero { padding:20px; }
+    .hero h1 { font-size:clamp(2rem,7vw,3.2rem); }
+
     .tabs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-      margin: 14px 0;
-      padding: 4px;
-      border: 1px solid var(--line);
-      border-radius: 15px;
-      background: var(--card);
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:6px;
+      margin:14px 0;
+      padding:4px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--card);
     }
 
     .tab-button {
-      appearance: none;
-      border: 0;
-      border-radius: 11px;
-      padding: 10px 8px;
-      background: transparent;
-      color: var(--muted);
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
+      appearance:none;
+      border:0;
+      border-radius:12px;
+      padding:10px 8px;
+      background:transparent;
+      color:var(--muted);
+      font:inherit;
+      font-weight:750;
+      cursor:pointer;
     }
 
-    .tab-button.active {
-      background: var(--accent);
-      color: white;
+    .tab-button.active { background:var(--accent); color:#fff; }
+    .tab-panel[hidden] { display:none; }
+
+    .section-title { margin-bottom:4px; }
+    .helper { margin:0; color:var(--muted); font-size:.82rem; line-height:1.55; }
+    .field-hint { margin-top:-2px; color:var(--muted); font-size:.78rem; font-weight:500; }
+
+    .diagnostics-box {
+      min-height:110px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-size:.82rem;
     }
 
-    .tab-panel[hidden] {
-      display: none;
+    .parse-result {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      min-height:24px;
+      color:var(--muted);
+      font-size:.82rem;
+    }
+
+    .parse-result.ok { color:#2fa36b; }
+    .parse-result.bad { color:#d14a4a; }
+
+    .system-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+
+    .success-box,
+    .lookup-box {
+      padding:16px;
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--bg);
+    }
+
+    .success-id {
+      margin:10px 0 4px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-size:clamp(1.6rem,7vw,2.6rem);
+      font-weight:850;
+      letter-spacing:.03em;
+    }
+
+    .action-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:12px;
+    }
+
+    .small-button {
+      appearance:none;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:9px 12px;
+      background:var(--card);
+      color:var(--text);
+      font:inherit;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .small-button.primary {
+      border-color:transparent;
+      background:var(--accent);
+      color:#fff;
+    }
+
+    .lookup-form {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:8px;
+      margin-top:14px;
+    }
+
+    .lookup-form input { min-width:0; }
+    .recent-wrap { margin-top:16px; }
+    .recent-head {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+    }
+
+    .recent-list { display:flex; flex-wrap:wrap; gap:7px; }
+    .recent-chip {
+      appearance:none;
+      border:1px solid var(--line);
+      background:var(--bg);
+      color:var(--text);
+      border-radius:999px;
+      padding:6px 10px;
+      font:inherit;
+      font-size:.8rem;
+      cursor:pointer;
+    }
+
+    .track-card {
+      margin-top:14px;
+      border-radius:18px;
+      padding:16px;
+      border:1px solid rgba(0,0,0,.08);
+      color:#171719;
+    }
+
+    .status-new-card { background:#fff; }
+    .status-in_progress-card { background:#fff3bf; }
+    .status-resolved-card { background:#e4f7e9; }
+    .status-closed-card { background:#ffe5e5; }
+    .status-deleted-card { background:#ececf0; }
+
+    .track-top {
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .track-id {
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-weight:850;
+    }
+
+    .status-pill {
+      display:inline-flex;
+      align-items:center;
+      border-radius:999px;
+      padding:4px 8px;
+      background:rgba(0,0,0,.08);
+      font-size:.74rem;
+      font-weight:850;
+      white-space:nowrap;
+    }
+
+    .track-title { margin:10px 0 3px; font-size:1.04rem; font-weight:800; }
+    .track-note { margin:6px 0 0; white-space:pre-wrap; }
+    .track-meta {
+      display:grid;
+      gap:4px;
+      margin-top:12px;
+      font-size:.82rem;
+      color:#55555d;
     }
 
     .issues-header {
-      padding: 18px;
-      margin: 14px 0 10px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: var(--card);
+      padding:18px;
+      margin:14px 0 10px;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:var(--card);
     }
 
-    .issues-header h2 {
-      margin: 0 0 5px;
-      font-size: 1.25rem;
-    }
+    .issues-header h2 { margin:0 0 5px; font-size:1.25rem; }
+    .issues-header p { margin:0; }
 
-    .issues-header p {
-      margin: 0;
-      font-size: .9rem;
-    }
-
-    .issue-toolbar {
-      display: grid;
-      gap: 9px;
-      margin-top: 14px;
-    }
-
-    .issue-search {
-      padding: 10px 13px;
-    }
-
+    .issue-toolbar { display:grid; gap:9px; margin-top:14px; }
     .issue-filter-row {
-      display: flex;
-      gap: 7px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      padding-bottom: 2px;
+      display:flex;
+      gap:7px;
+      overflow-x:auto;
+      scrollbar-width:none;
+      padding-bottom:2px;
     }
-
-    .issue-filter-row::-webkit-scrollbar {
-      display: none;
-    }
+    .issue-filter-row::-webkit-scrollbar { display:none; }
 
     .issue-filter {
-      appearance: none;
-      flex: 0 0 auto;
-      border: 1px solid var(--line);
-      background: var(--bg);
-      color: var(--muted);
-      border-radius: 999px;
-      padding: 6px 10px;
-      font: inherit;
-      font-size: .82rem;
-      font-weight: 650;
-      cursor: pointer;
-      white-space: nowrap;
+      appearance:none;
+      flex:0 0 auto;
+      border:1px solid var(--line);
+      background:var(--bg);
+      color:var(--muted);
+      border-radius:999px;
+      padding:6px 10px;
+      font:inherit;
+      font-size:.82rem;
+      font-weight:700;
+      cursor:pointer;
+      white-space:nowrap;
     }
 
     .issue-filter.active {
-      border-color: var(--accent);
-      color: var(--accent);
-      background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+      border-color:var(--accent);
+      color:var(--accent);
     }
 
-    .result-count {
-      color: var(--muted);
-      font-size: .82rem;
-    }
-
-    .issue-list {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      overflow: hidden;
-      background: var(--card);
-    }
-
-    .issue-row {
-      margin: 0;
-      border: 0;
-      border-bottom: 1px solid var(--line);
-      background: transparent;
-    }
-
-    .issue-row:last-child {
-      border-bottom: 0;
-    }
-
-    .issue-row summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 13px 14px;
-      user-select: none;
-    }
-
-    .issue-row summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .issue-summary {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .issue-main {
-      min-width: 0;
-    }
-
-    .issue-title {
-      margin: 0;
-      font-size: .98rem;
-      line-height: 1.35;
-      font-weight: 720;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .issue-subtitle {
-      margin-top: 4px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      color: var(--muted);
-      font-size: .77rem;
-    }
-
-    .issue-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .issue-status {
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 4px 7px;
-      font-size: .72rem;
-      font-weight: 800;
-      white-space: nowrap;
-    }
-
-    .status-new { color: #4384e6; }
-    .status-in_progress { color: #d89a24; }
-    .status-resolved { color: #2fa36b; }
-    .status-closed { color: var(--muted); }
-
-    .chevron {
-      color: var(--muted);
-      font-size: 1rem;
-      transition: transform .18s ease;
-    }
-
-    .issue-row[open] .chevron {
-      transform: rotate(90deg);
-    }
-
-    .issue-detail {
-      padding: 0 14px 15px;
-      border-top: 1px solid var(--line);
-    }
-
-    .issue-detail-inner {
-      padding-top: 13px;
-    }
-
-    .issue-note {
-      margin: 0 0 12px;
-      white-space: pre-wrap;
-    }
-
-    .issue-fixed {
-      padding: 10px 12px;
-      margin: 10px 0;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--bg);
-      font-size: .9rem;
-    }
-
-    .issue-meta {
-      display: grid;
-      gap: 3px;
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: .76rem;
-    }
-
-    .issue-id {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      overflow-wrap: anywhere;
-    }
+    .result-count { color:var(--muted); font-size:.82rem; }
+    .issue-list { display:grid; gap:9px; }
 
     .empty-state {
-      padding: 30px 16px;
-      text-align: center;
-      color: var(--muted);
+      padding:28px 16px;
+      text-align:center;
+      color:var(--muted);
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--card);
     }
 
-    .success-box {
-      padding: 13px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: var(--bg);
-    }
-
-    @media (max-width: 620px) {
-      main {
-        width: min(100% - 22px, 900px);
-        padding-top: 20px;
-      }
-
-      .hero {
-        padding: 18px;
-      }
-
-      .issue-row summary {
-        padding: 12px;
-      }
-
-      .issue-status {
-        padding: 3px 6px;
-      }
+    @media (max-width:640px) {
+      main { width:min(100% - 20px,940px); }
+      .tabs { grid-template-columns:1fr; }
+      .system-grid { grid-template-columns:1fr; }
+      .lookup-form { grid-template-columns:1fr; }
+      .track-top { align-items:center; }
     }
   </style>
 </head>
@@ -269,38 +251,66 @@
 <main>
   <nav>
     <a href="/">首頁</a>
-    <a href="/privacy">隱私政策</a>
-    <a href="/terms">使用政策</a>
+    <a href="/beta">Beta</a>
     <a href="/support">支援</a>
+    <a href="/privacy">隱私政策</a>
     <a href="/report">問題回報</a>
   </nav>
 
   <div class="hero">
     <p class="muted">ChaiPhoto Feedback</p>
-    <h1>問題回報</h1>
-    <p>
-      發現 Beta 版本有問題？建議優先從這個網站送出回報。
-      回報會直接進入 ChaiPhoto 的問題整理與追蹤系統，方便分類、更新狀態與追蹤修復進度。
-    </p>
-    <p class="muted">
-      開發者每天早上約 08:00 會固定查看新的網站回報、回報後台與相關通知。
-      也可以使用 App 內的回報入口，或 TestFlight 內建的 Beta Feedback。
-    </p>
+    <h1>問題回報與追蹤</h1>
+    <p>回報 Beta 問題、保存回報 ID，之後可以回來查詢處理進度。</p>
+    <p class="muted">系統資訊全部是選填。沒有提供也可以直接送出問題。</p>
   </div>
 
   <div class="tabs" role="tablist">
-    <button id="report-tab" class="tab-button active" type="button" role="tab" aria-selected="true">
-      回報問題
-    </button>
-
-    <button id="issues-tab" class="tab-button" type="button" role="tab" aria-selected="false">
-      已知問題與進度
-    </button>
+    <button id="report-tab" class="tab-button active" type="button">回報問題</button>
+    <button id="lookup-tab" class="tab-button" type="button">查詢回報</button>
+    <button id="issues-tab" class="tab-button" type="button">公開進度</button>
   </div>
 
   <div id="report-panel" class="tab-panel">
     <section>
       <form id="feedback-form">
+        <div>
+          <h2 class="section-title">系統資訊（選填）</h2>
+          <p class="helper">可在 ChaiPhoto App「設定」最底下使用「複製系統資訊」，再直接貼到下面。貼上後會自動填入可辨識欄位，仍可自行修改。</p>
+        </div>
+
+        <label>
+          貼上 ChaiPhoto 系統資訊
+          <textarea
+            id="diagnostics-input"
+            class="diagnostics-box"
+            rows="6"
+            placeholder="ChaiPhoto Diagnostics v1&#10;App-Version: ...&#10;Build: ..."></textarea>
+        </label>
+
+        <div id="parse-result" class="parse-result" aria-live="polite"></div>
+
+        <div class="system-grid">
+          <label>
+            App 版本
+            <input name="appVersion" maxlength="40" placeholder="例如 1.2.5">
+          </label>
+
+          <label>
+            Build
+            <input name="buildNumber" maxlength="40" placeholder="例如 42">
+          </label>
+
+          <label>
+            iOS 版本
+            <input name="iosVersion" maxlength="80" placeholder="例如 27.0.1">
+          </label>
+
+          <label>
+            iPhone 型號
+            <input name="deviceModel" maxlength="120" placeholder="例如 iPhone18,1">
+          </label>
+        </div>
+
         <label>
           問題類型
           <select name="category" required>
@@ -323,91 +333,71 @@
             minlength="5"
             maxlength="5000"
             required
-            placeholder="例如：滑到第三張照片時畫面卡住，返回首頁後恢復。"></textarea>
+            placeholder="例如：滑到第三張照片放開手指時，畫面會短暫卡一下。"></textarea>
         </label>
 
         <label>
-          重現步驟（選填）
+          發生時機／重現步驟（選填）
           <textarea
             name="steps"
             rows="5"
             maxlength="5000"
-            placeholder="例如：打開 App → 選 2026 年 9 月 → 連續右滑三張照片。"></textarea>
+            placeholder="例如：開啟 App → 選 2026 年 9 月 → 連續右滑三張照片。"></textarea>
         </label>
-
-        <div class="form-grid">
-          <label>
-            App 版本（選填）
-            <input name="appVersion" maxlength="40" placeholder="例如 1.0 Beta">
-          </label>
-
-          <label>
-            Build（選填）
-            <input name="buildNumber" maxlength="40" placeholder="例如 5">
-          </label>
-
-          <label>
-            iOS 版本（選填）
-            <input name="iosVersion" maxlength="80" placeholder="例如 iOS 27.0">
-          </label>
-
-          <label>
-            iPhone 型號（選填）
-            <input name="deviceModel" maxlength="120" placeholder="例如 iPhone 17 Pro">
-          </label>
-        </div>
 
         <label class="honeypot" aria-hidden="true">
           Website
           <input name="website" tabindex="-1" autocomplete="off">
         </label>
 
-        <button id="submit-button" class="primary-button" type="submit">
-          送出回報
-        </button>
-
+        <button id="submit-button" class="primary-button" type="submit">送出回報</button>
         <p id="form-status" class="muted" role="status" aria-live="polite"></p>
         <div id="submit-result" class="success-box" hidden></div>
       </form>
     </section>
+  </div>
 
+  <div id="lookup-panel" class="tab-panel" hidden>
     <section>
-      <h2>提交前請注意</h2>
-      <p>請不要附上私密照片、位置、Apple ID、電話或其他敏感個人資料。</p>
-      <p class="muted">回報送出後會先經過確認，並不是所有回報都會公開顯示。</p>
-    </section>
+      <h2>查詢自己的回報</h2>
+      <p class="helper">可輸入 BETA-001、001、01 或 1，會自動視為同一筆回報。</p>
 
-    <section>
-      <h2>其他回報方式</h2>
-      <p>
-        除了這個網站，也可以使用 App 內的回報入口，或 TestFlight 內建的 Beta Feedback。
-        如果問題包含閃退、需要附上截圖，或想直接使用 Apple 的測試回饋流程，
-        TestFlight 內建回饋會很方便。
-      </p>
-      <p class="muted">
-        若希望問題較快進入 ChaiPhoto 的整理與追蹤清單，仍建議優先使用本網站回報。
-      </p>
+      <div class="lookup-form">
+        <input id="lookup-input" type="search" inputmode="text" placeholder="例如 BETA-001 或 001">
+        <button id="lookup-button" class="primary-button" type="button">查詢</button>
+      </div>
+
+      <p id="lookup-status" class="muted" role="status" aria-live="polite"></p>
+      <div id="lookup-result"></div>
+
+      <div id="recent-wrap" class="recent-wrap" hidden>
+        <div class="recent-head">
+          <strong>此瀏覽器近期回報</strong>
+          <button id="clear-recent" class="small-button" type="button">清除紀錄</button>
+        </div>
+        <div id="recent-list" class="recent-list"></div>
+        <p class="helper">只在目前瀏覽器本機保存回報 ID，不會用來辨識身分。</p>
+      </div>
     </section>
   </div>
 
   <div id="issues-panel" class="tab-panel" hidden>
     <div class="issues-header">
       <h2>已知問題與處理進度</h2>
-      <p class="muted">只顯示經確認後公開的問題。點擊項目即可查看詳細資訊。</p>
+      <p class="muted">這裡只顯示開發者選擇公開的問題。</p>
 
       <div class="issue-toolbar">
         <input
           id="issue-search"
-          class="issue-search"
           type="search"
-          placeholder="搜尋問題、進度或版本">
+          placeholder="搜尋 BETA ID、問題、版本或 Build">
 
         <div class="issue-filter-row">
           <button class="issue-filter active" type="button" data-status="">全部</button>
-          <button class="issue-filter" type="button" data-status="new">已收到</button>
+          <button class="issue-filter" type="button" data-status="new">待處理</button>
           <button class="issue-filter" type="button" data-status="in_progress">處理中</button>
-          <button class="issue-filter" type="button" data-status="resolved">已修復</button>
-          <button class="issue-filter" type="button" data-status="closed">已關閉</button>
+          <button class="issue-filter" type="button" data-status="resolved">已更新</button>
+          <button class="issue-filter" type="button" data-status="closed">無法處理</button>
         </div>
 
         <div id="issue-count" class="result-count"></div>
@@ -421,30 +411,12 @@
 </main>
 
 <script>
-const form = document.getElementById("feedback-form");
-const formStatus = document.getElementById("form-status");
-const submitButton = document.getElementById("submit-button");
-const submitResult = document.getElementById("submit-result");
-
-const reportTab = document.getElementById("report-tab");
-const issuesTab = document.getElementById("issues-tab");
-const reportPanel = document.getElementById("report-panel");
-const issuesPanel = document.getElementById("issues-panel");
-
-const issueList = document.getElementById("issue-list");
-const issueCount = document.getElementById("issue-count");
-const issueSearch = document.getElementById("issue-search");
-const filterButtons = [...document.querySelectorAll(".issue-filter")];
-
-let allIssues = [];
-let activeStatus = "";
-let issuesLoaded = false;
-
 const statusLabels = {
-  new: "已收到",
+  new: "待處理",
   in_progress: "處理中",
-  resolved: "已修復",
-  closed: "已關閉"
+  resolved: "已更新",
+  closed: "無法處理",
+  deleted: "已移除"
 };
 
 const categoryLabels = {
@@ -458,62 +430,192 @@ const categoryLabels = {
   other: "其他"
 };
 
-function formatDate(value, short = false) {
-  if (!value) return "";
+const form = document.getElementById("feedback-form");
+const diagnosticsInput = document.getElementById("diagnostics-input");
+const parseResult = document.getElementById("parse-result");
+const formStatus = document.getElementById("form-status");
+const submitButton = document.getElementById("submit-button");
+const submitResult = document.getElementById("submit-result");
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
+const reportTab = document.getElementById("report-tab");
+const lookupTab = document.getElementById("lookup-tab");
+const issuesTab = document.getElementById("issues-tab");
+const reportPanel = document.getElementById("report-panel");
+const lookupPanel = document.getElementById("lookup-panel");
+const issuesPanel = document.getElementById("issues-panel");
 
-  return short
-    ? date.toLocaleDateString("zh-TW", {
-        month: "numeric",
-        day: "numeric"
-      })
-    : date.toLocaleString("zh-TW");
-}
+const lookupInput = document.getElementById("lookup-input");
+const lookupButton = document.getElementById("lookup-button");
+const lookupStatus = document.getElementById("lookup-status");
+const lookupResult = document.getElementById("lookup-result");
+const recentWrap = document.getElementById("recent-wrap");
+const recentList = document.getElementById("recent-list");
+const clearRecent = document.getElementById("clear-recent");
+
+const issueList = document.getElementById("issue-list");
+const issueCount = document.getElementById("issue-count");
+const issueSearch = document.getElementById("issue-search");
+const filterButtons = Array.from(document.querySelectorAll(".issue-filter"));
+
+let parsedDiagnostics = {};
+let allIssues = [];
+let activeStatus = "";
+let issuesLoaded = false;
 
 function setTab(name) {
-  const showIssues = name === "issues";
+  const states = {
+    report: [reportTab, reportPanel],
+    lookup: [lookupTab, lookupPanel],
+    issues: [issuesTab, issuesPanel]
+  };
 
-  reportTab.classList.toggle("active", !showIssues);
-  issuesTab.classList.toggle("active", showIssues);
+  Object.entries(states).forEach(function(entry) {
+    const active = entry[0] === name;
+    entry[1][0].classList.toggle("active", active);
+    entry[1][1].hidden = !active;
+  });
 
-  reportTab.setAttribute("aria-selected", String(!showIssues));
-  issuesTab.setAttribute("aria-selected", String(showIssues));
-
-  reportPanel.hidden = showIssues;
-  issuesPanel.hidden = !showIssues;
-
-  if (showIssues) {
-    history.replaceState(null, "", "#issues");
-
-    if (!issuesLoaded) {
-      loadIssues();
-    }
+  if (name === "report") {
+    history.replaceState(null, "", location.pathname);
   } else {
-    history.replaceState(null, "", location.pathname + location.search);
+    history.replaceState(null, "", "#" + name);
+  }
+
+  if (name === "issues" && !issuesLoaded) {
+    loadIssues();
+  }
+
+  if (name === "lookup") {
+    renderRecent();
   }
 }
 
-reportTab.addEventListener("click", () => setTab("report"));
-issuesTab.addEventListener("click", () => setTab("issues"));
+reportTab.addEventListener("click", function() { setTab("report"); });
+lookupTab.addEventListener("click", function() { setTab("lookup"); });
+issuesTab.addEventListener("click", function() { setTab("issues"); });
 
-const params = new URLSearchParams(location.search);
+function parseDiagnostics(raw) {
+  const lines = String(raw || "").split(/\r?\n/);
+  const values = {};
 
-for (const [key, param] of [
-  ["appVersion", "version"],
-  ["buildNumber", "build"],
-  ["iosVersion", "ios"],
-  ["deviceModel", "device"]
-]) {
-  const value = params.get(param);
+  lines.forEach(function(line) {
+    const match = line.match(/^([A-Za-z][A-Za-z0-9-]*):\s*(.*)$/);
+    if (!match) return;
+    values[match[1]] = match[2].trim();
+  });
 
-  if (value && form.elements[key]) {
-    form.elements[key].value = value.slice(0, 120);
+  const directMap = {
+    "App-Version": "appVersion",
+    "Build": "buildNumber",
+    "iOS-Version": "iosVersion",
+    "Device-Model": "deviceModel"
+  };
+
+  Object.entries(directMap).forEach(function(entry) {
+    if (values[entry[0]] && form.elements[entry[1]]) {
+      form.elements[entry[1]].value = values[entry[0]].slice(0, 120);
+    }
+  });
+
+  const diagnosticsMap = {
+    "Photo-Access": "photoAccess",
+    "Language": "language",
+    "Appearance": "appearance",
+    "Delete-Direction": "deleteDirection",
+    "Haptics": "haptics",
+    "Cloud-Photo": "cloudPhoto",
+    "Cloud-Video": "cloudVideo",
+    "Photo-Preload": "photoPreload",
+    "Video-Preload": "videoPreload",
+    "Full-Speed-Preload": "fullSpeedPreload",
+    "Low-Power-Mode": "lowPowerMode"
+  };
+
+  const extras = {};
+
+  Object.entries(diagnosticsMap).forEach(function(entry) {
+    if (values[entry[0]]) {
+      extras[entry[1]] = values[entry[0]];
+    }
+  });
+
+  parsedDiagnostics = extras;
+
+  const recognized = [
+    "App-Version",
+    "Build",
+    "iOS-Version",
+    "Device-Model"
+  ].filter(function(key) { return Boolean(values[key]); }).length +
+    Object.keys(extras).length;
+
+  if (!String(raw || "").trim()) {
+    parseResult.textContent = "";
+    parseResult.className = "parse-result";
+    return;
+  }
+
+  if (recognized > 0) {
+    parseResult.textContent = "✓ 已辨識系統資訊，自動填入 " + recognized + " 個項目。";
+    parseResult.className = "parse-result ok";
+  } else {
+    parseResult.textContent = "無法辨識固定格式，仍可手動填寫下方欄位。";
+    parseResult.className = "parse-result bad";
   }
 }
 
-form.addEventListener("submit", async event => {
+diagnosticsInput.addEventListener("input", function() {
+  parseDiagnostics(diagnosticsInput.value);
+});
+
+function normalizeReportId(value) {
+  let raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+  raw = raw.replace(/^BETA[-_]?/, "");
+  if (!/^\d+$/.test(raw)) return "";
+  const number = Number.parseInt(raw, 10);
+  if (!Number.isSafeInteger(number) || number < 1) return "";
+  return "BETA-" + String(number).padStart(3, "0");
+}
+
+function recentIds() {
+  try {
+    const value = JSON.parse(localStorage.getItem("chaiphotoRecentReports") || "[]");
+    return Array.isArray(value) ? value.filter(function(id) { return /^BETA-\d+$/.test(id); }).slice(0, 12) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecent(id) {
+  const ids = recentIds().filter(function(item) { return item !== id; });
+  ids.unshift(id);
+  localStorage.setItem("chaiphotoRecentReports", JSON.stringify(ids.slice(0, 12)));
+}
+
+function renderRecent() {
+  const ids = recentIds();
+  recentList.replaceChildren();
+  recentWrap.hidden = ids.length === 0;
+
+  ids.forEach(function(id) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "recent-chip";
+    button.textContent = id;
+    button.addEventListener("click", function() {
+      lookupInput.value = id;
+      lookupReport(id);
+    });
+    recentList.append(button);
+  });
+}
+
+clearRecent.addEventListener("click", function() {
+  localStorage.removeItem("chaiphotoRecentReports");
+  renderRecent();
+});
+
+form.addEventListener("submit", async function(event) {
   event.preventDefault();
 
   submitButton.disabled = true;
@@ -522,13 +624,12 @@ form.addEventListener("submit", async event => {
   submitResult.replaceChildren();
 
   const data = Object.fromEntries(new FormData(form).entries());
+  data.diagnostics = parsedDiagnostics;
 
   try {
     const response = await fetch("/api/feedback", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     });
 
@@ -538,81 +639,291 @@ form.addEventListener("submit", async event => {
       throw new Error(result.error || "提交失敗");
     }
 
+    const reportId = result.id;
+    saveRecent(reportId);
+
     form.reset();
+    diagnosticsInput.value = "";
+    parsedDiagnostics = {};
+    parseResult.textContent = "";
+    parseResult.className = "parse-result";
     formStatus.textContent = "";
 
     const title = document.createElement("strong");
-    title.textContent = "回報已收到";
+    title.textContent = "問題回報已送出";
 
-    const id = document.createElement("p");
-    id.textContent = "回報編號：" + result.id;
+    const text = document.createElement("p");
+    text.textContent = "開發者會儘速查看。請保存下面的回報 ID，之後可回來查詢處理進度。";
 
-    const hint = document.createElement("p");
-    hint.className = "muted";
-    hint.textContent = "經確認並公開後，可以在「已知問題與進度」查看處理狀態。";
+    const id = document.createElement("div");
+    id.className = "success-id";
+    id.textContent = reportId;
 
-    submitResult.append(title, id, hint);
+    const actions = document.createElement("div");
+    actions.className = "action-row";
+
+    const copyId = document.createElement("button");
+    copyId.type = "button";
+    copyId.className = "small-button primary";
+    copyId.textContent = "複製回報 ID";
+    copyId.addEventListener("click", async function() {
+      await navigator.clipboard.writeText(reportId);
+      copyId.textContent = "已複製";
+    });
+
+    const copyLink = document.createElement("button");
+    copyLink.type = "button";
+    copyLink.className = "small-button";
+    copyLink.textContent = "複製查詢連結";
+    copyLink.addEventListener("click", async function() {
+      const link = location.origin + "/report?id=" + encodeURIComponent(reportId) + "#lookup";
+      await navigator.clipboard.writeText(link);
+      copyLink.textContent = "已複製";
+    });
+
+    actions.append(copyId, copyLink);
+    submitResult.append(title, text, id, actions);
     submitResult.hidden = false;
-  } catch {
+    renderRecent();
+  } catch (error) {
     formStatus.textContent = "送出失敗，請稍後再試。";
   } finally {
     submitButton.disabled = false;
   }
 });
 
-function updateFilterCounts() {
-  const counts = {
-    new: 0,
-    in_progress: 0,
-    resolved: 0,
-    closed: 0
-  };
+function formatDuration(seconds) {
+  let remaining = Math.max(0, Number(seconds) || 0);
+  const days = Math.floor(remaining / 86400);
+  remaining %= 86400;
+  const hours = Math.floor(remaining / 3600);
+  remaining %= 3600;
+  const minutes = Math.floor(remaining / 60);
+  const secs = Math.floor(remaining % 60);
 
-  for (const item of allIssues) {
-    if (Object.hasOwn(counts, item.status)) {
-      counts[item.status]++;
+  const parts = [];
+  if (days) parts.push(days + " 天");
+  if (hours) parts.push(hours + " 小時");
+  if (minutes) parts.push(minutes + " 分鐘");
+  if (secs && parts.length < 2) parts.push(secs + " 秒");
+  return parts.slice(0, 2).join(" ") || "未提供";
+}
+
+function formatDue(value) {
+  if (!value) return "";
+  const due = new Date(value);
+  if (Number.isNaN(due.getTime())) return "";
+
+  const now = new Date();
+  if (due.getTime() < now.getTime()) return "預計時間已超過";
+
+  const sameDay =
+    due.getFullYear() === now.getFullYear() &&
+    due.getMonth() === now.getMonth() &&
+    due.getDate() === now.getDate();
+
+  const time = due.toLocaleTimeString("zh-TW", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+
+  if (sameDay) return "今天 " + time;
+
+  const sameYear = due.getFullYear() === now.getFullYear();
+  const date = due.toLocaleDateString("zh-TW", sameYear
+    ? { month: "numeric", day: "numeric" }
+    : { year: "numeric", month: "numeric", day: "numeric" });
+
+  return date + " " + time;
+}
+
+function createTrackCard(item) {
+  const card = document.createElement("div");
+  const status = item.status || "new";
+  card.className = "track-card status-" + status + "-card";
+
+  const top = document.createElement("div");
+  top.className = "track-top";
+
+  const id = document.createElement("div");
+  id.className = "track-id";
+  id.textContent = item.report_id || "";
+
+  const pill = document.createElement("span");
+  pill.className = "status-pill";
+  pill.textContent = statusLabels[status] || status;
+
+  top.append(id, pill);
+  card.append(top);
+
+  const title = document.createElement("div");
+  title.className = "track-title";
+  title.textContent = item.public_title || (
+    status === "deleted"
+      ? "此回報已從追蹤系統移除"
+      : "ChaiPhoto 問題回報"
+  );
+  card.append(title);
+
+  if (item.public_note) {
+    const note = document.createElement("p");
+    note.className = "track-note";
+    note.textContent = item.public_note;
+    card.append(note);
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "track-meta";
+
+  if (status === "new") {
+    meta.append(document.createTextNode("已收到回報，等待開發者查看。"));
+  }
+
+  if (status === "in_progress") {
+    if (item.eta_seconds) {
+      const line = document.createElement("div");
+      line.textContent = "預計需要：約 " + formatDuration(item.eta_seconds);
+      meta.append(line);
+    }
+    if (item.eta_due_at) {
+      const line = document.createElement("div");
+      line.textContent = "預計完成：" + formatDue(item.eta_due_at);
+      meta.append(line);
     }
   }
 
-  for (const button of filterButtons) {
-    const status = button.dataset.status;
+  if (status === "resolved") {
+    const version = [item.fixed_version, item.fixed_build ? "(" + item.fixed_build + ")" : ""]
+      .filter(Boolean)
+      .join(" ");
 
-    if (!status) {
-      button.textContent = `全部 ${allIssues.length}`;
+    const line = document.createElement("div");
+    if (version) {
+      line.textContent = Number(item.fix_published) === 1
+        ? "已於 ChaiPhoto " + version + " 修正。"
+        : "預計於 ChaiPhoto " + version + " 提供修正。";
     } else {
-      button.textContent = `${statusLabels[status]} ${counts[status] || 0}`;
+      line.textContent = "此問題已完成修正。";
+    }
+    meta.append(line);
+  }
+
+  if (status === "closed") {
+    const line = document.createElement("div");
+    line.textContent = item.unable_reason
+      ? "原因：" + item.unable_reason
+      : "目前無法完成處理。";
+    meta.append(line);
+  }
+
+  if (status === "deleted") {
+    const line = document.createElement("div");
+    line.textContent = "原始回報內容已刪除，此編號不會再次使用。";
+    meta.append(line);
+
+    if (item.deletion_reason) {
+      const reason = document.createElement("div");
+      reason.textContent = "原因：" + item.deletion_reason;
+      meta.append(reason);
     }
   }
+
+  card.append(meta);
+  return card;
+}
+
+async function lookupReport(value) {
+  const normalized = normalizeReportId(value);
+
+  lookupResult.replaceChildren();
+
+  if (!normalized) {
+    lookupStatus.textContent = "請輸入有效的回報 ID。";
+    return;
+  }
+
+  lookupInput.value = normalized;
+  lookupButton.disabled = true;
+  lookupStatus.textContent = "正在查詢…";
+
+  try {
+    const response = await fetch("/api/feedback-status?id=" + encodeURIComponent(normalized), {
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+
+    const result = await response.json();
+
+    if (response.status === 404) {
+      lookupStatus.textContent = "找不到這個回報 ID。";
+      return;
+    }
+
+    if (!response.ok || !result.ok) {
+      throw new Error();
+    }
+
+    lookupStatus.textContent = "";
+    lookupResult.append(createTrackCard(result.feedback));
+    saveRecent(normalized);
+    renderRecent();
+  } catch {
+    lookupStatus.textContent = "查詢失敗，請稍後再試。";
+  } finally {
+    lookupButton.disabled = false;
+  }
+}
+
+lookupButton.addEventListener("click", function() {
+  lookupReport(lookupInput.value);
+});
+
+lookupInput.addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    lookupReport(lookupInput.value);
+  }
+});
+
+function updateFilterCounts() {
+  const counts = { new:0, in_progress:0, resolved:0, closed:0 };
+
+  allIssues.forEach(function(item) {
+    if (Object.hasOwn(counts, item.status)) counts[item.status] += 1;
+  });
+
+  filterButtons.forEach(function(button) {
+    const status = button.dataset.status;
+    button.textContent = status
+      ? statusLabels[status] + " " + (counts[status] || 0)
+      : "全部 " + allIssues.length;
+  });
 }
 
 function renderIssues() {
   issueList.replaceChildren();
-
   const keyword = issueSearch.value.trim().toLowerCase();
 
-  const filtered = allIssues.filter(item => {
-    if (activeStatus && item.status !== activeStatus) {
-      return false;
-    }
-
+  const filtered = allIssues.filter(function(item) {
+    if (activeStatus && item.status !== activeStatus) return false;
     if (!keyword) return true;
 
-    const haystack = [
+    return [
+      item.report_id,
       item.public_title,
       item.public_note,
       item.fixed_version,
       item.fixed_build,
-      item.id,
       categoryLabels[item.category]
     ]
       .filter(Boolean)
       .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(keyword);
+      .toLowerCase()
+      .includes(keyword);
   });
 
-  issueCount.textContent = `顯示 ${filtered.length} / ${allIssues.length} 個公開問題`;
+  issueCount.textContent = "顯示 " + filtered.length + " / " + allIssues.length + " 個公開問題";
 
   if (!filtered.length) {
     const empty = document.createElement("div");
@@ -622,162 +933,62 @@ function renderIssues() {
     return;
   }
 
-  for (const item of filtered) {
-    const row = document.createElement("details");
-    row.className = "issue-row";
-
-    const summary = document.createElement("summary");
-
-    const summaryGrid = document.createElement("div");
-    summaryGrid.className = "issue-summary";
-
-    const main = document.createElement("div");
-    main.className = "issue-main";
-
-    const title = document.createElement("div");
-    title.className = "issue-title";
-    title.textContent = item.public_title || "未命名問題";
-
-    const subtitle = document.createElement("div");
-    subtitle.className = "issue-subtitle";
-
-    const category = document.createElement("span");
-    category.textContent = categoryLabels[item.category] || item.category || "問題";
-
-    const separator = document.createElement("span");
-    separator.textContent = "·";
-
-    const updated = document.createElement("span");
-    updated.textContent =
-      "更新 " + formatDate(item.updated_at || item.created_at, true);
-
-    subtitle.append(category, separator, updated);
-    main.append(title, subtitle);
-
-    const right = document.createElement("div");
-    right.className = "issue-right";
-
-    const status = document.createElement("span");
-    status.className = "issue-status status-" + item.status;
-    status.textContent = statusLabels[item.status] || item.status;
-
-    const chevron = document.createElement("span");
-    chevron.className = "chevron";
-    chevron.textContent = "›";
-
-    right.append(status, chevron);
-    summaryGrid.append(main, right);
-    summary.append(summaryGrid);
-
-    const detail = document.createElement("div");
-    detail.className = "issue-detail";
-
-    const inner = document.createElement("div");
-    inner.className = "issue-detail-inner";
-
-    if (item.public_note) {
-      const note = document.createElement("p");
-      note.className = "issue-note";
-      note.textContent = item.public_note;
-      inner.append(note);
-    }
-
-    if (item.fixed_version || item.fixed_build) {
-      const fixed = document.createElement("div");
-      fixed.className = "issue-fixed";
-
-      const label = document.createElement("strong");
-      label.textContent =
-        item.status === "resolved"
-          ? "修復版本"
-          : "相關版本";
-
-      let value = "";
-
-      if (item.fixed_version) {
-        value += item.fixed_version;
-      }
-
-      if (item.fixed_build) {
-        if (value) value += " · ";
-        value += "Build " + item.fixed_build;
-      }
-
-      const text = document.createElement("div");
-      text.textContent = value;
-
-      fixed.append(label, text);
-      inner.append(fixed);
-    }
-
-    const meta = document.createElement("div");
-    meta.className = "issue-meta";
-
-    const created = document.createElement("div");
-    created.textContent = "首次回報：" + formatDate(item.created_at);
-
-    const lastUpdated = document.createElement("div");
-    lastUpdated.textContent =
-      "最後更新：" + formatDate(item.updated_at || item.created_at);
-
-    const id = document.createElement("div");
-    id.className = "issue-id";
-    id.textContent = "回報編號：" + item.id;
-
-    meta.append(created, lastUpdated, id);
-    inner.append(meta);
-
-    detail.append(inner);
-    row.append(summary, detail);
-    issueList.append(row);
-  }
+  filtered.forEach(function(item) {
+    issueList.append(createTrackCard(item));
+  });
 }
 
 async function loadIssues() {
-  issueCount.textContent = "正在讀取公開問題…";
+  issueCount.textContent = "正在載入…";
 
   try {
     const response = await fetch("/api/public-feedback", {
-      headers: {
-        "Accept": "application/json"
-      },
+      headers: { "Accept": "application/json" },
       cache: "no-store"
     });
 
     const result = await response.json();
 
-    if (!response.ok || !result.ok) {
-      throw new Error();
-    }
+    if (!response.ok || !result.ok) throw new Error();
 
     allIssues = result.feedback || [];
     issuesLoaded = true;
-
     updateFilterCounts();
     renderIssues();
   } catch {
-    issueCount.textContent = "目前無法讀取公開問題。";
+    issueCount.textContent = "讀取失敗，請稍後再試。";
     issueList.replaceChildren();
   }
 }
 
-for (const button of filterButtons) {
-  button.addEventListener("click", () => {
+issueSearch.addEventListener("input", renderIssues);
+
+filterButtons.forEach(function(button) {
+  button.addEventListener("click", function() {
     activeStatus = button.dataset.status || "";
-
-    for (const other of filterButtons) {
-      other.classList.toggle("active", other === button);
-    }
-
+    filterButtons.forEach(function(item) {
+      item.classList.toggle("active", item === button);
+    });
     renderIssues();
   });
-}
+});
 
-issueSearch.addEventListener("input", renderIssues);
+const params = new URLSearchParams(location.search);
+const initialId = params.get("id");
 
 if (location.hash === "#issues") {
   setTab("issues");
+} else if (location.hash === "#lookup" || initialId) {
+  setTab("lookup");
+  if (initialId) {
+    lookupInput.value = initialId;
+    lookupReport(initialId);
+  }
+} else {
+  setTab("report");
 }
+
+renderRecent();
 </script>
 </body>
 </html>
