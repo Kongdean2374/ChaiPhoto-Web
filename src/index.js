@@ -90,6 +90,25 @@ function cleanDiagnostics(value) {
   return Object.keys(output).length ? output : null;
 }
 
+async function ensureAppReleaseSchema(env) {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS app_release_state (
+      singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+      latest_version TEXT NOT NULL,
+      latest_build INTEGER NOT NULL CHECK (latest_build >= 1),
+      updated_at TEXT NOT NULL
+    )`
+  ).run();
+
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO app_release_state
+     (singleton, latest_version, latest_build, updated_at)
+     VALUES (1, ?, ?, ?)`
+  )
+    .bind("1.2.5", 45, new Date().toISOString())
+    .run();
+}
+
 async function ensureTrackingSchema(env) {
   await env.DB.batch([
     env.DB.prepare(
@@ -574,6 +593,104 @@ export default {
         service: "ChaiPhoto Web",
         database: Boolean(env.DB),
         timestamp: new Date().toISOString()
+      });
+    }
+
+    if (
+      url.pathname === "/api/app-version" &&
+      request.method === "GET"
+    ) {
+      await ensureAppReleaseSchema(env);
+
+      const release = await env.DB.prepare(
+        `SELECT latest_version, latest_build, updated_at
+         FROM app_release_state
+         WHERE singleton = 1
+         LIMIT 1`
+      ).first();
+
+      return json({
+        ok: true,
+        latestVersion: clean(release?.latest_version, 40),
+        latestBuild: Number(release?.latest_build || 0),
+        updatedAt: release?.updated_at || null
+      });
+    }
+
+    if (
+      url.pathname === "/api/internal/update-version" &&
+      request.method === "POST"
+    ) {
+      const expectedToken = clean(env.UPDATE_VERSION_TOKEN, 512);
+
+      if (!expectedToken) {
+        return json({ ok: false, error: "Version updater unavailable" }, 503);
+      }
+
+      const authorization = request.headers.get("Authorization") || "";
+
+      if (authorization !== `Bearer ${expectedToken}`) {
+        return json({ ok: false, error: "Unauthorized" }, 401);
+      }
+
+      if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+        return json({ ok: false, error: "JSON required" }, 415);
+      }
+
+      let body;
+
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: "Invalid JSON" }, 400);
+      }
+
+      const latestVersion = clean(body.latestVersion, 40);
+      const latestBuild = Number(body.latestBuild);
+
+      if (
+        !latestVersion ||
+        !Number.isSafeInteger(latestBuild) ||
+        latestBuild < 1
+      ) {
+        return json({ ok: false, error: "Invalid release version" }, 400);
+      }
+
+      await ensureAppReleaseSchema(env);
+
+      const current = await env.DB.prepare(
+        `SELECT latest_build
+         FROM app_release_state
+         WHERE singleton = 1
+         LIMIT 1`
+      ).first();
+
+      const currentBuild = Number(current?.latest_build || 0);
+
+      if (latestBuild < currentBuild) {
+        return json({
+          ok: true,
+          ignored: true,
+          reason: "older_build",
+          latestBuild: currentBuild
+        });
+      }
+
+      const updatedAt = new Date().toISOString();
+
+      await env.DB.prepare(
+        `UPDATE app_release_state
+         SET latest_version = ?, latest_build = ?, updated_at = ?
+         WHERE singleton = 1`
+      )
+        .bind(latestVersion, latestBuild, updatedAt)
+        .run();
+
+      return json({
+        ok: true,
+        latestVersion,
+        latestBuild,
+        updatedAt
       });
     }
 
