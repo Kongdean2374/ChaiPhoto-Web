@@ -2,332 +2,238 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
   <title>回報管理 | ChaiPhoto</title>
   <link rel="stylesheet" href="/styles.css">
 
   <style>
-    main {
-      width: min(1000px, calc(100% - 24px));
-      padding-top: 22px;
-    }
+    main { width:min(1120px,calc(100% - 24px)); padding-top:22px; }
+    .hero { padding:18px 20px; }
+    .hero h1 { font-size:clamp(1.8rem,6vw,2.7rem); }
 
-    .hero {
-      padding: 18px 20px;
-    }
-
-    .hero h1 {
-      font-size: clamp(1.8rem, 6vw, 2.7rem);
+    .toolbar-box {
+      padding:14px;
+      margin:10px 0;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:var(--card);
     }
 
     .dashboard-summary {
-      gap: 7px;
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:7px;
     }
 
-    .summary-card {
-      padding: 9px 10px;
-      border-radius: 13px;
+    .summary-card { padding:9px 10px; border-radius:13px; }
+    .summary-label { font-size:.76rem; }
+    .summary-count { font-size:1.3rem; margin-top:0; }
+
+    .filters {
+      display:grid;
+      grid-template-columns:2fr repeat(5,minmax(120px,1fr)) auto;
+      gap:8px;
+      align-items:end;
+      margin-top:12px;
     }
 
-    .summary-label {
-      font-size: .76rem;
+    .filter-label {
+      display:grid;
+      gap:4px;
+      font-size:.78rem;
+      font-weight:650;
     }
 
-    .summary-count {
-      font-size: 1.3rem;
-      margin-top: 0;
-    }
+    .filter-label input,
+    .filter-label select { padding:9px 10px; }
 
-    .toolbar-box {
-      padding: 14px;
-      margin: 10px 0;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      background: var(--card);
-    }
-
-    .dashboard-toolbar {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 180px auto;
-      gap: 8px;
-      align-items: end;
-      margin: 0;
-    }
-
-    .toolbar-label {
-      gap: 4px;
-      font-size: .82rem;
-    }
-
-    .toolbar-label input,
-    .toolbar-label select {
-      padding: 9px 11px;
-    }
-
-    .feedback-list {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      overflow: hidden;
-      background: var(--card);
-    }
+    .feedback-list { display:grid; gap:10px; }
 
     .feedback-item {
-      margin: 0;
-      border: 0;
-      border-bottom: 1px solid var(--line);
-      background: transparent;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--card);
+      overflow:hidden;
     }
 
-    .feedback-item:last-child {
-      border-bottom: 0;
-    }
+    .feedback-item.status-new { border-left:5px solid #b9b9bf; }
+    .feedback-item.status-in_progress { border-left:5px solid #d6a21e; }
+    .feedback-item.status-resolved { border-left:5px solid #2fa36b; }
+    .feedback-item.status-closed { border-left:5px solid #d04b4b; }
 
     .feedback-item summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 12px 14px;
-      user-select: none;
+      list-style:none;
+      cursor:pointer;
+      padding:13px 15px;
+      user-select:none;
     }
 
-    .feedback-item summary::-webkit-details-marker {
-      display: none;
-    }
+    .feedback-item summary::-webkit-details-marker { display:none; }
 
     .feedback-summary {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .feedback-main {
-      min-width: 0;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:10px;
+      align-items:center;
     }
 
     .feedback-title {
-      font-weight: 720;
-      font-size: .96rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-weight:760;
+      font-size:.98rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .feedback-subtitle {
-      margin-top: 4px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 5px;
-      color: var(--muted);
-      font-size: .75rem;
+      margin-top:4px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      color:var(--muted);
+      font-size:.75rem;
     }
 
-    .feedback-right {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .feedback-right { display:flex; align-items:center; gap:7px; }
 
     .mini-badge {
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      padding: 3px 7px;
-      font-size: .7rem;
-      font-weight: 750;
-      white-space: nowrap;
+      display:inline-flex;
+      align-items:center;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:3px 7px;
+      font-size:.7rem;
+      font-weight:800;
+      white-space:nowrap;
     }
 
-    .visibility-public {
-      color: #2fa36b;
-    }
+    .status-badge-new { color:var(--muted); }
+    .status-badge-in_progress { color:#d39a19; }
+    .status-badge-resolved { color:#2fa36b; }
+    .status-badge-closed { color:#d04b4b; }
+    .visibility-public { color:#2fa36b; }
+    .visibility-private { color:var(--muted); }
 
-    .visibility-private {
-      color: var(--muted);
-    }
-
-    .status-new { color: #4384e6; }
-    .status-in_progress { color: #d89a24; }
-    .status-resolved { color: #2fa36b; }
-    .status-closed { color: var(--muted); }
-
-    .chevron {
-      color: var(--muted);
-      font-size: 1rem;
-      transition: transform .18s ease;
-    }
-
-    .feedback-item[open] .chevron {
-      transform: rotate(90deg);
-    }
+    .chevron { color:var(--muted); transition:transform .18s ease; }
+    .feedback-item[open] .chevron { transform:rotate(90deg); }
 
     .feedback-detail {
-      padding: 0 14px 16px;
-      border-top: 1px solid var(--line);
-    }
-
-    .feedback-detail-inner {
-      padding-top: 14px;
+      padding:0 15px 16px;
+      border-top:1px solid var(--line);
     }
 
     .detail-section {
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--line);
+      padding-top:14px;
+      margin-top:14px;
+      border-top:1px solid var(--line);
     }
 
-    .detail-section:first-child {
-      margin-top: 0;
-      padding-top: 0;
-      border-top: 0;
+    .detail-section:first-child { border-top:0; margin-top:0; }
+    .detail-section h3 { margin:0 0 9px; font-size:.98rem; }
+
+    .description-full { white-space:pre-wrap; margin:0; }
+
+    .meta-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:6px 14px;
+      margin-top:10px;
+      font-size:.82rem;
     }
 
-    .detail-section h3 {
-      margin: 0 0 10px;
-      font-size: .98rem;
+    .meta-row {
+      display:grid;
+      grid-template-columns:92px minmax(0,1fr);
+      gap:8px;
     }
 
-    .description-full {
-      white-space: pre-wrap;
-      margin: 0;
+    .meta-row strong { color:var(--muted); font-weight:650; }
+
+    .steps {
+      margin-top:10px;
+      padding:11px;
+      background:var(--bg);
+      border-radius:13px;
+      white-space:pre-wrap;
     }
 
-    .feedback-meta {
-      margin-top: 12px;
-      padding-top: 0;
-      border-top: 0;
-      gap: 5px;
-      font-size: .82rem;
+    .editor-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
     }
 
-    .feedback-meta-row {
-      grid-template-columns: 70px minmax(0, 1fr);
+    .editor-grid .wide { grid-column:1 / -1; }
+
+    .inline-toggle {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:.86rem;
+      font-weight:700;
     }
 
-    .feedback-steps {
-      margin-top: 10px;
-      padding: 11px;
+    .inline-toggle input { width:auto; }
+
+    .conditional {
+      margin-top:10px;
+      padding:12px;
+      border-radius:14px;
+      background:var(--bg);
+      border:1px solid var(--line);
     }
 
-    .status-control {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 170px;
-      gap: 10px;
-      align-items: end;
+    .eta-grid {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:8px;
     }
 
-    .public-editor {
-      display: grid;
-      gap: 11px;
+    .eta-grid input { padding:9px; }
+
+    .action-row {
+      display:flex;
+      gap:9px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:12px;
     }
 
-    .public-editor-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
+    .save-button,
+    .danger-button {
+      appearance:none;
+      border:0;
+      border-radius:12px;
+      padding:10px 14px;
+      color:#fff;
+      font:inherit;
+      font-weight:760;
+      cursor:pointer;
     }
 
-    .public-toggle {
-      display: flex;
-      grid-template-columns: none;
-      align-items: center;
-      gap: 8px;
-      font-size: .88rem;
+    .save-button { background:var(--accent); }
+    .danger-button { background:#c93f3f; }
+    .save-button:disabled,
+    .danger-button:disabled { opacity:.55; }
+
+    .save-status { color:var(--muted); font-size:.8rem; }
+    .diag { margin:0; white-space:pre-wrap; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); }
+
+    @media (max-width:900px) {
+      .filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .filters .search-wrap { grid-column:1 / -1; }
+      .filters .refresh-wrap { align-self:end; }
     }
 
-    .public-toggle input {
-      width: auto;
-    }
-
-    .public-fields {
-      display: grid;
-      gap: 10px;
-    }
-
-    .public-fields label {
-      font-size: .84rem;
-      gap: 5px;
-    }
-
-    .public-fields input,
-    .public-fields textarea {
-      padding: 9px 11px;
-    }
-
-    .public-fields textarea {
-      min-height: 88px;
-    }
-
-    .public-version-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 9px;
-    }
-
-    .save-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .save-button {
-      appearance: none;
-      border: 0;
-      border-radius: 12px;
-      background: var(--accent);
-      color: white;
-      font: inherit;
-      font-weight: 700;
-      padding: 9px 14px;
-      cursor: pointer;
-    }
-
-    .save-button:disabled {
-      opacity: .55;
-    }
-
-    .save-status,
-    .updated-at,
-    .feedback-id {
-      color: var(--muted);
-      font-size: .76rem;
-    }
-
-    .feedback-id {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      overflow-wrap: anywhere;
-    }
-
-    .empty-state {
-      padding: 30px 16px;
-      text-align: center;
-      color: var(--muted);
-    }
-
-    @media (max-width: 680px) {
-      .dashboard-toolbar {
-        grid-template-columns: 1fr 1fr;
-      }
-
-      .dashboard-toolbar .search-wrap {
-        grid-column: 1 / -1;
-      }
-
-      .status-control {
-        grid-template-columns: 1fr;
-      }
-
-      .public-version-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .feedback-right .visibility-text {
-        display: none;
-      }
+    @media (max-width:640px) {
+      main { width:min(100% - 18px,1120px); }
+      .dashboard-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .filters { grid-template-columns:1fr 1fr; }
+      .filters .search-wrap { grid-column:1 / -1; }
+      .editor-grid,.meta-grid { grid-template-columns:1fr; }
+      .eta-grid { grid-template-columns:1fr 1fr; }
+      .feedback-right .visibility-label { display:none; }
     }
   </style>
 </head>
@@ -337,37 +243,60 @@
   <div class="hero">
     <p class="muted">ChaiPhoto Dashboard</p>
     <h1>回報管理</h1>
-    <p>緊湊模式。點擊一筆回報即可展開詳細資料與公開設定。</p>
+    <p>查看 BETA 回報、更新處理進度、設定預計時間、公開資訊與修復版本。</p>
   </div>
 
   <div class="toolbar-box">
     <div class="dashboard-summary" id="summary"></div>
 
-    <div class="dashboard-toolbar">
-      <label class="toolbar-label search-wrap">
+    <div class="filters">
+      <label class="filter-label search-wrap">
         搜尋
-        <input id="feedback-search" type="search" placeholder="搜尋描述、裝置、版本、公開標題">
+        <input id="search-filter" type="search" placeholder="BETA ID、描述、版本、裝置">
       </label>
 
-      <label class="toolbar-label">
+      <label class="filter-label">
         狀態
         <select id="status-filter">
           <option value="">全部</option>
-          <option value="new">未處理</option>
+          <option value="new">待處理</option>
           <option value="in_progress">處理中</option>
-          <option value="resolved">已解決</option>
-          <option value="closed">已關閉</option>
+          <option value="resolved">已更新</option>
+          <option value="closed">無法處理</option>
         </select>
       </label>
 
-      <button class="button dashboard-refresh" id="refresh-button" type="button">
-        重新整理
-      </button>
+      <label class="filter-label">
+        類型
+        <select id="category-filter"><option value="">全部</option></select>
+      </label>
+
+      <label class="filter-label">
+        App 版本
+        <select id="version-filter"><option value="">全部</option></select>
+      </label>
+
+      <label class="filter-label">
+        Build
+        <select id="build-filter"><option value="">全部</option></select>
+      </label>
+
+      <label class="filter-label">
+        iOS
+        <select id="ios-filter"><option value="">全部</option></select>
+      </label>
+
+      <label class="filter-label">
+        裝置
+        <select id="device-filter"><option value="">全部</option></select>
+      </label>
+
+      <div class="refresh-wrap">
+        <button class="button dashboard-refresh" id="refresh-button" type="button">重新整理</button>
+      </div>
     </div>
 
-    <p id="dashboard-status" class="muted" role="status" aria-live="polite">
-      正在載入…
-    </p>
+    <p id="dashboard-status" class="muted" role="status" aria-live="polite">正在載入…</p>
   </div>
 
   <div id="feedback-list" class="feedback-list"></div>
@@ -377,10 +306,10 @@
 
 <script>
 const statusLabels = {
-  new: "未處理",
+  new: "待處理",
   in_progress: "處理中",
-  resolved: "已解決",
-  closed: "已關閉"
+  resolved: "已更新",
+  closed: "無法處理"
 };
 
 const categoryLabels = {
@@ -397,501 +326,476 @@ const categoryLabels = {
 const summary = document.getElementById("summary");
 const list = document.getElementById("feedback-list");
 const statusText = document.getElementById("dashboard-status");
-const filter = document.getElementById("status-filter");
-const search = document.getElementById("feedback-search");
+const searchFilter = document.getElementById("search-filter");
+const statusFilter = document.getElementById("status-filter");
+const categoryFilter = document.getElementById("category-filter");
+const versionFilter = document.getElementById("version-filter");
+const buildFilter = document.getElementById("build-filter");
+const iosFilter = document.getElementById("ios-filter");
+const deviceFilter = document.getElementById("device-filter");
 const refresh = document.getElementById("refresh-button");
 
 let loadedItems = [];
 
 function make(tag, text, className) {
-  const el = document.createElement(tag);
-
-  if (text !== undefined && text !== null) {
-    el.textContent = text;
-  }
-
-  if (className) {
-    el.className = className;
-  }
-
-  return el;
+  const element = document.createElement(tag);
+  if (text !== undefined && text !== null) element.textContent = text;
+  if (className) element.className = className;
+  return element;
 }
 
-function formatDate(value, short = false) {
-  if (!value) return "";
+function reportId(item) {
+  return "BETA-" + String(Number(item.report_number) || 0).padStart(3, "0");
+}
 
+function formatDate(value) {
+  if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-
-  return short
-    ? date.toLocaleDateString("zh-TW", {
-        month: "numeric",
-        day: "numeric"
-      })
-    : date.toLocaleString("zh-TW");
+  return date.toLocaleString("zh-TW", {
+    month:"numeric",
+    day:"numeric",
+    hour:"numeric",
+    minute:"2-digit"
+  });
 }
 
-function addMetaRow(container, label, value) {
-  if (!value) return;
-
-  const row = make("div", null, "feedback-meta-row");
-  row.append(
-    make("strong", label),
-    make("span", value)
-  );
-
+function addMeta(container, label, value) {
+  if (value === undefined || value === null || value === "") return;
+  const row = make("div", null, "meta-row");
+  row.append(make("strong", label), make("span", String(value)));
   container.append(row);
 }
 
-function createInput(labelText, value, placeholder) {
+function uniqueValues(key) {
+  return Array.from(new Set(
+    loadedItems.map(function(item) { return item[key]; }).filter(Boolean)
+  )).sort(function(a,b) {
+    return String(a).localeCompare(String(b), "zh-TW", { numeric:true });
+  });
+}
+
+function refillSelect(select, values) {
+  const current = select.value;
+  const first = select.options[0].cloneNode(true);
+  select.replaceChildren(first);
+
+  values.forEach(function(value) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.append(option);
+  });
+
+  if (values.includes(current)) select.value = current;
+}
+
+function setupFilters() {
+  categoryFilter.replaceChildren(new Option("全部", ""));
+  Object.entries(categoryLabels).forEach(function(entry) {
+    categoryFilter.append(new Option(entry[1], entry[0]));
+  });
+
+  refillSelect(versionFilter, uniqueValues("app_version"));
+  refillSelect(buildFilter, uniqueValues("build_number"));
+  refillSelect(iosFilter, uniqueValues("ios_version"));
+  refillSelect(deviceFilter, uniqueValues("device_model"));
+}
+
+function renderSummary(counts) {
+  summary.replaceChildren();
+
+  ["new","in_progress","resolved","closed"].forEach(function(key) {
+    const button = make("button", null, "summary-card");
+    button.type = "button";
+    button.append(
+      make("span", statusLabels[key], "summary-label"),
+      make("strong", String(counts[key] || 0), "summary-count")
+    );
+    button.addEventListener("click", function() {
+      statusFilter.value = key;
+      renderFeedback();
+    });
+    summary.append(button);
+  });
+}
+
+function matchesFilters(item) {
+  const keyword = searchFilter.value.trim().toLowerCase();
+
+  if (statusFilter.value && item.status !== statusFilter.value) return false;
+  if (categoryFilter.value && item.category !== categoryFilter.value) return false;
+  if (versionFilter.value && item.app_version !== versionFilter.value) return false;
+  if (buildFilter.value && item.build_number !== buildFilter.value) return false;
+  if (iosFilter.value && item.ios_version !== iosFilter.value) return false;
+  if (deviceFilter.value && item.device_model !== deviceFilter.value) return false;
+
+  if (!keyword) return true;
+
+  return [
+    reportId(item),
+    item.description,
+    item.steps,
+    item.app_version,
+    item.build_number,
+    item.ios_version,
+    item.device_model,
+    item.public_title,
+    item.public_note,
+    item.fixed_version,
+    item.fixed_build,
+    item.unable_reason,
+    categoryLabels[item.category]
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(keyword);
+}
+
+function decomposeEta(total) {
+  let seconds = Math.max(0, Number(total) || 0);
+  const days = Math.floor(seconds / 86400);
+  seconds %= 86400;
+  const hours = Math.floor(seconds / 3600);
+  seconds %= 3600;
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return { days, hours, minutes, seconds:secs };
+}
+
+function numericInput(labelText, value) {
   const label = make("label");
   label.append(document.createTextNode(labelText));
+  const input = document.createElement("input");
+  input.type = "number";
+  input.min = "0";
+  input.step = "1";
+  input.inputMode = "numeric";
+  input.placeholder = "0";
+  input.value = value ? String(value) : "";
+  label.append(input);
+  return { label, input };
+}
 
+function createTextInput(labelText, value, placeholder) {
+  const label = make("label");
+  label.append(document.createTextNode(labelText));
   const input = document.createElement("input");
   input.value = value || "";
   input.placeholder = placeholder || "";
-
   label.append(input);
-
   return { label, input };
 }
 
 function createTextarea(labelText, value, placeholder) {
   const label = make("label");
   label.append(document.createTextNode(labelText));
-
   const textarea = document.createElement("textarea");
   textarea.value = value || "";
   textarea.placeholder = placeholder || "";
-
+  textarea.rows = 4;
   label.append(textarea);
-
   return { label, textarea };
 }
 
-function renderSummary(counts) {
-  summary.replaceChildren();
+function createEditor(item, details) {
+  const section = make("div", null, "detail-section");
+  section.append(make("h3", "處理與公開設定"));
 
-  for (const key of ["new", "in_progress", "resolved", "closed"]) {
-    const card = make("button", null, "summary-card");
-    card.type = "button";
+  const grid = make("div", null, "editor-grid");
 
-    card.append(
-      make("span", statusLabels[key], "summary-label"),
-      make("strong", String(counts[key] || 0), "summary-count")
-    );
-
-    card.addEventListener("click", () => {
-      filter.value = key;
-      loadFeedback();
-    });
-
-    summary.append(card);
-  }
-}
-
-function createStatusSelect(item, badge) {
-  const select = document.createElement("select");
-
-  for (const key of ["new", "in_progress", "resolved", "closed"]) {
-    const option = make("option", statusLabels[key]);
-    option.value = key;
+  const statusLabel = make("label");
+  statusLabel.append(document.createTextNode("狀態"));
+  const statusSelect = document.createElement("select");
+  ["new","in_progress","resolved","closed"].forEach(function(key) {
+    const option = new Option(statusLabels[key], key);
     option.selected = item.status === key;
-    select.append(option);
+    statusSelect.append(option);
+  });
+  statusLabel.append(statusSelect);
+
+  const publicLabel = make("label", null, "inline-toggle");
+  const publicToggle = document.createElement("input");
+  publicToggle.type = "checkbox";
+  publicToggle.checked = Number(item.is_public) === 1;
+  publicLabel.append(publicToggle, document.createTextNode("公開到「公開進度」"));
+
+  const titleField = createTextInput("公開標題", item.public_title, "例如：照片滑動放手時偶爾卡頓");
+  titleField.label.classList.add("wide");
+
+  const noteField = createTextarea("公開說明／處理進度", item.public_note, "給測試者看的說明");
+  noteField.label.classList.add("wide");
+
+  grid.append(statusLabel, publicLabel, titleField.label, noteField.label);
+  section.append(grid);
+
+  const etaBox = make("div", null, "conditional");
+  etaBox.append(make("strong", "預計處理時間"));
+  const existingEta = decomposeEta(item.eta_seconds);
+  const etaGrid = make("div", null, "eta-grid");
+  const etaDays = numericInput("天", existingEta.days);
+  const etaHours = numericInput("小時", existingEta.hours);
+  const etaMinutes = numericInput("分鐘", existingEta.minutes);
+  const etaSeconds = numericInput("秒", existingEta.seconds);
+  etaGrid.append(etaDays.label, etaHours.label, etaMinutes.label, etaSeconds.label);
+  etaBox.append(etaGrid);
+
+  const fixedBox = make("div", null, "conditional");
+  fixedBox.append(make("strong", "修復版本"));
+  const fixedGrid = make("div", null, "editor-grid");
+  const fixedVersion = createTextInput("版本", item.fixed_version, "例如 1.2.5");
+  const fixedBuild = createTextInput("Build", item.fixed_build, "例如 42");
+  const publishedLabel = make("label", null, "inline-toggle wide");
+  const publishedToggle = document.createElement("input");
+  publishedToggle.type = "checkbox";
+  publishedToggle.checked = Number(item.fix_published) === 1;
+  publishedLabel.append(publishedToggle, document.createTextNode("此修正版本已發布"));
+  fixedGrid.append(fixedVersion.label, fixedBuild.label, publishedLabel);
+  fixedBox.append(fixedGrid);
+
+  const unableBox = make("div", null, "conditional");
+  unableBox.append(make("strong", "無法處理原因"));
+  const unableReason = document.createElement("textarea");
+  unableReason.rows = 4;
+  unableReason.placeholder = "例如：目前無法重現此問題，需要更多操作步驟。";
+  unableReason.value = item.unable_reason || "";
+  unableBox.append(unableReason);
+
+  function updateConditional() {
+    etaBox.hidden = statusSelect.value !== "in_progress";
+    fixedBox.hidden = statusSelect.value !== "resolved";
+    unableBox.hidden = statusSelect.value !== "closed";
   }
 
-  select.addEventListener("change", async () => {
-    const previous = item.status;
-    select.disabled = true;
+  statusSelect.addEventListener("change", updateConditional);
+  updateConditional();
+
+  section.append(etaBox, fixedBox, unableBox);
+
+  const actionRow = make("div", null, "action-row");
+  const save = make("button", "儲存變更", "save-button");
+  save.type = "button";
+  const remove = make("button", "刪除回報", "danger-button");
+  remove.type = "button";
+  const saveStatus = make("span", "", "save-status");
+
+  save.addEventListener("click", async function() {
+    const eta =
+      (Number(etaDays.input.value) || 0) * 86400 +
+      (Number(etaHours.input.value) || 0) * 3600 +
+      (Number(etaMinutes.input.value) || 0) * 60 +
+      (Number(etaSeconds.input.value) || 0);
+
+    if (publicToggle.checked && titleField.input.value.trim().length < 3) {
+      saveStatus.textContent = "公開前請填寫公開標題。";
+      titleField.input.focus();
+      return;
+    }
+
+    save.disabled = true;
+    saveStatus.textContent = "正在儲存…";
 
     try {
       const response = await fetch("/dashboard/api/feedback", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          id: item.id,
-          status: select.value
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          id:item.id,
+          status:statusSelect.value,
+          etaSeconds:eta,
+          isPublic:publicToggle.checked,
+          publicTitle:titleField.input.value,
+          publicNote:noteField.textarea.value,
+          fixedVersion:fixedVersion.input.value,
+          fixedBuild:fixedBuild.input.value,
+          fixPublished:publishedToggle.checked,
+          unableReason:unableReason.value
         })
       });
 
       const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error();
 
-      if (!response.ok || !result.ok) {
-        throw new Error();
-      }
-
-      item.status = select.value;
-
-      badge.textContent = statusLabels[item.status];
-      badge.className = "mini-badge status-" + item.status;
-
-      statusText.textContent = "狀態已更新。";
-
-      if (filter.value && filter.value !== item.status) {
-        loadFeedback();
-      }
+      saveStatus.textContent = "已儲存。";
+      await loadFeedback();
     } catch {
-      select.value = previous;
-      statusText.textContent = "更新狀態失敗，請稍後再試。";
+      saveStatus.textContent = "儲存失敗，請稍後再試。";
     } finally {
-      select.disabled = false;
+      save.disabled = false;
     }
   });
 
-  return select;
+  remove.addEventListener("click", async function() {
+    const reason = prompt(
+      "刪除後會清除原始回報內容，但 " + reportId(item) + " 會保留為「已移除」且不會重新使用。\n\n可輸入移除原因（可留空）：",
+      ""
+    );
+
+    if (reason === null) return;
+
+    const confirmed = confirm("確定刪除 " + reportId(item) + " 的原始內容？");
+    if (!confirmed) return;
+
+    remove.disabled = true;
+    saveStatus.textContent = "正在刪除…";
+
+    try {
+      const response = await fetch("/dashboard/api/feedback", {
+        method:"DELETE",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          id:item.id,
+          deletionReason:reason
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error();
+
+      saveStatus.textContent = "已移除。";
+      details.remove();
+      await loadFeedback();
+    } catch {
+      saveStatus.textContent = "刪除失敗，請稍後再試。";
+    } finally {
+      remove.disabled = false;
+    }
+  });
+
+  actionRow.append(save, remove, saveStatus);
+  section.append(actionRow);
+
+  return section;
 }
 
 function renderFeedback() {
   list.replaceChildren();
 
-  const keyword = search.value.trim().toLowerCase();
-
-  const items = loadedItems.filter(item => {
-    if (!keyword) return true;
-
-    return [
-      item.description,
-      item.steps,
-      item.app_version,
-      item.build_number,
-      item.ios_version,
-      item.device_model,
-      item.public_title,
-      item.public_note,
-      item.fixed_version,
-      item.fixed_build,
-      item.id,
-      categoryLabels[item.category]
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-      .includes(keyword);
-  });
-
-  statusText.textContent =
-    `顯示 ${items.length} / ${loadedItems.length} 筆回報。`;
+  const items = loadedItems.filter(matchesFilters);
+  statusText.textContent = "顯示 " + items.length + " / " + loadedItems.length + " 筆回報。";
 
   if (!items.length) {
-    const empty = make("div", "目前沒有符合條件的回報。", "empty-state");
-    list.append(empty);
+    list.append(make("div", "目前沒有符合條件的回報。", "empty-state"));
     return;
   }
 
-  for (const item of items) {
+  items.forEach(function(item) {
     const details = document.createElement("details");
-    details.className = "feedback-item";
+    details.className = "feedback-item status-" + item.status;
 
     const summaryEl = document.createElement("summary");
-
     const summaryGrid = make("div", null, "feedback-summary");
-    const main = make("div", null, "feedback-main");
 
+    const main = make("div");
     const title = make(
       "div",
-      item.description || "未命名回報",
+      reportId(item) + " · " + (item.description || "未提供描述").replace(/\s+/g, " "),
       "feedback-title"
     );
 
     const subtitle = make("div", null, "feedback-subtitle");
-
     subtitle.append(
       make("span", categoryLabels[item.category] || item.category || "其他"),
       make("span", "·"),
-      make("span", formatDate(item.created_at, true))
+      make("span", formatDate(item.created_at))
     );
-
-    if (item.device_model) {
-      subtitle.append(
-        make("span", "·"),
-        make("span", item.device_model)
-      );
+    if (item.app_version) {
+      subtitle.append(make("span", "·"), make("span", "v" + item.app_version));
+    }
+    if (item.build_number) {
+      subtitle.append(make("span", "Build " + item.build_number));
     }
 
     main.append(title, subtitle);
 
     const right = make("div", null, "feedback-right");
-
-    const visibilityBadge = make(
-      "span",
-      Number(item.is_public) === 1 ? "公開" : "私人",
-      Number(item.is_public) === 1
-        ? "mini-badge visibility-public"
-        : "mini-badge visibility-private"
-    );
-
     const statusBadge = make(
       "span",
       statusLabels[item.status] || item.status,
-      "mini-badge status-" + item.status
+      "mini-badge status-badge-" + item.status
     );
+    const visibility = make(
+      "span",
+      Number(item.is_public) === 1 ? "公開" : "私人",
+      "mini-badge " + (Number(item.is_public) === 1 ? "visibility-public" : "visibility-private")
+    );
+    visibility.classList.add("visibility-label");
+    right.append(statusBadge, visibility, make("span", "›", "chevron"));
 
-    const chevron = make("span", "›", "chevron");
-
-    right.append(visibilityBadge, statusBadge, chevron);
     summaryGrid.append(main, right);
     summaryEl.append(summaryGrid);
 
     const detail = make("div", null, "feedback-detail");
-    const detailInner = make("div", null, "feedback-detail-inner");
 
-    const originalSection = make("div", null, "detail-section");
-    originalSection.append(
-      make("h3", "原始回報"),
-      make("p", item.description, "description-full")
-    );
-
-    const meta = make("div", null, "feedback-meta");
-
-    addMetaRow(meta, "時間", formatDate(item.created_at));
-
-    addMetaRow(
-      meta,
-      "App",
-      item.app_version
-        ? item.app_version +
-          (item.build_number ? " (" + item.build_number + ")" : "")
-        : item.build_number
-    );
-
-    addMetaRow(meta, "iOS", item.ios_version);
-    addMetaRow(meta, "裝置", item.device_model);
-    addMetaRow(meta, "來源", item.source);
-
-    originalSection.append(meta);
+    const reportSection = make("div", null, "detail-section");
+    reportSection.append(make("h3", "回報內容"));
+    reportSection.append(make("p", item.description || "未提供描述", "description-full"));
 
     if (item.steps) {
-      const steps = make("div", null, "feedback-steps");
-      steps.append(
-        make("strong", "重現步驟"),
-        make("p", item.steps)
-      );
-
-      originalSection.append(steps);
+      const steps = make("div", null, "steps");
+      steps.append(make("strong", "發生時機／重現步驟"), make("div", item.steps));
+      reportSection.append(steps);
     }
 
-    detailInner.append(originalSection);
+    const meta = make("div", null, "meta-grid");
+    addMeta(meta, "回報 ID", reportId(item));
+    addMeta(meta, "App", item.app_version);
+    addMeta(meta, "Build", item.build_number);
+    addMeta(meta, "iOS", item.ios_version);
+    addMeta(meta, "裝置", item.device_model);
+    addMeta(meta, "來源", item.source);
+    reportSection.append(meta);
+    detail.append(reportSection);
 
-    const statusSection = make("div", null, "detail-section");
-    statusSection.append(make("h3", "處理狀態"));
-
-    const statusControl = make("div", null, "status-control");
-
-    const statusLabel = make("label");
-    statusLabel.append(
-      document.createTextNode("狀態"),
-      createStatusSelect(item, statusBadge)
-    );
-
-    const visibilityInfo = make(
-      "div",
-      Number(item.is_public) === 1
-        ? "目前已公開給使用者"
-        : "目前只有管理者可見",
-      "muted"
-    );
-
-    statusControl.append(statusLabel, visibilityInfo);
-    statusSection.append(statusControl);
-
-    detailInner.append(statusSection);
-
-    const publicSection = make("div", null, "detail-section");
-    publicSection.append(make("h3", "公開問題資訊"));
-
-    const editor = make("div", null, "public-editor");
-
-    const header = make("div", null, "public-editor-header");
-
-    const toggleLabel = make("label", null, "public-toggle");
-    const toggle = document.createElement("input");
-
-    toggle.type = "checkbox";
-    toggle.checked = Number(item.is_public) === 1;
-
-    toggleLabel.append(
-      toggle,
-      document.createTextNode("公開顯示")
-    );
-
-    header.append(toggleLabel);
-    editor.append(header);
-
-    const fields = make("div", null, "public-fields");
-
-    const titleField = createInput(
-      "公開標題",
-      item.public_title,
-      "例如：影片上下滑動偶爾卡住"
-    );
-
-    const noteField = createTextarea(
-      "公開處理進度",
-      item.public_note,
-      "例如：已找到問題原因，目前正在測試修正。"
-    );
-
-    fields.append(
-      titleField.label,
-      noteField.label
-    );
-
-    const versionGrid = make("div", null, "public-version-grid");
-
-    const versionField = createInput(
-      "修復版本",
-      item.fixed_version,
-      "例如：1.0 Beta"
-    );
-
-    const buildField = createInput(
-      "修復 Build",
-      item.fixed_build,
-      "例如：5"
-    );
-
-    versionGrid.append(
-      versionField.label,
-      buildField.label
-    );
-
-    fields.append(versionGrid);
-    editor.append(fields);
-
-    const saveRow = make("div", null, "save-row");
-    const saveButton = make("button", "儲存", "save-button");
-    const saveStatus = make("span", "", "save-status");
-
-    saveButton.type = "button";
-
-    const updated = make(
-      "div",
-      item.updated_at
-        ? "最後更新：" + formatDate(item.updated_at)
-        : "尚未更新公開資訊",
-      "updated-at"
-    );
-
-    saveButton.addEventListener("click", async () => {
-      if (
-        toggle.checked &&
-        titleField.input.value.trim().length < 3
-      ) {
-        saveStatus.textContent = "公開前請先填寫公開標題。";
-        titleField.input.focus();
-        return;
-      }
-
-      saveButton.disabled = true;
-      saveStatus.textContent = "正在儲存…";
-
+    if (item.diagnostics_json) {
+      const diagSection = make("div", null, "detail-section");
+      diagSection.append(make("h3", "額外系統資訊"));
       try {
-        const response = await fetch("/dashboard/api/feedback", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            id: item.id,
-            isPublic: toggle.checked,
-            publicTitle: titleField.input.value,
-            publicNote: noteField.textarea.value,
-            fixedVersion: versionField.input.value,
-            fixedBuild: buildField.input.value
-          })
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.ok) {
-          throw new Error();
-        }
-
-        item.is_public = toggle.checked ? 1 : 0;
-        item.public_title = titleField.input.value;
-        item.public_note = noteField.textarea.value;
-        item.fixed_version = versionField.input.value;
-        item.fixed_build = buildField.input.value;
-        item.updated_at = new Date().toISOString();
-
-        visibilityBadge.textContent =
-          toggle.checked ? "公開" : "私人";
-
-        visibilityBadge.className =
-          toggle.checked
-            ? "mini-badge visibility-public"
-            : "mini-badge visibility-private";
-
-        visibilityInfo.textContent =
-          toggle.checked
-            ? "目前已公開給使用者"
-            : "目前只有管理者可見";
-
-        updated.textContent =
-          "最後更新：" + formatDate(item.updated_at);
-
-        saveStatus.textContent =
-          toggle.checked
-            ? "已儲存並公開。"
-            : "已儲存，目前維持私人。";
+        const parsed = JSON.parse(item.diagnostics_json);
+        diagSection.append(make("pre", JSON.stringify(parsed, null, 2), "diag"));
       } catch {
-        saveStatus.textContent = "儲存失敗，請稍後再試。";
-      } finally {
-        saveButton.disabled = false;
+        diagSection.append(make("pre", item.diagnostics_json, "diag"));
       }
-    });
+      detail.append(diagSection);
+    }
 
-    saveRow.append(saveButton, saveStatus);
-
-    editor.append(saveRow, updated);
-    publicSection.append(editor);
-
-    detailInner.append(publicSection);
-
-    const idSection = make("div", null, "detail-section");
-    idSection.append(
-      make("div", "回報編號：" + item.id, "feedback-id")
-    );
-
-    detailInner.append(idSection);
-
-    detail.append(detailInner);
+    detail.append(createEditor(item, details));
     details.append(summaryEl, detail);
-
     list.append(details);
-  }
+  });
+}
+
+function attachFilterEvents() {
+  [
+    searchFilter,
+    statusFilter,
+    categoryFilter,
+    versionFilter,
+    buildFilter,
+    iosFilter,
+    deviceFilter
+  ].forEach(function(control) {
+    control.addEventListener(control.tagName === "INPUT" ? "input" : "change", renderFeedback);
+  });
 }
 
 async function loadFeedback() {
   refresh.disabled = true;
   statusText.textContent = "正在載入…";
 
-  const query = filter.value
-    ? "?status=" + encodeURIComponent(filter.value)
-    : "";
-
   try {
-    const response = await fetch(
-      "/dashboard/api/feedback" + query,
-      {
-        headers: {
-          "Accept": "application/json"
-        },
-        cache: "no-store"
-      }
-    );
+    const response = await fetch("/dashboard/api/feedback", {
+      headers:{ "Accept":"application/json" },
+      cache:"no-store"
+    });
 
     const result = await response.json();
-
-    if (!response.ok || !result.ok) {
-      throw new Error();
-    }
+    if (!response.ok || !result.ok) throw new Error();
 
     loadedItems = result.feedback || [];
-
-    renderSummary(result.counts);
+    renderSummary(result.counts || {});
+    setupFilters();
     renderFeedback();
   } catch {
     statusText.textContent = "讀取失敗，請稍後再試。";
@@ -901,10 +805,8 @@ async function loadFeedback() {
   }
 }
 
-filter.addEventListener("change", loadFeedback);
-search.addEventListener("input", renderFeedback);
 refresh.addEventListener("click", loadFeedback);
-
+attachFilterEvents();
 loadFeedback();
 </script>
 </body>
