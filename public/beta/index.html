@@ -36,7 +36,7 @@
     .page{
       width:min(760px,calc(100% - 28px));
       margin:0 auto;
-      padding:max(20px,env(safe-area-inset-top)) 0 calc(74px + env(safe-area-inset-bottom));
+      padding:max(20px,env(safe-area-inset-top)) 0 calc(76px + env(safe-area-inset-bottom));
     }
 
     .topbar{
@@ -96,31 +96,10 @@
       font-size:12px;
     }
 
-    .trust{
-      margin:2px 0 18px;
-      padding:18px;
-      border:1px solid rgba(48,209,88,.22);
-      border-radius:20px;
-      background:linear-gradient(145deg,rgba(48,209,88,.10),rgba(255,255,255,.025));
-    }
-
-    .trust-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:7px;
-      margin-bottom:9px;
-      color:var(--green);
-      font-size:13px;
-      font-weight:750;
-    }
-
-    .trust h2{margin:0 0 8px;font-size:20px}
-    .trust p{margin:0;color:var(--muted);font-size:14px;line-height:1.6}
-
     .actions{
       display:grid;
       gap:10px;
-      margin-bottom:22px;
+      margin-bottom:18px;
     }
 
     .action{
@@ -141,63 +120,95 @@
     }
 
     .action-title{font-weight:750;font-size:16px}
-    .action-sub{margin-top:2px;color:rgba(255,255,255,.64);font-size:12px}
+    .action-sub{margin-top:2px;color:rgba(255,255,255,.64);font-size:12px;line-height:1.4}
     .action-arrow{font-size:23px}
 
-    .summary{
+    .safety-card{
+      margin:4px 0 22px;
+      padding:17px;
+      border:1px solid rgba(255,159,10,.26);
+      border-radius:19px;
+      background:linear-gradient(145deg,rgba(255,159,10,.09),rgba(255,255,255,.025));
+    }
+
+    .safety-title{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-bottom:8px;
+      font-size:17px;
+      font-weight:800;
+    }
+
+    .safety-title span{color:var(--orange)}
+
+    .safety-card p{
+      margin:0;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.62;
+    }
+
+    .safety-grid{
       display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      border-top:1px solid var(--line);
-      border-bottom:1px solid var(--line);
-      margin-bottom:4px;
+      grid-template-columns:1fr 1fr;
+      gap:9px;
+      margin-top:13px;
     }
 
-    .summary-item{
-      padding:17px 8px;
-      text-align:center;
-      border-right:1px solid var(--line);
+    .safety-item{
+      padding:11px 12px;
+      border-radius:14px;
+      background:rgba(255,255,255,.045);
+      border:1px solid var(--line);
     }
 
-    .summary-item:last-child{border-right:0}
-    .summary-label{color:var(--muted);font-size:11px;font-weight:650}
-    .summary-main{margin-top:5px;font-size:18px;font-weight:800}
-    .summary-sub{margin-top:3px;color:var(--muted);font-size:11px}
+    .safety-item strong{
+      display:block;
+      margin-bottom:3px;
+      font-size:13px;
+    }
+
+    .safety-item span{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.45;
+    }
 
     section{
-      padding:25px 0;
+      padding:24px 0;
       border-bottom:1px solid var(--line);
     }
 
-    h2{margin:0 0 12px;font-size:25px;letter-spacing:-.4px}
-    .section-note{color:var(--muted);font-size:14px;line-height:1.55}
+    h2{margin:0 0 12px;font-size:24px;letter-spacing:-.4px}
+    .section-note{color:var(--muted);font-size:14px;line-height:1.58}
 
-    .steps{
+    .feature-list{
       display:grid;
-      gap:10px;
-      margin-top:16px;
+      gap:12px;
     }
 
-    .step{
+    .feature{
       display:grid;
-      grid-template-columns:34px minmax(0,1fr);
+      grid-template-columns:40px minmax(0,1fr);
       gap:11px;
       align-items:start;
     }
 
-    .step-num{
-      width:34px;
-      height:34px;
+    .feature-icon{
+      width:40px;
+      height:40px;
       display:flex;
       align-items:center;
       justify-content:center;
-      border-radius:50%;
-      background:var(--card2);
+      border-radius:12px;
+      background:var(--card);
       color:var(--blue);
       font-weight:800;
     }
 
-    .step-title{font-weight:750}
-    .step-desc{margin-top:2px;color:var(--muted);font-size:13px;line-height:1.5}
+    .feature-title{font-weight:750}
+    .feature-desc{margin-top:2px;color:var(--muted);font-size:13px;line-height:1.45}
 
     .preview-strip{
       display:flex;
@@ -229,64 +240,15 @@
     .preview-title{margin-top:10px;font-weight:750}
     .preview-desc{margin-top:3px;color:var(--muted);font-size:13px;line-height:1.45}
 
-    .feature-list{
-      display:grid;
-      gap:12px;
-    }
-
-    .feature{
-      display:grid;
-      grid-template-columns:40px minmax(0,1fr);
-      gap:11px;
-      align-items:start;
-    }
-
-    .feature-icon{
-      width:40px;
-      height:40px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:12px;
-      background:var(--card);
-      color:var(--blue);
-      font-weight:800;
-    }
-
-    .feature-title{font-weight:750}
-    .feature-desc{margin-top:2px;color:var(--muted);font-size:13px;line-height:1.45}
-
-    .safety{
-      display:grid;
-      gap:10px;
-      margin-top:15px;
-    }
-
-    .safety-row{
-      padding:13px 14px;
-      border-radius:15px;
-      background:var(--card);
+    .update-box{
+      padding:15px;
+      border-radius:17px;
       border:1px solid var(--line);
+      background:var(--card);
     }
 
-    .safety-row strong{display:block;margin-bottom:3px}
-    .safety-row span{color:var(--muted);font-size:13px;line-height:1.5}
-
-    .info{
-      border-top:1px solid var(--line);
-    }
-
-    .info-row{
-      display:grid;
-      grid-template-columns:115px minmax(0,1fr);
-      gap:14px;
-      padding:13px 0;
-      border-bottom:1px solid var(--line);
-      font-size:14px;
-    }
-
-    .info-key{color:var(--muted)}
-    .info-value{text-align:right}
+    .update-box strong{display:block;margin-bottom:5px}
+    .update-box p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
 
     .links{
       display:grid;
@@ -316,13 +278,6 @@
     }
 
     @media(max-width:520px){
-      .summary{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-      }
-
-      .summary-item:nth-child(2){border-right:0}
-      .summary-item:nth-child(-n+2){border-bottom:1px solid var(--line)}
-
       .app-head{
         grid-template-columns:92px minmax(0,1fr);
       }
@@ -334,7 +289,7 @@
       }
 
       h1{font-size:29px}
-      .links{grid-template-columns:1fr}
+      .safety-grid,.links{grid-template-columns:1fr}
     }
 
     @media(min-width:900px){
@@ -367,28 +322,16 @@
       <a class="get" href="/beta/testflight">取得</a>
 
       <div class="get-note">
-        透過 Apple TestFlight 安裝，不需登記 UDID
+        透過 Apple TestFlight 安裝
       </div>
     </div>
-  </div>
-
-  <div class="trust">
-    <div class="trust-badge">✓ Apple TestFlight 外部測試</div>
-    <h2>透過 Apple TestFlight 進行公開 Beta</h2>
-    <p>
-      ChaiPhoto 目前使用 Apple TestFlight 分發外部 Beta。首個對外測試版本
-      1.2.5（Build 37）已完成 TestFlight Beta App Review，測試者會透過
-      TestFlight 安裝與更新。這代表它使用 Apple 正式提供的外部 Beta 分發流程；
-      但 Beta 審查不應被理解成 Apple 對每一行程式碼、所有安全風險或所有 Bug
-      做「零風險保證」。
-    </p>
   </div>
 
   <div class="actions">
     <a class="action primary" href="/beta/testflight">
       <div>
-        <div class="action-title">開始 TestFlight 測試</div>
-        <div class="action-sub">先看安裝與安全說明，再前往官方測試流程</div>
+        <div class="action-title">加入 ChaiPhoto Beta</div>
+        <div class="action-sub">安裝方式、安全說明與 TestFlight 加入入口都在這裡</div>
       </div>
       <span class="action-arrow">›</span>
     </a>
@@ -396,137 +339,35 @@
     <a class="action" href="/report#issues">
       <div>
         <div class="action-title">已知問題與進度</div>
-        <div class="action-sub">查看目前已確認的 Bug 與修復狀態</div>
+        <div class="action-sub">查看目前已確認的問題與修復狀態</div>
       </div>
       <span class="action-arrow">›</span>
     </a>
   </div>
 
-  <div class="summary">
-    <div class="summary-item">
-      <div class="summary-label">版本</div>
-      <div class="summary-main">1.2.5</div>
-      <div class="summary-sub">Build 37</div>
-    </div>
+  <div class="safety-card">
+    <div class="safety-title"><span>⚠</span> Beta 測試前先知道</div>
+    <p>
+      ChaiPhoto 已由開發者實際安裝與手動測試，目前沒有發現會影響基本整理流程的已知運作問題。
+      不過 Beta 版本仍可能在不同裝置、照片庫內容或使用方式下出現尚未發現的 Bug、介面異常、卡頓或操作體驗問題，
+      這也是公開測試需要更多人參與的原因。
+    </p>
 
-    <div class="summary-item">
-      <div class="summary-label">測試方式</div>
-      <div class="summary-main">TestFlight</div>
-      <div class="summary-sub">Apple 官方</div>
-    </div>
+    <div class="safety-grid">
+      <div class="safety-item">
+        <strong>可能遇到</strong>
+        <span>介面顯示、功能細節、卡頓、閃退或其他尚未被發現的 Beta 問題。</span>
+      </div>
 
-    <div class="summary-item">
-      <div class="summary-label">外部測試</div>
-      <div class="summary-main">10,000</div>
-      <div class="summary-sub">最多測試者</div>
-    </div>
-
-    <div class="summary-item">
-      <div class="summary-label">平台</div>
-      <div class="summary-main">iPhone</div>
-      <div class="summary-sub">iOS</div>
+      <div class="safety-item">
+        <strong>不需要額外承擔的安裝風險</strong>
+        <span>不需企業憑證、來源不明描述檔、UDID 或 Developer Mode；App 權限仍由 iOS 管理。</span>
+      </div>
     </div>
   </div>
 
   <section>
-    <h2>怎麼加入測試？</h2>
-    <div class="section-note">
-      不需要申請名單、提供 UDID，也不需要開啟 Developer Mode。只要安裝 Apple 官方 TestFlight，再加入 ChaiPhoto 公開測試即可。
-    </div>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div>
-          <div class="step-title">安裝 TestFlight</div>
-          <div class="step-desc">TestFlight 是 Apple 在 App Store 提供的官方 Beta 測試 App。</div>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-num">2</div>
-        <div>
-          <div class="step-title">開啟 ChaiPhoto 公開測試連結</div>
-          <div class="step-desc">接受邀請後，ChaiPhoto 會出現在 TestFlight 中。</div>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-num">3</div>
-        <div>
-          <div class="step-title">從 TestFlight 安裝與更新</div>
-          <div class="step-desc">之後的新 Beta 版本也會透過 TestFlight 提供更新。</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>安全性與 Beta 審查說明</h2>
-
-    <div class="section-note">
-      這裡不把「通過 TestFlight 審查」寫成萬無一失的保證。比較準確的說法是：
-      ChaiPhoto 透過 Apple 官方 TestFlight 管道提供，首個外部測試 Build 已完成
-      外部測試所需的 Beta App Review；安裝、更新與測試資格都由 TestFlight 管理。
-    </div>
-
-    <div class="safety">
-      <div class="safety-row">
-        <strong>TestFlight 是 Apple 官方測試工具</strong>
-        <span>TestFlight 由 Apple 提供並可從 App Store 取得。ChaiPhoto 不要求安裝第三方企業憑證、來源不明的描述檔或額外簽名工具。</span>
-      </div>
-
-      <div class="safety-row">
-        <strong>Build 37 已完成外部 Beta 審查流程</strong>
-        <span>Apple 規定外部 TestFlight 的首個 Build 需先送交 Beta App Review，核准後才能提供給外部測試者。這表示本版本已走完該分發流程，但不等於 Apple 對 App 做完整資安稽核或保證完全沒有漏洞。</span>
-      </div>
-
-      <div class="safety-row">
-        <strong>權限仍受 iOS 控制</strong>
-        <span>ChaiPhoto 需要使用照片或影片相關功能時，仍必須依 iOS 權限機制取得使用者授權。透過 TestFlight 安裝不會讓 App 自動取得額外的系統權限。</span>
-      </div>
-
-      <div class="safety-row">
-        <strong>Beta 期間仍可能有問題</strong>
-        <span>目前測試主要聚焦在 App 自身的介面、顯示、操作流程與穩定性。若遇到畫面顯示異常、功能沒有照預期運作、卡頓、閃退或其他狀況，都請回報。Beta 版本不應被視為與正式版完全相同的穩定程度。</span>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>遇到 Bug，建議怎麼回報？</h2>
-
-    <div class="section-note">
-      建議優先使用 ChaiPhoto 的網站回報。網站回報會直接進入開發者的問題整理與追蹤系統，
-      可以被標記為「已收到、處理中、已修復、已關閉」，也方便後續公開修復進度。
-      一般而言，這會比只留下零散的回饋更容易被快速分類與追蹤。
-    </div>
-
-    <div class="safety">
-      <div class="safety-row">
-        <strong>優先：ChaiPhoto 問題回報網站</strong>
-        <span>開發者每天早上約 08:00 會固定查看新的網站回報、回報後台與相關通知。若希望問題較快進入處理清單，建議使用這個管道。</span>
-      </div>
-
-      <div class="safety-row">
-        <strong>也可以使用 App 內的回報入口</strong>
-        <span>如果 App 內有提供問題回報入口，也可以直接從 App 開啟回報流程。</span>
-      </div>
-
-      <div class="safety-row">
-        <strong>TestFlight 內建 Beta Feedback 也可以使用</strong>
-        <span>TestFlight 本身支援 Beta 回饋；如果是閃退、需要附上截圖或想使用 Apple 內建的測試回饋流程，也可以從 TestFlight 提交。</span>
-      </div>
-    </div>
-
-    <div class="links">
-      <a class="link" href="/report">前往問題回報</a>
-      <a class="link" href="/report#issues">查看已知問題與進度</a>
-    </div>
-  </section>
-
-  <section>
-    <h2>新功能</h2>
+    <h2>目前可以做什麼？</h2>
 
     <div class="feature-list">
       <div class="feature">
@@ -541,7 +382,7 @@
         <div class="feature-icon">▶</div>
         <div>
           <div class="feature-title">影片整理</div>
-          <div class="feature-desc">上下滑動切換影片，並提供靜音、加入相簿、待刪與分享。</div>
+          <div class="feature-desc">上下切換影片，並提供靜音、加入相簿、待刪與分享。</div>
         </div>
       </div>
 
@@ -549,7 +390,7 @@
         <div class="feature-icon">✓</div>
         <div>
           <div class="feature-title">待刪複查</div>
-          <div class="feature-desc">正式刪除前集中確認，並可還原不想刪除的項目。</div>
+          <div class="feature-desc">正式刪除前集中確認，也能把項目還原或改為保留。</div>
         </div>
       </div>
 
@@ -560,6 +401,18 @@
           <div class="feature-desc">依照片、影片、相簿與時間縮小整理範圍。</div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>更新怎麼看？</h2>
+
+    <div class="update-box">
+      <strong>加入 TestFlight 後，更新資訊直接看 TestFlight</strong>
+      <p>
+        後續有新的 Beta 版本時，TestFlight 會顯示可用更新；是否收到推播通知則依 TestFlight 與 iOS 的通知設定而定。
+        每次更新的「測試項目」也會寫上這一版改了什麼、希望大家特別測試哪些地方，不需要另外回網站找 Build 編號。
+      </p>
     </div>
   </section>
 
@@ -602,51 +455,24 @@
   </section>
 
   <section>
-    <h2>資訊</h2>
-
-    <div class="info">
-      <div class="info-row">
-        <div class="info-key">目前版本</div>
-        <div class="info-value">1.2.5 · Build 37</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">測試方式</div>
-        <div class="info-value">Apple TestFlight</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">安裝資格</div>
-        <div class="info-value">公開連結加入</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">UDID</div>
-        <div class="info-value">不需要</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">Developer Mode</div>
-        <div class="info-value">不需要</div>
-      </div>
-
-      <div class="info-row">
-        <div class="info-key">外部測試上限</div>
-        <div class="info-value">最多 10,000 人</div>
-      </div>
+    <h2>測試回饋</h2>
+    <div class="section-note">
+      如果遇到 Bug、介面不順或有使用體驗上的建議，最推薦使用本站回報。
+      回報會直接進入 ChaiPhoto 的問題追蹤系統，開發者每天早上約 08:00 會固定查看新的網站回報與相關通知。
+      App 內與 TestFlight 內建 Beta Feedback 也都可以使用。
     </div>
 
     <div class="links">
       <a class="link" href="/report">問題回報</a>
+      <a class="link" href="/report#issues">已知問題與進度</a>
       <a class="link" href="/support">App 支援</a>
       <a class="link" href="/privacy">隱私權政策</a>
-      <a class="link" href="https://developer.apple.com/testflight/" rel="noopener">Apple TestFlight 說明</a>
     </div>
   </section>
 
   <footer>
     ChaiPhoto Beta · Apple TestFlight 公開測試<br>
-    Beta 版本仍可能包含錯誤或未完成項目
+    Beta 版本仍可能包含尚未發現的問題
   </footer>
 
 </main>
