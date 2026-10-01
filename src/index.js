@@ -1,5 +1,3 @@
-// Deployment trigger: refresh
-
 const json = (data, status = 200) =>
   Response.json(data, {
     status,
@@ -19,6 +17,31 @@ const allowedStatuses = new Set([
   "closed"
 ]);
 
+const allowedCategories = new Set([
+  "crash",
+  "performance",
+  "photos",
+  "videos",
+  "icloud",
+  "ui",
+  "suggestion",
+  "other"
+]);
+
+const diagnosticKeys = new Set([
+  "photoAccess",
+  "language",
+  "appearance",
+  "deleteDirection",
+  "haptics",
+  "cloudPhoto",
+  "cloudVideo",
+  "photoPreload",
+  "videoPreload",
+  "fullSpeedPreload",
+  "lowPowerMode"
+]);
+
 const dashboardHost = "photo.chaihome.cc";
 
 function isDashboardRequest(url) {
@@ -35,112 +58,177 @@ function hasAccessIdentity(request) {
   );
 }
 
+function formatReportId(number) {
+  return "BETA-" + String(number).padStart(3, "0");
+}
+
+function parseReportNumber(value) {
+  const normalized = clean(value, 80)
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/^BETA[-_]?/, "");
+
+  if (!/^\d+$/.test(normalized)) return null;
+
+  const number = Number.parseInt(normalized, 10);
+  return Number.isSafeInteger(number) && number > 0 ? number : null;
+}
+
+function cleanDiagnostics(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const output = {};
+
+  for (const [key, raw] of Object.entries(value)) {
+    if (!diagnosticKeys.has(key)) continue;
+    const safe = clean(String(raw ?? ""), 160);
+    if (safe) output[key] = safe;
+  }
+
+  return Object.keys(output).length ? output : null;
+}
+
+async function ensureTrackingSchema(env) {
+  await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_tracking (
+        feedback_id TEXT PRIMARY KEY,
+        report_number INTEGER NOT NULL UNIQUE,
+        eta_seconds INTEGER,
+        eta_due_at TEXT,
+        fix_published INTEGER NOT NULL DEFAULT 0,
+        unable_reason TEXT,
+        diagnostics_json TEXT,
+        deleted_at TEXT,
+        deletion_reason TEXT
+      )`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_counter (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        next_number INTEGER NOT NULL CHECK (next_number >= 1)
+      )`
+    ),
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO feedback_counter (singleton, next_number)
+       VALUES (1, 1)`
+    )
+  ]);
+}
+
+async function nextReportNumber(env) {
+  const row = await env.DB.prepare(
+    `UPDATE feedback_counter
+     SET next_number = next_number + 1
+     WHERE singleton = 1
+     RETURNING next_number - 1 AS report_number`
+  ).first();
+
+  if (!row?.report_number) {
+    throw new Error("Unable to allocate report number");
+  }
+
+  return Number(row.report_number);
+}
+
+async function ensureTrackingRows(env) {
+  await ensureTrackingSchema(env);
+
+  const missing = await env.DB.prepare(
+    `SELECT f.id
+     FROM feedback f
+     LEFT JOIN feedback_tracking t ON t.feedback_id = f.id
+     WHERE t.feedback_id IS NULL
+     ORDER BY f.created_at ASC, f.id ASC
+     LIMIT 500`
+  ).all();
+
+  for (const row of missing.results || []) {
+    const number = await nextReportNumber(env);
+
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO feedback_tracking
+       (feedback_id, report_number)
+       VALUES (?, ?)`
+    )
+      .bind(row.id, number)
+      .run();
+  }
+}
+
+function etaFromBody(body) {
+  if (!Object.hasOwn(body, "etaSeconds")) return undefined;
+
+  const parsed = Number(body.etaSeconds);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return Math.min(Math.floor(parsed), 60 * 60 * 24 * 365);
+}
+
 async function handleDashboardApi(request, env, url) {
-  /*
-   * =========================================================
-   * 私人管理後台：取得回報
-   * GET /dashboard/api/feedback
-   * =========================================================
-   */
+  await ensureTrackingRows(env);
+
   if (
     url.pathname === "/dashboard/api/feedback" &&
     request.method === "GET"
   ) {
-    const status = clean(url.searchParams.get("status"), 20);
-    const filter = allowedStatuses.has(status) ? status : null;
+    const list = await env.DB.prepare(
+      `SELECT
+         f.id,
+         f.created_at,
+         f.status,
+         f.category,
+         f.description,
+         f.steps,
+         f.app_version,
+         f.build_number,
+         f.ios_version,
+         f.device_model,
+         f.source,
+         f.is_public,
+         f.public_title,
+         f.public_note,
+         f.fixed_version,
+         f.fixed_build,
+         f.updated_at,
+         t.report_number,
+         t.eta_seconds,
+         t.eta_due_at,
+         t.fix_published,
+         t.unable_reason,
+         t.diagnostics_json
+       FROM feedback f
+       JOIN feedback_tracking t ON t.feedback_id = f.id
+       WHERE t.deleted_at IS NULL
+       ORDER BY f.created_at DESC
+       LIMIT 500`
+    ).all();
 
-    const listQuery = filter
-      ? env.DB.prepare(
-          `SELECT
-             id,
-             created_at,
-             status,
-             category,
-             description,
-             steps,
-             app_version,
-             build_number,
-             ios_version,
-             device_model,
-             source,
-             is_public,
-             public_title,
-             public_note,
-             fixed_version,
-             fixed_build,
-             updated_at
-           FROM feedback
-           WHERE status = ?
-           ORDER BY created_at DESC
-           LIMIT 200`
-        ).bind(filter)
-      : env.DB.prepare(
-          `SELECT
-             id,
-             created_at,
-             status,
-             category,
-             description,
-             steps,
-             app_version,
-             build_number,
-             ios_version,
-             device_model,
-             source,
-             is_public,
-             public_title,
-             public_note,
-             fixed_version,
-             fixed_build,
-             updated_at
-           FROM feedback
-           ORDER BY created_at DESC
-           LIMIT 200`
-        );
-
-    const [list, counts] = await Promise.all([
-      listQuery.all(),
-      env.DB.prepare(
-        `SELECT status, COUNT(*) AS count
-         FROM feedback
-         GROUP BY status`
-      ).all()
-    ]);
-
-    const summary = {
+    const counts = {
       new: 0,
       in_progress: 0,
       resolved: 0,
       closed: 0
     };
 
-    for (const row of counts.results || []) {
-      if (Object.hasOwn(summary, row.status)) {
-        summary[row.status] = Number(row.count) || 0;
+    for (const item of list.results || []) {
+      if (Object.hasOwn(counts, item.status)) {
+        counts[item.status] += 1;
       }
     }
 
     return json({
       ok: true,
       feedback: list.results || [],
-      counts: summary
+      counts
     });
   }
 
-  /*
-   * =========================================================
-   * 私人管理後台：更新回報
-   * PATCH /dashboard/api/feedback
-   *
-   * 可修改：
-   * - status
-   * - 是否公開
-   * - 公開標題
-   * - 公開進度
-   * - 修復版本
-   * - 修復 Build
-   * =========================================================
-   */
   if (
     url.pathname === "/dashboard/api/feedback" &&
     request.method === "PATCH"
@@ -148,25 +236,11 @@ async function handleDashboardApi(request, env, url) {
     const origin = request.headers.get("Origin");
 
     if (origin && origin !== url.origin) {
-      return json(
-        {
-          ok: false,
-          error: "Invalid origin"
-        },
-        403
-      );
+      return json({ ok: false, error: "Invalid origin" }, 403);
     }
 
-    const type = request.headers.get("Content-Type") || "";
-
-    if (!type.includes("application/json")) {
-      return json(
-        {
-          ok: false,
-          error: "JSON required"
-        },
-        415
-      );
+    if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+      return json({ ok: false, error: "JSON required" }, 415);
     }
 
     let body;
@@ -174,133 +248,197 @@ async function handleDashboardApi(request, env, url) {
     try {
       body = await request.json();
     } catch {
-      return json(
-        {
-          ok: false,
-          error: "Invalid JSON"
-        },
-        400
-      );
+      return json({ ok: false, error: "Invalid JSON" }, 400);
     }
 
     const id = clean(body.id, 80);
 
     if (!id) {
+      return json({ ok: false, error: "Missing feedback id" }, 400);
+    }
+
+    const status = Object.hasOwn(body, "status")
+      ? clean(body.status, 20)
+      : null;
+
+    if (status && !allowedStatuses.has(status)) {
+      return json({ ok: false, error: "Invalid status" }, 400);
+    }
+
+    const isPublic =
+      body.isPublic === true ||
+      body.isPublic === 1 ||
+      body.isPublic === "1";
+
+    const publicTitle = clean(body.publicTitle, 180);
+    const publicNote = clean(body.publicNote, 2000);
+    const fixedVersion = clean(body.fixedVersion, 80);
+    const fixedBuild = clean(body.fixedBuild, 80);
+    const unableReason = clean(body.unableReason, 1200);
+    const etaSeconds = etaFromBody(body);
+    const fixPublished =
+      body.fixPublished === true ||
+      body.fixPublished === 1 ||
+      body.fixPublished === "1";
+
+    if (isPublic && publicTitle.length < 3) {
       return json(
-        {
-          ok: false,
-          error: "Missing feedback id"
-        },
+        { ok: false, error: "Public title is required" },
         400
       );
     }
 
-    const updates = [];
-    const values = [];
-
-    /*
-     * 狀態
-     */
-    if (Object.hasOwn(body, "status")) {
-      const status = clean(body.status, 20);
-
-      if (!allowedStatuses.has(status)) {
-        return json(
-          {
-            ok: false,
-            error: "Invalid status"
-          },
-          400
-        );
-      }
-
-      updates.push("status = ?");
-      values.push(status);
+    if (etaSeconds === null) {
+      return json({ ok: false, error: "Invalid ETA" }, 400);
     }
 
-    /*
-     * 公開資訊
-     */
-    if (Object.hasOwn(body, "isPublic")) {
-      const isPublic =
-        body.isPublic === true ||
-        body.isPublic === 1 ||
-        body.isPublic === "1";
+    const now = new Date();
+    const dueAt =
+      status === "in_progress" &&
+      typeof etaSeconds === "number" &&
+      etaSeconds > 0
+        ? new Date(now.getTime() + etaSeconds * 1000).toISOString()
+        : null;
 
-      const publicTitle = clean(body.publicTitle, 180);
-      const publicNote = clean(body.publicNote, 2000);
-      const fixedVersion = clean(body.fixedVersion, 80);
-      const fixedBuild = clean(body.fixedBuild, 80);
+    const feedbackUpdates = [
+      "is_public = ?",
+      "public_title = ?",
+      "public_note = ?",
+      "fixed_version = ?",
+      "fixed_build = ?",
+      "updated_at = ?"
+    ];
 
-      /*
-       * 如果要公開，至少必須提供公開標題。
-       * 避免直接把原始回報內容公開出去。
-       */
-      if (isPublic && publicTitle.length < 3) {
-        return json(
-          {
-            ok: false,
-            error: "Public title is required"
-          },
-          400
-        );
-      }
+    const feedbackValues = [
+      isPublic ? 1 : 0,
+      publicTitle || null,
+      publicNote || null,
+      fixedVersion || null,
+      fixedBuild || null,
+      now.toISOString()
+    ];
 
-      updates.push("is_public = ?");
-      values.push(isPublic ? 1 : 0);
-
-      updates.push("public_title = ?");
-      values.push(publicTitle || null);
-
-      updates.push("public_note = ?");
-      values.push(publicNote || null);
-
-      updates.push("fixed_version = ?");
-      values.push(fixedVersion || null);
-
-      updates.push("fixed_build = ?");
-      values.push(fixedBuild || null);
+    if (status) {
+      feedbackUpdates.unshift("status = ?");
+      feedbackValues.unshift(status);
     }
 
-    if (!updates.length) {
-      return json(
-        {
-          ok: false,
-          error: "Nothing to update"
-        },
-        400
+    feedbackValues.push(id);
+
+    const trackingUpdates = [
+      "fix_published = ?",
+      "unable_reason = ?"
+    ];
+
+    const trackingValues = [
+      fixPublished ? 1 : 0,
+      status === "closed" ? (unableReason || null) : null
+    ];
+
+    if (status === "in_progress") {
+      trackingUpdates.push("eta_seconds = ?", "eta_due_at = ?");
+      trackingValues.push(
+        typeof etaSeconds === "number" && etaSeconds > 0
+          ? etaSeconds
+          : null,
+        dueAt
       );
+    } else if (status) {
+      trackingUpdates.push("eta_seconds = NULL", "eta_due_at = NULL");
     }
 
-    /*
-     * 每次管理員修改時記錄最後更新時間。
-     */
-    updates.push("updated_at = ?");
-    values.push(new Date().toISOString());
+    trackingValues.push(id);
 
-    values.push(id);
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE feedback
+         SET ${feedbackUpdates.join(", ")}
+         WHERE id = ?`
+      ).bind(...feedbackValues),
+      env.DB.prepare(
+        `UPDATE feedback_tracking
+         SET ${trackingUpdates.join(", ")}
+         WHERE feedback_id = ?`
+      ).bind(...trackingValues)
+    ]);
 
-    const result = await env.DB.prepare(
-      `UPDATE feedback
-       SET ${updates.join(", ")}
-       WHERE id = ?`
-    )
-      .bind(...values)
-      .run();
+    const changed =
+      results.some(result => Number(result.meta?.changes || 0) > 0);
 
-    if (!result.meta?.changes) {
-      return json(
-        {
-          ok: false,
-          error: "Feedback not found"
-        },
-        404
-      );
+    if (!changed) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
     }
 
-    return json({
-      ok: true
-    });
+    return json({ ok: true });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback" &&
+    request.method === "DELETE"
+  ) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "Invalid JSON" }, 400);
+    }
+
+    const id = clean(body.id, 80);
+    const reason = clean(body.deletionReason, 500);
+
+    if (!id) {
+      return json({ ok: false, error: "Missing feedback id" }, 400);
+    }
+
+    const now = new Date().toISOString();
+
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE feedback
+         SET
+           status = 'closed',
+           category = 'other',
+           description = '',
+           steps = NULL,
+           app_version = NULL,
+           build_number = NULL,
+           ios_version = NULL,
+           device_model = NULL,
+           source = 'deleted',
+           is_public = 0,
+           public_title = NULL,
+           public_note = NULL,
+           fixed_version = NULL,
+           fixed_build = NULL,
+           updated_at = ?
+         WHERE id = ?`
+      ).bind(now, id),
+      env.DB.prepare(
+        `UPDATE feedback_tracking
+         SET
+           eta_seconds = NULL,
+           eta_due_at = NULL,
+           fix_published = 0,
+           unable_reason = NULL,
+           diagnostics_json = NULL,
+           deleted_at = ?,
+           deletion_reason = ?
+         WHERE feedback_id = ?`
+      ).bind(now, reason || null, id)
+    ]);
+
+    if (!results.some(result => Number(result.meta?.changes || 0) > 0)) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    return json({ ok: true });
   }
 
   return null;
@@ -310,12 +448,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    /*
-     * =========================================================
-     * 私人 Dashboard
-     * Cloudflare Access 保護
-     * =========================================================
-     */
     if (isDashboardRequest(url)) {
       if (
         url.hostname !== dashboardHost ||
@@ -336,9 +468,7 @@ export default {
         url
       );
 
-      if (apiResponse) {
-        return apiResponse;
-      }
+      if (apiResponse) return apiResponse;
 
       const assetResponse = await env.ASSETS.fetch(request);
       const headers = new Headers(assetResponse.headers);
@@ -355,11 +485,6 @@ export default {
       });
     }
 
-    /*
-     * =========================================================
-     * 健康檢查
-     * =========================================================
-     */
     if (url.pathname === "/api/health") {
       return json({
         ok: true,
@@ -369,24 +494,12 @@ export default {
       });
     }
 
-    /*
-     * =========================================================
-     * 公開 Known Issues API
-     *
-     * 只提供管理員明確設定為公開的資料。
-     *
-     * 不會公開：
-     * - 原始 description
-     * - steps
-     * - iOS 版本
-     * - 裝置型號
-     * - 其他可能包含個人資訊的內容
-     * =========================================================
-     */
     if (
       url.pathname === "/api/public-feedback" &&
       request.method === "GET"
     ) {
+      await ensureTrackingRows(env);
+
       const requestedStatus = clean(
         url.searchParams.get("status"),
         20
@@ -396,62 +509,124 @@ export default {
         ? requestedStatus
         : null;
 
-      const query = filter
-        ? env.DB.prepare(
-            `SELECT
-               id,
-               created_at,
-               status,
-               category,
-               public_title,
-               public_note,
-               fixed_version,
-               fixed_build,
-               updated_at
-             FROM feedback
-             WHERE is_public = 1
-               AND status = ?
-             ORDER BY COALESCE(updated_at, created_at) DESC
-             LIMIT 200`
-          ).bind(filter)
-        : env.DB.prepare(
-            `SELECT
-               id,
-               created_at,
-               status,
-               category,
-               public_title,
-               public_note,
-               fixed_version,
-               fixed_build,
-               updated_at
-             FROM feedback
-             WHERE is_public = 1
-             ORDER BY COALESCE(updated_at, created_at) DESC
-             LIMIT 200`
-          );
+      const sql =
+        `SELECT
+           f.created_at,
+           f.status,
+           f.category,
+           f.public_title,
+           f.public_note,
+           f.fixed_version,
+           f.fixed_build,
+           f.updated_at,
+           t.report_number,
+           t.eta_seconds,
+           t.eta_due_at,
+           t.fix_published,
+           t.unable_reason
+         FROM feedback f
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         WHERE f.is_public = 1
+           AND t.deleted_at IS NULL` +
+        (filter ? " AND f.status = ?" : "") +
+        " ORDER BY COALESCE(f.updated_at, f.created_at) DESC LIMIT 200";
 
-      const result = await query.all();
+      const statement = env.DB.prepare(sql);
+      const result = filter
+        ? await statement.bind(filter).all()
+        : await statement.all();
 
       return json({
         ok: true,
-        feedback: result.results || []
+        feedback: (result.results || []).map(item => ({
+          ...item,
+          report_id: formatReportId(item.report_number)
+        }))
       });
     }
 
-    /*
-     * =========================================================
-     * 使用者送出問題回報
-     * POST /api/feedback
-     * =========================================================
-     */
+    if (
+      url.pathname === "/api/feedback-status" &&
+      request.method === "GET"
+    ) {
+      await ensureTrackingRows(env);
+
+      const reportNumber = parseReportNumber(
+        url.searchParams.get("id")
+      );
+
+      if (!reportNumber) {
+        return json({ ok: false, error: "Invalid report id" }, 400);
+      }
+
+      const item = await env.DB.prepare(
+        `SELECT
+           f.created_at,
+           f.status,
+           f.category,
+           f.is_public,
+           f.public_title,
+           f.public_note,
+           f.fixed_version,
+           f.fixed_build,
+           f.updated_at,
+           t.report_number,
+           t.eta_seconds,
+           t.eta_due_at,
+           t.fix_published,
+           t.unable_reason,
+           t.deleted_at,
+           t.deletion_reason
+         FROM feedback f
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         WHERE t.report_number = ?
+         LIMIT 1`
+      )
+        .bind(reportNumber)
+        .first();
+
+      if (!item) {
+        return json({ ok: false, error: "Not found" }, 404);
+      }
+
+      if (item.deleted_at) {
+        return json({
+          ok: true,
+          feedback: {
+            report_id: formatReportId(reportNumber),
+            status: "deleted",
+            deleted_at: item.deleted_at,
+            deletion_reason: item.deletion_reason || ""
+          }
+        });
+      }
+
+      return json({
+        ok: true,
+        feedback: {
+          report_id: formatReportId(reportNumber),
+          created_at: item.created_at,
+          status: item.status,
+          eta_seconds: item.eta_seconds,
+          eta_due_at: item.eta_due_at,
+          fixed_version: item.fixed_version,
+          fixed_build: item.fixed_build,
+          fix_published: item.fix_published,
+          unable_reason: item.unable_reason,
+          public_title: Number(item.is_public) === 1
+            ? item.public_title
+            : null,
+          public_note: Number(item.is_public) === 1
+            ? item.public_note
+            : null
+        }
+      });
+    }
+
     if (url.pathname === "/api/feedback") {
       if (request.method !== "POST") {
         return json(
-          {
-            ok: false,
-            error: "Method not allowed"
-          },
+          { ok: false, error: "Method not allowed" },
           405
         );
       }
@@ -459,25 +634,11 @@ export default {
       const origin = request.headers.get("Origin");
 
       if (origin && origin !== url.origin) {
-        return json(
-          {
-            ok: false,
-            error: "Invalid origin"
-          },
-          403
-        );
+        return json({ ok: false, error: "Invalid origin" }, 403);
       }
 
-      const type = request.headers.get("Content-Type") || "";
-
-      if (!type.includes("application/json")) {
-        return json(
-          {
-            ok: false,
-            error: "JSON required"
-          },
-          415
-        );
+      if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+        return json({ ok: false, error: "JSON required" }, 415);
       }
 
       let body;
@@ -485,110 +646,69 @@ export default {
       try {
         body = await request.json();
       } catch {
-        return json(
-          {
-            ok: false,
-            error: "Invalid JSON"
-          },
-          400
-        );
+        return json({ ok: false, error: "Invalid JSON" }, 400);
       }
 
-      /*
-       * Honeypot
-       */
       if (clean(body.website, 200)) {
-        return json({
-          ok: true
-        });
+        return json({ ok: true });
       }
 
       const category =
         clean(body.category, 40) || "other";
-
       const description =
         clean(body.description, 5000);
-
       const steps =
         clean(body.steps, 5000);
-
       const appVersion =
         clean(body.appVersion, 40);
-
       const buildNumber =
         clean(body.buildNumber, 40);
-
       const iosVersion =
         clean(body.iosVersion, 80);
-
       const deviceModel =
         clean(body.deviceModel, 120);
+      const diagnostics =
+        cleanDiagnostics(body.diagnostics);
 
       if (description.length < 5) {
         return json(
-          {
-            ok: false,
-            error: "Description is too short"
-          },
+          { ok: false, error: "Description is too short" },
           400
         );
       }
-
-      const allowedCategories = new Set([
-        "crash",
-        "performance",
-        "photos",
-        "videos",
-        "icloud",
-        "ui",
-        "suggestion",
-        "other"
-      ]);
 
       if (!allowedCategories.has(category)) {
         return json(
-          {
-            ok: false,
-            error: "Invalid category"
-          },
+          { ok: false, error: "Invalid category" },
           400
         );
       }
 
+      await ensureTrackingRows(env);
+
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
+      const reportNumber = await nextReportNumber(env);
 
       try {
-        await env.DB.prepare(
-          `INSERT INTO feedback
-           (
-             id,
-             created_at,
-             status,
-             category,
-             description,
-             steps,
-             app_version,
-             build_number,
-             ios_version,
-             device_model,
-             source
-           )
-           VALUES (
-             ?,
-             ?,
-             'new',
-             ?,
-             ?,
-             ?,
-             ?,
-             ?,
-             ?,
-             ?,
-             'web'
-           )`
-        )
-          .bind(
+        await env.DB.batch([
+          env.DB.prepare(
+            `INSERT INTO feedback
+             (
+               id,
+               created_at,
+               status,
+               category,
+               description,
+               steps,
+               app_version,
+               build_number,
+               ios_version,
+               device_model,
+               source
+             )
+             VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, 'web')`
+          ).bind(
             id,
             createdAt,
             category,
@@ -598,16 +718,25 @@ export default {
             buildNumber || null,
             iosVersion || null,
             deviceModel || null
+          ),
+          env.DB.prepare(
+            `INSERT INTO feedback_tracking
+             (
+               feedback_id,
+               report_number,
+               diagnostics_json
+             )
+             VALUES (?, ?, ?)`
+          ).bind(
+            id,
+            reportNumber,
+            diagnostics ? JSON.stringify(diagnostics) : null
           )
-          .run();
+        ]);
       } catch (error) {
         console.error("Feedback insert failed", error);
-
         return json(
-          {
-            ok: false,
-            error: "Unable to save feedback"
-          },
+          { ok: false, error: "Unable to save feedback" },
           500
         );
       }
@@ -615,28 +744,16 @@ export default {
       return json(
         {
           ok: true,
-          id
+          id: formatReportId(reportNumber)
         },
         201
       );
     }
 
-    /*
-     * 其他不存在的 API
-     */
     if (url.pathname.startsWith("/api/")) {
-      return json(
-        {
-          ok: false,
-          error: "Not found"
-        },
-        404
-      );
+      return json({ ok: false, error: "Not found" }, 404);
     }
 
-    /*
-     * 靜態網站
-     */
     return env.ASSETS.fetch(request);
   }
 };
