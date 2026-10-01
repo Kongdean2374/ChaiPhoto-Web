@@ -201,11 +201,12 @@ async function handleDashboardApi(request, env, url) {
          t.eta_due_at,
          t.fix_published,
          t.unable_reason,
-         t.diagnostics_json
+         t.diagnostics_json,
+         t.deleted_at,
+         t.deletion_reason
        FROM feedback f
        JOIN feedback_tracking t ON t.feedback_id = f.id
-       WHERE t.deleted_at IS NULL
-       ORDER BY f.created_at DESC
+       ORDER BY COALESCE(t.deleted_at, f.created_at) DESC
        LIMIT 500`
     ).all();
 
@@ -213,11 +214,14 @@ async function handleDashboardApi(request, env, url) {
       new: 0,
       in_progress: 0,
       resolved: 0,
-      closed: 0
+      closed: 0,
+      deleted: 0
     };
 
     for (const item of list.results || []) {
-      if (Object.hasOwn(counts, item.status)) {
+      if (item.deleted_at) {
+        counts.deleted += 1;
+      } else if (Object.hasOwn(counts, item.status)) {
         counts[item.status] += 1;
       }
     }
@@ -353,12 +357,19 @@ async function handleDashboardApi(request, env, url) {
       env.DB.prepare(
         `UPDATE feedback
          SET ${feedbackUpdates.join(", ")}
-         WHERE id = ?`
+         WHERE id = ?
+           AND EXISTS (
+             SELECT 1
+             FROM feedback_tracking t
+             WHERE t.feedback_id = feedback.id
+               AND t.deleted_at IS NULL
+           )`
       ).bind(...feedbackValues),
       env.DB.prepare(
         `UPDATE feedback_tracking
          SET ${trackingUpdates.join(", ")}
-         WHERE feedback_id = ?`
+         WHERE feedback_id = ?
+           AND deleted_at IS NULL`
       ).bind(...trackingValues)
     ]);
 
@@ -397,44 +408,116 @@ async function handleDashboardApi(request, env, url) {
       return json({ ok: false, error: "Missing feedback id" }, 400);
     }
 
+    const existing = await env.DB.prepare(
+      `SELECT
+         f.id,
+         f.description,
+         f.source,
+         t.deleted_at
+       FROM feedback f
+       JOIN feedback_tracking t ON t.feedback_id = f.id
+       WHERE f.id = ?
+       LIMIT 1`
+    ).bind(id).first();
+
+    if (!existing) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    if (existing.deleted_at) {
+      return json({ ok: true });
+    }
+
     const now = new Date().toISOString();
 
-    const results = await env.DB.batch([
-      env.DB.prepare(
-        `UPDATE feedback
-         SET
-           status = 'closed',
-           category = 'other',
-           description = '',
-           steps = NULL,
-           app_version = NULL,
-           build_number = NULL,
-           ios_version = NULL,
-           device_model = NULL,
-           source = 'deleted',
-           is_public = 0,
-           public_title = NULL,
-           public_note = NULL,
-           fixed_version = NULL,
-           fixed_build = NULL,
-           updated_at = ?
-         WHERE id = ?`
-      ).bind(now, id),
-      env.DB.prepare(
-        `UPDATE feedback_tracking
-         SET
-           eta_seconds = NULL,
-           eta_due_at = NULL,
-           fix_published = 0,
-           unable_reason = NULL,
-           diagnostics_json = NULL,
-           deleted_at = ?,
-           deletion_reason = ?
-         WHERE feedback_id = ?`
-      ).bind(now, reason || null, id)
-    ]);
+    const result = await env.DB.prepare(
+      `UPDATE feedback_tracking
+       SET deleted_at = ?, deletion_reason = ?
+       WHERE feedback_id = ?`
+    )
+      .bind(now, reason || null, id)
+      .run();
 
-    if (!results.some(result => Number(result.meta?.changes || 0) > 0)) {
+    if (Number(result.meta?.changes || 0) < 1) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    return json({ ok: true });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback/restore" &&
+    request.method === "POST"
+  ) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+      return json({ ok: false, error: "JSON required" }, 415);
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "Invalid JSON" }, 400);
+    }
+
+    const id = clean(body.id, 80);
+
+    if (!id) {
+      return json({ ok: false, error: "Missing feedback id" }, 400);
+    }
+
+    const existing = await env.DB.prepare(
+      `SELECT
+         f.description,
+         f.source,
+         t.deleted_at
+       FROM feedback f
+       JOIN feedback_tracking t ON t.feedback_id = f.id
+       WHERE f.id = ?
+       LIMIT 1`
+    ).bind(id).first();
+
+    if (!existing) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    if (!existing.deleted_at) {
+      return json({ ok: true });
+    }
+
+    // Older versions physically scrubbed the feedback row when deleting it.
+    // Those tombstones remain visible, but their original content cannot be
+    // reconstructed safely.
+    const legacyScrubbed =
+      !clean(existing.description, 5000) ||
+      clean(existing.source, 40) === "deleted";
+
+    if (legacyScrubbed) {
+      return json(
+        {
+          ok: false,
+          error: "legacy_deleted_content_unavailable"
+        },
+        409
+      );
+    }
+
+    const result = await env.DB.prepare(
+      `UPDATE feedback_tracking
+       SET deleted_at = NULL, deletion_reason = NULL
+       WHERE feedback_id = ?`
+    )
+      .bind(id)
+      .run();
+
+    if (Number(result.meta?.changes || 0) < 1) {
       return json({ ok: false, error: "Feedback not found" }, 404);
     }
 
