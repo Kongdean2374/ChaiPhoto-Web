@@ -373,11 +373,14 @@
   </div>
 
   <div class="trust">
-    <div class="trust-badge">✓ Apple TestFlight 公開測試</div>
-    <h2>正式的 Apple Beta 測試流程</h2>
+    <div class="trust-badge">✓ Apple TestFlight 外部測試</div>
+    <h2>透過 Apple TestFlight 進行公開 Beta</h2>
     <p>
-      ChaiPhoto 的首個外部測試版本已通過 TestFlight Beta App Review，
-      測試 App 由 Apple 的 TestFlight 安裝與更新。公開連結最多可讓 10,000 名外部測試者加入。
+      ChaiPhoto 目前使用 Apple TestFlight 分發外部 Beta。首個對外測試版本
+      1.2.5（Build 37）已完成 TestFlight Beta App Review，測試者會透過
+      TestFlight 安裝與更新。這代表它使用 Apple 正式提供的外部 Beta 分發流程；
+      但 Beta 審查不應被理解成 Apple 對每一行程式碼、所有安全風險或所有 Bug
+      做「零風險保證」。
     </p>
   </div>
 
@@ -459,28 +462,66 @@
   </section>
 
   <section>
-    <h2>Beta 安全與測試說明</h2>
+    <h2>安全性與 Beta 審查說明</h2>
+
+    <div class="section-note">
+      這裡不把「通過 TestFlight 審查」寫成萬無一失的保證。比較準確的說法是：
+      ChaiPhoto 透過 Apple 官方 TestFlight 管道提供，首個外部測試 Build 已完成
+      外部測試所需的 Beta App Review；安裝、更新與測試資格都由 TestFlight 管理。
+    </div>
 
     <div class="safety">
       <div class="safety-row">
-        <strong>Apple 官方分發</strong>
-        <span>TestFlight 本身由 Apple 提供，ChaiPhoto 透過 TestFlight 分發，不需要安裝第三方企業憑證或描述檔。</span>
+        <strong>TestFlight 是 Apple 官方測試工具</strong>
+        <span>TestFlight 由 Apple 提供並可從 App Store 取得。ChaiPhoto 不要求安裝第三方企業憑證、來源不明的描述檔或額外簽名工具。</span>
       </div>
 
       <div class="safety-row">
-        <strong>外部測試版本已通過 Beta App Review</strong>
-        <span>Apple 會先審查首個外部測試 Build，核准後才可提供給外部測試者。</span>
+        <strong>Build 37 已完成外部 Beta 審查流程</strong>
+        <span>Apple 規定外部 TestFlight 的首個 Build 需先送交 Beta App Review，核准後才能提供給外部測試者。這表示本版本已走完該分發流程，但不等於 Apple 對 App 做完整資安稽核或保證完全沒有漏洞。</span>
       </div>
 
       <div class="safety-row">
-        <strong>仍然是 Beta 版本</strong>
-        <span>Beta App Review 不代表零 Bug 或零風險。測試期間仍可能遇到介面、顯示、功能或穩定性問題，請透過回報頁告訴開發者。</span>
+        <strong>權限仍受 iOS 控制</strong>
+        <span>ChaiPhoto 需要使用照片或影片相關功能時，仍必須依 iOS 權限機制取得使用者授權。透過 TestFlight 安裝不會讓 App 自動取得額外的系統權限。</span>
       </div>
 
       <div class="safety-row">
-        <strong>權限仍由 iOS 控制</strong>
-        <span>使用照片等功能時，仍會依照 iOS 的權限機制向使用者要求授權；TestFlight 不會讓 App 自動取得額外系統權限。</span>
+        <strong>Beta 期間仍可能有問題</strong>
+        <span>目前測試主要聚焦在 App 自身的介面、顯示、操作流程與穩定性。若遇到畫面顯示異常、功能沒有照預期運作、卡頓、閃退或其他狀況，都請回報。Beta 版本不應被視為與正式版完全相同的穩定程度。</span>
       </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>遇到 Bug，建議怎麼回報？</h2>
+
+    <div class="section-note">
+      建議優先使用 ChaiPhoto 的網站回報。網站回報會直接進入開發者的問題整理與追蹤系統，
+      可以被標記為「已收到、處理中、已修復、已關閉」，也方便後續公開修復進度。
+      一般而言，這會比只留下零散的回饋更容易被快速分類與追蹤。
+    </div>
+
+    <div class="safety">
+      <div class="safety-row">
+        <strong>優先：ChaiPhoto 問題回報網站</strong>
+        <span>開發者每天早上約 08:00 會固定查看新的網站回報、回報後台與相關通知。若希望問題較快進入處理清單，建議使用這個管道。</span>
+      </div>
+
+      <div class="safety-row">
+        <strong>也可以使用 App 內的回報入口</strong>
+        <span>如果 App 內有提供問題回報入口，也可以直接從 App 開啟回報流程。</span>
+      </div>
+
+      <div class="safety-row">
+        <strong>TestFlight 內建 Beta Feedback 也可以使用</strong>
+        <span>TestFlight 本身支援 Beta 回饋；如果是閃退、需要附上截圖或想使用 Apple 內建的測試回饋流程，也可以從 TestFlight 提交。</span>
+      </div>
+    </div>
+
+    <div class="links">
+      <a class="link" href="/report">前往問題回報</a>
+      <a class="link" href="/report#issues">查看已知問題與進度</a>
     </div>
   </section>
 
