@@ -212,3 +212,13 @@ test('concurrent unpublish wins over an in-flight image save',async()=>{
   const row=db.prepare("SELECT * FROM feedback_attachments WHERE id='race'").get();
   assert.equal(row.is_public,0);assert.equal(row.public_storage_key,'public/old');assert.equal(row.storage_key,'original');
 });
+
+test('website retries return the same report and reject reused keys with changed content',async()=>{
+  const {call,db}=await fixture();
+  const body={requestId:crypto.randomUUID(),description:'重送測試😀',category:'other'};
+  const first=await call('/api/feedback',body);assert.equal(first.status,201);
+  const second=await call('/api/feedback',body);assert.equal(second.status,200);
+  assert.equal((await first.json()).id,(await second.json()).id);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM feedback WHERE description='重送測試😀'").get().n,1);
+  assert.equal((await call('/api/feedback',{...body,description:'不同回報內容'})).status,409);
+});

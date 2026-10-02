@@ -808,8 +808,10 @@ clearRecent.addEventListener("click", function() {
   renderRecent();
 });
 
+let pendingSubmission = null;
 form.addEventListener("submit", async function(event) {
   event.preventDefault();
+  if (submitButton.disabled) return;
 
   submitButton.disabled = true;
   formStatus.textContent = "正在送出…";
@@ -818,6 +820,11 @@ form.addEventListener("submit", async function(event) {
 
   const data = Object.fromEntries(new FormData(form).entries());
   data.diagnostics = parsedDiagnostics;
+  const payload = JSON.stringify(data);
+  if (!pendingSubmission || pendingSubmission.payload !== payload) {
+    pendingSubmission = { payload, requestId:crypto.randomUUID() };
+  }
+  data.requestId = pendingSubmission.requestId;
 
   try {
     const response = await fetch("/api/feedback", {
@@ -833,6 +840,7 @@ form.addEventListener("submit", async function(event) {
     }
 
     const reportId = result.id;
+    pendingSubmission = null;
     saveRecent(reportId);
 
     form.reset();

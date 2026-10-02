@@ -1010,6 +1010,13 @@ async function ensureTrackingSchema(env) {
   }
   await env.DB.batch([
     env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_requests (
+        request_id TEXT PRIMARY KEY,
+        payload_hash TEXT NOT NULL,
+        report_number INTEGER NOT NULL
+      )`
+    ),
+    env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS feedback_tracking (
         feedback_id TEXT PRIMARY KEY,
         report_number INTEGER NOT NULL UNIQUE,
@@ -2998,6 +3005,22 @@ export default {
 
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
+      const requestId = clean(body.requestId, 80);
+      if (requestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+        return json({ ok: false, error: "Invalid request id" }, 400);
+      }
+      const payloadHash = bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256",
+        new TextEncoder().encode(JSON.stringify([category, description, steps, appVersion, buildNumber, iosVersion, deviceModel, diagnostics])))));
+      const replay = async () => {
+        if (!requestId) return null;
+        const saved = await env.DB.prepare("SELECT payload_hash, report_number FROM feedback_requests WHERE request_id = ?").bind(requestId).first();
+        if (!saved) return null;
+        return saved.payload_hash === payloadHash
+          ? json({ ok: true, id: formatReportId(saved.report_number) })
+          : json({ ok: false, error: "Request id already used for different content" }, 409);
+      };
+      const repeated = await replay();
+      if (repeated) return repeated;
       const reportNumber = await nextReportNumber(env);
 
       try {
@@ -3041,9 +3064,12 @@ export default {
             id,
             reportNumber,
             diagnostics ? JSON.stringify(diagnostics) : null
-          )
+          ),
+          ...(requestId ? [env.DB.prepare("INSERT INTO feedback_requests (request_id, payload_hash, report_number) VALUES (?, ?, ?)").bind(requestId, payloadHash, reportNumber)] : [])
         ]);
       } catch (error) {
+        const repeated = await replay();
+        if (repeated) return repeated;
         console.error("Feedback insert failed", error);
         return json(
           { ok: false, error: "Unable to save feedback" },
