@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS feedback_v2_meta (
     CHECK (steps_state IN ('provided', 'missing', 'not_applicable')),
   external_resource_id TEXT,
   external_event_type TEXT,
+  private_metadata_json TEXT,
   updated_at TEXT NOT NULL,
   UNIQUE (source_key, source_number),
   UNIQUE (source_key, external_resource_id),
@@ -51,6 +52,10 @@ CREATE TABLE IF NOT EXISTS feedback_attachments (
   mime_type TEXT,
   original_filename TEXT,
   byte_size INTEGER,
+  remote_url TEXT,
+  expires_at TEXT,
+  width INTEGER,
+  height INTEGER,
   is_public INTEGER NOT NULL DEFAULT 0
     CHECK (is_public IN (0, 1)),
   created_at TEXT NOT NULL,
