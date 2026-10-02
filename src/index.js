@@ -695,6 +695,66 @@ export default {
     }
 
     if (
+      url.pathname === "/api/internal/feedback-digest" &&
+      request.method === "GET"
+    ) {
+      const expectedToken = clean(env.FEEDBACK_DIGEST_TOKEN, 512);
+
+      if (!expectedToken) {
+        return json({ ok: false, error: "Feedback digest unavailable" }, 503);
+      }
+
+      const authorization = request.headers.get("Authorization") || "";
+
+      if (authorization !== `Bearer ${expectedToken}`) {
+        return json({ ok: false, error: "Unauthorized" }, 401);
+      }
+
+      await ensureTrackingRows(env);
+
+      const list = await env.DB.prepare(
+        `SELECT
+           f.created_at,
+           f.status,
+           f.category,
+           f.description,
+           f.steps,
+           f.app_version,
+           f.build_number,
+           f.ios_version,
+           f.device_model,
+           f.source,
+           f.updated_at,
+           t.report_number
+         FROM feedback f
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         WHERE t.deleted_at IS NULL
+         ORDER BY f.created_at DESC
+         LIMIT 500`
+      ).all();
+
+      const counts = {
+        new: 0,
+        in_progress: 0,
+        resolved: 0,
+        closed: 0
+      };
+
+      for (const item of list.results || []) {
+        if (Object.hasOwn(counts, item.status)) {
+          counts[item.status] += 1;
+        }
+      }
+
+      return json({
+        ok: true,
+        generatedAt: new Date().toISOString(),
+        counts,
+        feedback: list.results || []
+      });
+    }
+
+    if (
       url.pathname === "/api/public-feedback" &&
       request.method === "GET"
     ) {
