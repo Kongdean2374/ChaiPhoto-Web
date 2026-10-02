@@ -32,7 +32,7 @@
 
     .filters {
       display:grid;
-      grid-template-columns:2fr repeat(5,minmax(120px,1fr)) auto;
+      grid-template-columns:2fr repeat(6,minmax(120px,1fr)) auto;
       gap:8px;
       align-items:end;
       margin-top:12px;
@@ -228,6 +228,73 @@
     .save-status { color:var(--muted); font-size:.8rem; }
     .diag { margin:0; white-space:pre-wrap; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); }
 
+    .source-badge-beta { color:#4f67c8; }
+    .source-badge-tf { color:#8c5bb8; }
+
+    .content-editor {
+      display:grid;
+      gap:12px;
+    }
+
+    .content-editor textarea {
+      min-height:110px;
+      resize:vertical;
+    }
+
+    .field-state-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px 14px;
+      align-items:center;
+      margin-top:7px;
+      color:var(--muted);
+      font-size:.8rem;
+    }
+
+    .field-state-row label {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-weight:650;
+    }
+
+    .field-state-row input { width:auto; }
+
+    .original-box {
+      margin-top:10px;
+      padding:11px;
+      border-radius:13px;
+      border:1px dashed var(--line);
+      background:var(--bg);
+    }
+
+    .original-box[hidden] { display:none; }
+    .original-box pre {
+      margin:6px 0 0;
+      white-space:pre-wrap;
+      font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+
+    .secondary-button {
+      appearance:none;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:9px 12px;
+      background:var(--card);
+      color:var(--text);
+      font:inherit;
+      font-weight:720;
+      cursor:pointer;
+    }
+
+    .attachment-placeholder {
+      padding:11px;
+      border-radius:13px;
+      background:var(--bg);
+      color:var(--muted);
+      font-size:.82rem;
+    }
+
     @media (max-width:900px) {
       .filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
       .filters .search-wrap { grid-column:1 / -1; }
@@ -251,7 +318,7 @@
   <div class="hero">
     <p class="muted">ChaiPhoto Dashboard</p>
     <h1>回報管理</h1>
-    <p>查看 BETA 回報、更新處理進度、設定預計時間、公開資訊與修復版本。</p>
+    <p>統一管理網站與 TestFlight 回報、編輯內容、更新處理進度與公開資訊。</p>
   </div>
 
   <div class="toolbar-box">
@@ -260,7 +327,16 @@
     <div class="filters">
       <label class="filter-label search-wrap">
         搜尋
-        <input id="search-filter" type="search" placeholder="BETA ID、描述、版本、裝置">
+        <input id="search-filter" type="search" placeholder="BETA / TF ID、描述、版本、裝置">
+      </label>
+
+      <label class="filter-label">
+        來源
+        <select id="source-filter">
+          <option value="">全部</option>
+          <option value="beta">網站回報</option>
+          <option value="tf">TestFlight</option>
+        </select>
       </label>
 
       <label class="filter-label">
@@ -337,6 +413,7 @@ const summary = document.getElementById("summary");
 const list = document.getElementById("feedback-list");
 const statusText = document.getElementById("dashboard-status");
 const searchFilter = document.getElementById("search-filter");
+const sourceFilter = document.getElementById("source-filter");
 const statusFilter = document.getElementById("status-filter");
 const categoryFilter = document.getElementById("category-filter");
 const versionFilter = document.getElementById("version-filter");
@@ -354,8 +431,31 @@ function make(tag, text, className) {
   return element;
 }
 
+function sourceKey(item) {
+  if (item.source_key === "tf" || item.source === "testflight") return "tf";
+  return "beta";
+}
+
+function sourceLabel(item) {
+  return sourceKey(item) === "tf" ? "TestFlight" : "網站回報";
+}
+
 function reportId(item) {
-  return "BETA-" + String(Number(item.report_number) || 0).padStart(3, "0");
+  const number = Number(item.source_number || item.report_number) || 0;
+  const prefix = sourceKey(item) === "tf" ? "TF" : "BETA";
+  return prefix + "-" + String(number).padStart(3, "0");
+}
+
+function effectiveDescription(item) {
+  if (item.description_state === "not_applicable") return "不適用";
+  if (item.description_state === "missing") return "未提供描述";
+  return item.edited_description || item.description || "未提供描述";
+}
+
+function effectiveSteps(item) {
+  if (item.steps_state === "not_applicable") return "不適用";
+  if (item.steps_state === "missing") return "未提供";
+  return item.edited_steps || item.steps || "";
 }
 
 function displayStatus(item) {
@@ -437,6 +537,7 @@ function renderSummary(counts) {
 function matchesFilters(item) {
   const keyword = searchFilter.value.trim().toLowerCase();
 
+  if (sourceFilter.value && sourceKey(item) !== sourceFilter.value) return false;
   if (statusFilter.value && displayStatus(item) !== statusFilter.value) return false;
   if (categoryFilter.value && item.category !== categoryFilter.value) return false;
   if (versionFilter.value && item.app_version !== versionFilter.value) return false;
@@ -450,6 +551,11 @@ function matchesFilters(item) {
     reportId(item),
     item.description,
     item.steps,
+    item.original_description,
+    item.original_steps,
+    item.edited_description,
+    item.edited_steps,
+    sourceLabel(item),
     item.app_version,
     item.build_number,
     item.ios_version,
@@ -512,6 +618,174 @@ function createTextarea(labelText, value, placeholder) {
   textarea.rows = 4;
   label.append(textarea);
   return { label, textarea };
+}
+
+function createContentEditor(item) {
+  const section = make("div", null, "detail-section");
+  section.append(make("h3", "回報內容編輯"));
+
+  if (item.deleted_at) {
+    section.append(make("div", "已刪除回報不能編輯內容。", "attachment-placeholder"));
+    return section;
+  }
+
+  const editor = make("div", null, "content-editor");
+
+  const descriptionField = createTextarea(
+    "問題描述",
+    item.edited_description ?? item.description ?? "",
+    "可整理、修正文句，或替只有截圖的回報補上描述"
+  );
+  descriptionField.textarea.rows = 5;
+
+  const descriptionStateRow = make("div", null, "field-state-row");
+  const descriptionMissing = make("label");
+  const descriptionMissingInput = document.createElement("input");
+  descriptionMissingInput.type = "checkbox";
+  descriptionMissingInput.checked = item.description_state === "missing";
+  descriptionMissing.append(descriptionMissingInput, document.createTextNode("未提供"));
+
+  const descriptionNA = make("label");
+  const descriptionNAInput = document.createElement("input");
+  descriptionNAInput.type = "checkbox";
+  descriptionNAInput.checked = item.description_state === "not_applicable";
+  descriptionNA.append(descriptionNAInput, document.createTextNode("不適用"));
+
+  descriptionStateRow.append(descriptionMissing, descriptionNA);
+  descriptionField.label.append(descriptionStateRow);
+
+  const stepsField = createTextarea(
+    "發生時機／重現步驟",
+    item.edited_steps ?? item.steps ?? "",
+    "可補上重現方式；若沒有固定步驟，可標記不適用"
+  );
+  stepsField.textarea.rows = 5;
+
+  const stepsStateRow = make("div", null, "field-state-row");
+  const stepsMissing = make("label");
+  const stepsMissingInput = document.createElement("input");
+  stepsMissingInput.type = "checkbox";
+  stepsMissingInput.checked = item.steps_state === "missing";
+  stepsMissing.append(stepsMissingInput, document.createTextNode("未提供"));
+
+  const stepsNA = make("label");
+  const stepsNAInput = document.createElement("input");
+  stepsNAInput.type = "checkbox";
+  stepsNAInput.checked = item.steps_state === "not_applicable";
+  stepsNA.append(stepsNAInput, document.createTextNode("不適用"));
+
+  stepsStateRow.append(stepsMissing, stepsNA);
+  stepsField.label.append(stepsStateRow);
+
+  function syncFieldState(textarea, missing, notApplicable) {
+    if (missing.checked) {
+      notApplicable.checked = false;
+      textarea.disabled = true;
+    } else if (notApplicable.checked) {
+      missing.checked = false;
+      textarea.disabled = true;
+    } else {
+      textarea.disabled = false;
+    }
+  }
+
+  [
+    [descriptionField.textarea, descriptionMissingInput, descriptionNAInput],
+    [stepsField.textarea, stepsMissingInput, stepsNAInput]
+  ].forEach(function(group) {
+    const [textarea, missing, notApplicable] = group;
+    missing.addEventListener("change", function() {
+      syncFieldState(textarea, missing, notApplicable);
+    });
+    notApplicable.addEventListener("change", function() {
+      syncFieldState(textarea, missing, notApplicable);
+    });
+    syncFieldState(textarea, missing, notApplicable);
+  });
+
+  editor.append(descriptionField.label, stepsField.label);
+
+  const originalButton = make("button", "查看原始回報", "secondary-button");
+  originalButton.type = "button";
+
+  const originalBox = make("div", null, "original-box");
+  originalBox.hidden = true;
+  originalBox.append(
+    make("strong", "原始問題描述"),
+    make("pre", item.original_description || "（原本未提供）"),
+    make("strong", "原始重現步驟"),
+    make("pre", item.original_steps || "（原本未提供）")
+  );
+
+  originalButton.addEventListener("click", function() {
+    originalBox.hidden = !originalBox.hidden;
+    originalButton.textContent = originalBox.hidden
+      ? "查看原始回報"
+      : "收起原始回報";
+  });
+
+  const actionRow = make("div", null, "action-row");
+  const save = make("button", "儲存回報內容", "save-button");
+  save.type = "button";
+  const status = make("span", "", "save-status");
+
+  save.addEventListener("click", async function() {
+    const descriptionState = descriptionNAInput.checked
+      ? "not_applicable"
+      : (descriptionMissingInput.checked ? "missing" : "provided");
+    const stepsState = stepsNAInput.checked
+      ? "not_applicable"
+      : (stepsMissingInput.checked ? "missing" : "provided");
+
+    if (
+      descriptionState === "provided" &&
+      !descriptionField.textarea.value.trim()
+    ) {
+      status.textContent = "問題描述為空，請填寫內容或標記「未提供／不適用」。";
+      descriptionField.textarea.focus();
+      return;
+    }
+
+    if (
+      stepsState === "provided" &&
+      !stepsField.textarea.value.trim()
+    ) {
+      status.textContent = "重現步驟為空，請填寫內容或標記「未提供／不適用」。";
+      stepsField.textarea.focus();
+      return;
+    }
+
+    save.disabled = true;
+    status.textContent = "正在儲存…";
+
+    try {
+      const response = await fetch("/dashboard/api/feedback/content", {
+        method:"PATCH",
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({
+          id:item.id,
+          description:descriptionField.textarea.value,
+          steps:stepsField.textarea.value,
+          descriptionState,
+          stepsState
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error();
+
+      status.textContent = "內容已儲存。";
+      await loadFeedback();
+    } catch {
+      status.textContent = "內容儲存失敗，請稍後再試。";
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  actionRow.append(save, originalButton, status);
+  section.append(editor, originalBox, actionRow);
+  return section;
 }
 
 function createEditor(item, details) {
@@ -790,14 +1064,19 @@ function renderFeedback() {
       "div",
       reportId(item) + " · " + (
         shownStatus === "deleted"
-          ? (item.description || "已刪除回報")
-          : (item.description || "未提供描述")
+          ? (effectiveDescription(item) || "已刪除回報")
+          : effectiveDescription(item)
       ).replace(/\s+/g, " "),
       "feedback-title"
     );
 
     const subtitle = make("div", null, "feedback-subtitle");
     subtitle.append(
+      make(
+        "span",
+        sourceLabel(item),
+        "mini-badge source-badge-" + sourceKey(item)
+      ),
       make("span", categoryLabels[item.category] || item.category || "其他"),
       make("span", "·"),
       make("span", formatDate(item.created_at))
@@ -838,13 +1117,14 @@ function renderFeedback() {
 
     const reportSection = make("div", null, "detail-section");
     reportSection.append(make("h3", "回報內容"));
-    reportSection.append(make("p", item.description || "未提供描述", "description-full"));
+    reportSection.append(make("p", effectiveDescription(item), "description-full"));
 
-    if (item.steps) {
-      const steps = make("div", null, "steps");
-      steps.append(make("strong", "發生時機／重現步驟"), make("div", item.steps));
-      reportSection.append(steps);
-    }
+    const steps = make("div", null, "steps");
+    steps.append(
+      make("strong", "發生時機／重現步驟"),
+      make("div", effectiveSteps(item) || "未提供")
+    );
+    reportSection.append(steps);
 
     const meta = make("div", null, "meta-grid");
     addMeta(meta, "回報 ID", reportId(item));
@@ -852,7 +1132,8 @@ function renderFeedback() {
     addMeta(meta, "Build", item.build_number);
     addMeta(meta, "iOS", item.ios_version);
     addMeta(meta, "裝置", item.device_model);
-    addMeta(meta, "來源", item.source);
+    addMeta(meta, "來源", sourceLabel(item));
+    addMeta(meta, "附件", Number(item.attachment_count || 0) + " 個");
     if (item.deleted_at) {
       addMeta(meta, "刪除時間", formatDate(item.deleted_at));
       addMeta(meta, "刪除原因", item.deletion_reason);
@@ -872,6 +1153,21 @@ function renderFeedback() {
       detail.append(diagSection);
     }
 
+    detail.append(createContentEditor(item));
+
+    const attachmentSection = make("div", null, "detail-section");
+    attachmentSection.append(make("h3", "附件"));
+    attachmentSection.append(
+      make(
+        "div",
+        Number(item.attachment_count || 0) > 0
+          ? "此回報有 " + Number(item.attachment_count) + " 個附件。附件檢視會在 TestFlight / 網站上傳接入後啟用。"
+          : "目前沒有附件。",
+        "attachment-placeholder"
+      )
+    );
+    detail.append(attachmentSection);
+
     detail.append(createEditor(item, details));
     details.append(summaryEl, detail);
     list.append(details);
@@ -881,6 +1177,7 @@ function renderFeedback() {
 function attachFilterEvents() {
   [
     searchFilter,
+    sourceFilter,
     statusFilter,
     categoryFilter,
     versionFilter,
