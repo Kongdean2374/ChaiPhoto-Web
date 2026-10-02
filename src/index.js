@@ -487,6 +487,83 @@ function testFlightPrivateMetadata(attributes, tester) {
   };
 }
 
+async function persistTestFlightScreenshot(env, feedbackId, screenshot, index) {
+  const remoteUrl = clean(screenshot?.url, 4000);
+  const expiresAt = clean(screenshot?.expirationDate, 80) || null;
+  const width = Number.isFinite(Number(screenshot?.width))
+    ? Number(screenshot.width)
+    : null;
+  const height = Number.isFinite(Number(screenshot?.height))
+    ? Number(screenshot.height)
+    : null;
+
+  let storageKey = null;
+  let mimeType = "image/*";
+  let byteSize = null;
+
+  if (remoteUrl && env.FEEDBACK_MEDIA?.put) {
+    try {
+      const response = await fetch(remoteUrl);
+
+      if (response.ok && response.body) {
+        const contentType = clean(
+          response.headers.get("Content-Type"),
+          160
+        );
+        const contentLength = Number(
+          response.headers.get("Content-Length")
+        );
+
+        mimeType = contentType || mimeType;
+        byteSize = Number.isFinite(contentLength) && contentLength >= 0
+          ? contentLength
+          : null;
+
+        const extension =
+          mimeType.includes("png") ? "png" :
+          mimeType.includes("webp") ? "webp" :
+          "jpg";
+
+        storageKey =
+          "testflight/" +
+          feedbackId +
+          "/" +
+          crypto.randomUUID() +
+          "." +
+          extension;
+
+        await env.FEEDBACK_MEDIA.put(
+          storageKey,
+          response.body,
+          {
+            httpMetadata: {
+              contentType: mimeType
+            },
+            customMetadata: {
+              feedbackId,
+              source: "testflight"
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Unable to persist TestFlight screenshot", error);
+    }
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    storageKey,
+    mimeType,
+    originalFilename: "testflight-" + String(index + 1),
+    byteSize,
+    remoteUrl: remoteUrl || null,
+    expiresAt,
+    width,
+    height
+  };
+}
+
 async function insertTestFlightFeedback(env, resourceType, resourceId, eventType) {
   await ensureTrackingRows(env);
 
@@ -610,7 +687,13 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
     : [];
 
   for (let index = 0; index < screenshots.length; index += 1) {
-    const screenshot = screenshots[index] || {};
+    const attachment = await persistTestFlightScreenshot(
+      env,
+      id,
+      screenshots[index] || {},
+      index
+    );
+
     await env.DB.prepare(
       `INSERT INTO feedback_attachments (
         id,
@@ -627,20 +710,19 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
         is_public,
         created_at
       )
-      VALUES (?, ?, 'testflight', NULL, 'image/*', ?, NULL, ?, ?, ?, ?, 0, ?)`
+      VALUES (?, ?, 'testflight', ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
     )
       .bind(
-        crypto.randomUUID(),
+        attachment.id,
         id,
-        "testflight-" + String(index + 1),
-        clean(screenshot.url, 4000) || null,
-        clean(screenshot.expirationDate, 80) || null,
-        Number.isFinite(Number(screenshot.width))
-          ? Number(screenshot.width)
-          : null,
-        Number.isFinite(Number(screenshot.height))
-          ? Number(screenshot.height)
-          : null,
+        attachment.storageKey,
+        attachment.mimeType,
+        attachment.originalFilename,
+        attachment.byteSize,
+        attachment.remoteUrl,
+        attachment.expiresAt,
+        attachment.width,
+        attachment.height,
         now
       )
       .run();
@@ -892,6 +974,7 @@ async function handleDashboardApi(request, env, url) {
          m.steps_state,
          m.external_resource_id,
          m.external_event_type,
+         m.private_metadata_json,
          (
            SELECT COUNT(*)
            FROM feedback_attachments a
@@ -1075,6 +1158,144 @@ async function handleDashboardApi(request, env, url) {
     }
 
     return json({ ok: true });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback/attachments" &&
+    request.method === "GET"
+  ) {
+    const feedbackId = clean(url.searchParams.get("feedbackId"), 80);
+
+    if (!feedbackId) {
+      return json({ ok: false, error: "Missing feedback id" }, 400);
+    }
+
+    const result = await env.DB.prepare(
+      `SELECT
+         id,
+         source,
+         mime_type,
+         original_filename,
+         byte_size,
+         expires_at,
+         width,
+         height,
+         is_public,
+         created_at,
+         storage_key,
+         remote_url
+       FROM feedback_attachments
+       WHERE feedback_id = ?
+       ORDER BY created_at ASC, id ASC`
+    )
+      .bind(feedbackId)
+      .all();
+
+    return json({
+      ok: true,
+      attachments: (result.results || []).map(item => ({
+        id: item.id,
+        source: item.source,
+        mime_type: item.mime_type,
+        original_filename: item.original_filename,
+        byte_size: item.byte_size,
+        expires_at: item.expires_at,
+        width: item.width,
+        height: item.height,
+        is_public: item.is_public,
+        created_at: item.created_at,
+        available:
+          Boolean(item.storage_key) ||
+          Boolean(item.remote_url),
+        url:
+          "/dashboard/api/feedback/attachment?id=" +
+          encodeURIComponent(item.id)
+      }))
+    });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback/attachment" &&
+    request.method === "GET"
+  ) {
+    const attachmentId = clean(url.searchParams.get("id"), 100);
+
+    if (!attachmentId) {
+      return new Response("Missing attachment id", { status: 400 });
+    }
+
+    const item = await env.DB.prepare(
+      `SELECT
+         storage_key,
+         remote_url,
+         expires_at,
+         mime_type
+       FROM feedback_attachments
+       WHERE id = ?
+       LIMIT 1`
+    )
+      .bind(attachmentId)
+      .first();
+
+    if (!item) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    if (item.storage_key && env.FEEDBACK_MEDIA?.get) {
+      const object = await env.FEEDBACK_MEDIA.get(item.storage_key);
+
+      if (object) {
+        const headers = new Headers();
+        object.writeHttpMetadata(headers);
+        headers.set(
+          "Content-Type",
+          headers.get("Content-Type") ||
+            item.mime_type ||
+            "application/octet-stream"
+        );
+        headers.set("Cache-Control", "private, no-store");
+        headers.set("X-Content-Type-Options", "nosniff");
+
+        return new Response(object.body, {
+          status: 200,
+          headers
+        });
+      }
+    }
+
+    const expiresAt = item.expires_at
+      ? new Date(item.expires_at).getTime()
+      : null;
+
+    if (
+      item.remote_url &&
+      (!Number.isFinite(expiresAt) || expiresAt > Date.now())
+    ) {
+      try {
+        const response = await fetch(item.remote_url);
+
+        if (response.ok) {
+          const headers = new Headers();
+          headers.set(
+            "Content-Type",
+            response.headers.get("Content-Type") ||
+              item.mime_type ||
+              "application/octet-stream"
+          );
+          headers.set("Cache-Control", "private, no-store");
+          headers.set("X-Content-Type-Options", "nosniff");
+
+          return new Response(response.body, {
+            status: 200,
+            headers
+          });
+        }
+      } catch (error) {
+        console.error("Attachment proxy failed", error);
+      }
+    }
+
+    return new Response("Attachment unavailable", { status: 410 });
   }
 
   if (
