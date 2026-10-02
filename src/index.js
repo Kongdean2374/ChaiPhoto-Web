@@ -127,6 +127,31 @@ function parseReportReference(value) {
   return null;
 }
 
+async function ensureFeedbackAttachmentPublicSchema(env) {
+  const info = await env.DB.prepare(
+    "PRAGMA table_info(feedback_attachments)"
+  ).all();
+
+  const columns = new Set(
+    (info.results || []).map(row => String(row.name || ""))
+  );
+
+  const additions = [
+    ["public_storage_key", "TEXT"],
+    ["public_mime_type", "TEXT"],
+    ["public_byte_size", "INTEGER"],
+    ["public_updated_at", "TEXT"]
+  ];
+
+  for (const [name, type] of additions) {
+    if (columns.has(name)) continue;
+
+    await env.DB.prepare(
+      "ALTER TABLE feedback_attachments ADD COLUMN " + name + " " + type
+    ).run();
+  }
+}
+
 async function ensureFeedbackV2Schema(env) {
   await env.DB.batch([
     env.DB.prepare(
@@ -179,6 +204,10 @@ async function ensureFeedbackV2Schema(env) {
         expires_at TEXT,
         width INTEGER,
         height INTEGER,
+        public_storage_key TEXT,
+        public_mime_type TEXT,
+        public_byte_size INTEGER,
+        public_updated_at TEXT,
         is_public INTEGER NOT NULL DEFAULT 0 CHECK (is_public IN (0, 1)),
         created_at TEXT NOT NULL
       )`
@@ -196,6 +225,8 @@ async function ensureFeedbackV2Schema(env) {
       )`
     )
   ]);
+
+  await ensureFeedbackAttachmentPublicSchema(env);
 }
 
 async function nextSourceNumber(env, sourceKey) {
@@ -1199,6 +1230,10 @@ async function handleDashboardApi(request, env, url) {
          expires_at,
          width,
          height,
+         public_storage_key,
+         public_mime_type,
+         public_byte_size,
+         public_updated_at,
          is_public,
          created_at,
          storage_key,
@@ -1222,6 +1257,10 @@ async function handleDashboardApi(request, env, url) {
         width: item.width,
         height: item.height,
         is_public: item.is_public,
+        public_ready: Boolean(item.public_storage_key),
+        public_mime_type: item.public_mime_type,
+        public_byte_size: item.public_byte_size,
+        public_updated_at: item.public_updated_at,
         created_at: item.created_at,
         available:
           Boolean(item.storage_key) ||
@@ -1243,12 +1282,16 @@ async function handleDashboardApi(request, env, url) {
       return new Response("Missing attachment id", { status: 400 });
     }
 
+    const variant = clean(url.searchParams.get("variant"), 20);
+
     const item = await env.DB.prepare(
       `SELECT
          storage_key,
          remote_url,
          expires_at,
-         mime_type
+         mime_type,
+         public_storage_key,
+         public_mime_type
        FROM feedback_attachments
        WHERE id = ?
        LIMIT 1`
@@ -1258,6 +1301,34 @@ async function handleDashboardApi(request, env, url) {
 
     if (!item) {
       return new Response("Not found", { status: 404 });
+    }
+
+    if (variant === "public") {
+      if (!item.public_storage_key || !env.FEEDBACK_MEDIA?.get) {
+        return new Response("Public derivative unavailable", { status: 404 });
+      }
+
+      const publicObject = await env.FEEDBACK_MEDIA.get(item.public_storage_key);
+
+      if (!publicObject) {
+        return new Response("Public derivative unavailable", { status: 404 });
+      }
+
+      const headers = new Headers();
+      publicObject.writeHttpMetadata(headers);
+      headers.set(
+        "Content-Type",
+        headers.get("Content-Type") ||
+          item.public_mime_type ||
+          "image/png"
+      );
+      headers.set("Cache-Control", "private, no-store");
+      headers.set("X-Content-Type-Options", "nosniff");
+
+      return new Response(publicObject.body, {
+        status: 200,
+        headers
+      });
     }
 
     if (item.storage_key && env.FEEDBACK_MEDIA?.get) {
@@ -1315,6 +1386,184 @@ async function handleDashboardApi(request, env, url) {
     }
 
     return new Response("Attachment unavailable", { status: 410 });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback/attachment/public"
+  ) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    const attachmentId = clean(url.searchParams.get("id"), 100);
+
+    if (!attachmentId) {
+      return json({ ok: false, error: "Missing attachment id" }, 400);
+    }
+
+    await ensureFeedbackV2Schema(env);
+
+    const item = await env.DB.prepare(
+      `SELECT
+         a.id,
+         a.feedback_id,
+         a.public_storage_key,
+         t.deleted_at
+       FROM feedback_attachments a
+       JOIN feedback_tracking t ON t.feedback_id = a.feedback_id
+       WHERE a.id = ?
+       LIMIT 1`
+    )
+      .bind(attachmentId)
+      .first();
+
+    if (!item) {
+      return json({ ok: false, error: "Attachment not found" }, 404);
+    }
+
+    if (item.deleted_at) {
+      return json({ ok: false, error: "Feedback is deleted" }, 409);
+    }
+
+    if (request.method === "PUT") {
+      if (!env.FEEDBACK_MEDIA?.put) {
+        return json({ ok: false, error: "Media storage unavailable" }, 503);
+      }
+
+      const contentType = clean(
+        request.headers.get("Content-Type"),
+        160
+      ).toLowerCase();
+
+      const allowedImageTypes = new Set([
+        "image/png",
+        "image/jpeg",
+        "image/webp"
+      ]);
+
+      if (!allowedImageTypes.has(contentType)) {
+        return json({ ok: false, error: "Unsupported image type" }, 415);
+      }
+
+      const body = await request.arrayBuffer();
+
+      if (!body.byteLength) {
+        return json({ ok: false, error: "Empty image" }, 400);
+      }
+
+      if (body.byteLength > 15 * 1024 * 1024) {
+        return json({ ok: false, error: "Image too large" }, 413);
+      }
+
+      const extension =
+        contentType === "image/png"
+          ? "png"
+          : (contentType === "image/webp" ? "webp" : "jpg");
+
+      const storageKey =
+        "public/" +
+        item.feedback_id +
+        "/" +
+        attachmentId +
+        "-" +
+        crypto.randomUUID() +
+        "." +
+        extension;
+
+      await env.FEEDBACK_MEDIA.put(
+        storageKey,
+        body,
+        {
+          httpMetadata: {
+            contentType
+          },
+          customMetadata: {
+            feedbackId: item.feedback_id,
+            attachmentId,
+            variant: "public-flat"
+          }
+        }
+      );
+
+      const oldKey = clean(item.public_storage_key, 1000);
+      const now = new Date().toISOString();
+
+      await env.DB.prepare(
+        `UPDATE feedback_attachments
+         SET public_storage_key = ?,
+             public_mime_type = ?,
+             public_byte_size = ?,
+             public_updated_at = ?,
+             is_public = 1
+         WHERE id = ?`
+      )
+        .bind(
+          storageKey,
+          contentType,
+          body.byteLength,
+          now,
+          attachmentId
+        )
+        .run();
+
+      if (oldKey && oldKey !== storageKey && env.FEEDBACK_MEDIA?.delete) {
+        try {
+          await env.FEEDBACK_MEDIA.delete(oldKey);
+        } catch (error) {
+          console.error("Unable to remove old public derivative", error);
+        }
+      }
+
+      return json({
+        ok: true,
+        isPublic: true,
+        publicReady: true,
+        updatedAt: now
+      });
+    }
+
+    if (request.method === "DELETE") {
+      await env.DB.prepare(
+        `UPDATE feedback_attachments
+         SET is_public = 0
+         WHERE id = ?`
+      )
+        .bind(attachmentId)
+        .run();
+
+      return json({
+        ok: true,
+        isPublic: false,
+        publicReady: Boolean(item.public_storage_key)
+      });
+    }
+
+    if (request.method === "PATCH") {
+      if (!item.public_storage_key) {
+        return json(
+          { ok: false, error: "Public derivative required" },
+          409
+        );
+      }
+
+      await env.DB.prepare(
+        `UPDATE feedback_attachments
+         SET is_public = 1
+         WHERE id = ?`
+      )
+        .bind(attachmentId)
+        .run();
+
+      return json({
+        ok: true,
+        isPublic: true,
+        publicReady: true
+      });
+    }
+
+    return json({ ok: false, error: "Method not allowed" }, 405);
   }
 
   if (
@@ -1876,6 +2125,62 @@ export default {
         ok: true,
         ambiguous: !parsed.sourceKey && matches.length > 1,
         matches
+      });
+    }
+
+    if (
+      url.pathname === "/api/public-feedback/attachment" &&
+      request.method === "GET"
+    ) {
+      const attachmentId = clean(url.searchParams.get("id"), 100);
+
+      if (!attachmentId) {
+        return new Response("Missing attachment id", { status: 400 });
+      }
+
+      await ensureTrackingRows(env);
+
+      const item = await env.DB.prepare(
+        `SELECT
+           a.public_storage_key,
+           a.public_mime_type
+         FROM feedback_attachments a
+         JOIN feedback f ON f.id = a.feedback_id
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         WHERE a.id = ?
+           AND a.is_public = 1
+           AND a.public_storage_key IS NOT NULL
+           AND f.is_public = 1
+           AND t.deleted_at IS NULL
+         LIMIT 1`
+      )
+        .bind(attachmentId)
+        .first();
+
+      if (!item?.public_storage_key || !env.FEEDBACK_MEDIA?.get) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const object = await env.FEEDBACK_MEDIA.get(item.public_storage_key);
+
+      if (!object) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      const headers = new Headers();
+      object.writeHttpMetadata(headers);
+      headers.set(
+        "Content-Type",
+        headers.get("Content-Type") ||
+          item.public_mime_type ||
+          "image/png"
+      );
+      headers.set("Cache-Control", "public, max-age=3600");
+      headers.set("X-Content-Type-Options", "nosniff");
+
+      return new Response(object.body, {
+        status: 200,
+        headers
       });
     }
 
