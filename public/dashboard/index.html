@@ -325,6 +325,96 @@
       line-height:1.45;
     }
 
+    .attachment-actions {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+      margin-top:9px;
+    }
+
+    .attachment-public-toggle {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:.8rem;
+      font-weight:700;
+    }
+
+    .attachment-public-toggle input { width:auto; }
+
+    .image-editor-modal {
+      position:fixed;
+      inset:0;
+      z-index:999;
+      display:grid;
+      place-items:center;
+      padding:14px;
+      background:rgba(0,0,0,.76);
+    }
+
+    .image-editor-modal[hidden] { display:none; }
+
+    .image-editor-panel {
+      width:min(980px,100%);
+      max-height:94vh;
+      overflow:auto;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:var(--card);
+      padding:14px;
+    }
+
+    .image-editor-head {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .image-editor-head h2 {
+      margin:0;
+      font-size:1.08rem;
+    }
+
+    .image-editor-toolbar {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:10px;
+    }
+
+    .editor-tool.active {
+      border-color:var(--accent);
+      color:var(--accent);
+    }
+
+    .image-editor-stage {
+      display:grid;
+      place-items:center;
+      min-height:240px;
+      padding:8px;
+      border-radius:14px;
+      background:#101012;
+      overflow:auto;
+    }
+
+    #image-editor-canvas {
+      display:block;
+      max-width:100%;
+      max-height:66vh;
+      touch-action:none;
+      cursor:crosshair;
+    }
+
+    .image-editor-help {
+      margin:9px 0 0;
+      color:var(--muted);
+      font-size:.8rem;
+      line-height:1.5;
+    }
+
     @media (max-width:900px) {
       .filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
       .filters .search-wrap { grid-column:1 / -1; }
@@ -419,6 +509,33 @@
   <footer>© 2026 ChaiPhoto</footer>
 </main>
 
+<div id="image-editor-modal" class="image-editor-modal" hidden>
+  <div class="image-editor-panel" role="dialog" aria-modal="true" aria-labelledby="image-editor-title">
+    <div class="image-editor-head">
+      <h2 id="image-editor-title">編輯公開圖片</h2>
+      <button id="image-editor-close" class="secondary-button" type="button">關閉</button>
+    </div>
+
+    <div class="image-editor-toolbar">
+      <button class="secondary-button editor-tool active" data-tool="pixelate" type="button">馬賽克</button>
+      <button class="secondary-button editor-tool" data-tool="blackout" type="button">塗黑</button>
+      <button id="image-editor-undo" class="secondary-button" type="button">復原</button>
+      <button id="image-editor-reset" class="secondary-button" type="button">重設</button>
+      <button id="image-editor-save" class="save-button" type="button">儲存並公開此圖片</button>
+      <span id="image-editor-status" class="save-status"></span>
+    </div>
+
+    <div class="image-editor-stage">
+      <canvas id="image-editor-canvas"></canvas>
+    </div>
+
+    <p class="image-editor-help">
+      在圖片上拖曳框選要遮蔽的區域。儲存時會輸出一張已經合成完成的 PNG，
+      公開端只會收到這張新圖片，不會收到原圖與遮罩座標的組合。
+    </p>
+  </div>
+</div>
+
 <script>
 const statusLabels = {
   new: "待處理",
@@ -453,6 +570,23 @@ const deviceFilter = document.getElementById("device-filter");
 const refresh = document.getElementById("refresh-button");
 
 let loadedItems = [];
+
+const imageEditorModal = document.getElementById("image-editor-modal");
+const imageEditorCanvas = document.getElementById("image-editor-canvas");
+const imageEditorContext = imageEditorCanvas.getContext("2d", { willReadFrequently:true });
+const imageEditorClose = document.getElementById("image-editor-close");
+const imageEditorUndo = document.getElementById("image-editor-undo");
+const imageEditorReset = document.getElementById("image-editor-reset");
+const imageEditorSave = document.getElementById("image-editor-save");
+const imageEditorStatus = document.getElementById("image-editor-status");
+const imageEditorTools = Array.from(document.querySelectorAll(".editor-tool"));
+
+let imageEditorAttachment = null;
+let imageEditorRefresh = null;
+let imageEditorBitmap = null;
+let imageEditorTool = "pixelate";
+let imageEditorStart = null;
+let imageEditorUndoStack = [];
 
 function make(tag, text, className) {
   const element = document.createElement(tag);
@@ -699,6 +833,261 @@ function renderPrivateMetadata(item) {
   return section;
 }
 
+function editorPoint(event) {
+  const rect = imageEditorCanvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(
+      imageEditorCanvas.width,
+      (event.clientX - rect.left) * imageEditorCanvas.width / rect.width
+    )),
+    y: Math.max(0, Math.min(
+      imageEditorCanvas.height,
+      (event.clientY - rect.top) * imageEditorCanvas.height / rect.height
+    ))
+  };
+}
+
+function pushImageEditorUndo() {
+  imageEditorUndoStack.push(
+    imageEditorContext.getImageData(
+      0,
+      0,
+      imageEditorCanvas.width,
+      imageEditorCanvas.height
+    )
+  );
+
+  if (imageEditorUndoStack.length > 12) {
+    imageEditorUndoStack.shift();
+  }
+}
+
+function redrawImageEditorOriginal() {
+  if (!imageEditorBitmap) return;
+  imageEditorCanvas.width = imageEditorBitmap.width;
+  imageEditorCanvas.height = imageEditorBitmap.height;
+  imageEditorContext.clearRect(
+    0,
+    0,
+    imageEditorCanvas.width,
+    imageEditorCanvas.height
+  );
+  imageEditorContext.drawImage(imageEditorBitmap, 0, 0);
+  imageEditorUndoStack = [];
+}
+
+function applyPixelate(x, y, width, height) {
+  const safeWidth = Math.max(1, Math.round(width));
+  const safeHeight = Math.max(1, Math.round(height));
+  const pixelSize = Math.max(10, Math.round(Math.min(safeWidth, safeHeight) / 10));
+  const smallWidth = Math.max(1, Math.round(safeWidth / pixelSize));
+  const smallHeight = Math.max(1, Math.round(safeHeight / pixelSize));
+
+  const temp = document.createElement("canvas");
+  temp.width = smallWidth;
+  temp.height = smallHeight;
+  const tempContext = temp.getContext("2d");
+
+  tempContext.imageSmoothingEnabled = true;
+  tempContext.drawImage(
+    imageEditorCanvas,
+    x,
+    y,
+    safeWidth,
+    safeHeight,
+    0,
+    0,
+    smallWidth,
+    smallHeight
+  );
+
+  imageEditorContext.save();
+  imageEditorContext.imageSmoothingEnabled = false;
+  imageEditorContext.drawImage(
+    temp,
+    0,
+    0,
+    smallWidth,
+    smallHeight,
+    x,
+    y,
+    safeWidth,
+    safeHeight
+  );
+  imageEditorContext.restore();
+}
+
+function applyImageEditorSelection(start, end) {
+  const x = Math.round(Math.min(start.x, end.x));
+  const y = Math.round(Math.min(start.y, end.y));
+  const width = Math.round(Math.abs(end.x - start.x));
+  const height = Math.round(Math.abs(end.y - start.y));
+
+  if (width < 4 || height < 4) return;
+
+  pushImageEditorUndo();
+
+  if (imageEditorTool === "blackout") {
+    imageEditorContext.save();
+    imageEditorContext.fillStyle = "#000";
+    imageEditorContext.fillRect(x, y, width, height);
+    imageEditorContext.restore();
+    return;
+  }
+
+  applyPixelate(x, y, width, height);
+}
+
+async function openPublicImageEditor(attachment, refreshCallback) {
+  imageEditorAttachment = attachment;
+  imageEditorRefresh = refreshCallback;
+  imageEditorStatus.textContent = "正在載入原始圖片…";
+  imageEditorSave.disabled = true;
+  imageEditorModal.hidden = false;
+
+  try {
+    const response = await fetch(attachment.url, {
+      cache:"no-store"
+    });
+
+    if (!response.ok) throw new Error();
+
+    const blob = await response.blob();
+    imageEditorBitmap = await createImageBitmap(blob);
+    redrawImageEditorOriginal();
+    imageEditorStatus.textContent = "";
+    imageEditorSave.disabled = false;
+  } catch {
+    imageEditorStatus.textContent = "無法載入原始圖片。";
+  }
+}
+
+function closePublicImageEditor() {
+  imageEditorModal.hidden = true;
+  imageEditorAttachment = null;
+  imageEditorRefresh = null;
+  imageEditorStart = null;
+  imageEditorUndoStack = [];
+
+  if (imageEditorBitmap?.close) {
+    imageEditorBitmap.close();
+  }
+
+  imageEditorBitmap = null;
+  imageEditorStatus.textContent = "";
+}
+
+imageEditorTools.forEach(function(button) {
+  button.addEventListener("click", function() {
+    imageEditorTool = button.dataset.tool || "pixelate";
+    imageEditorTools.forEach(function(item) {
+      item.classList.toggle("active", item === button);
+    });
+  });
+});
+
+imageEditorCanvas.addEventListener("pointerdown", function(event) {
+  if (!imageEditorBitmap) return;
+  imageEditorCanvas.setPointerCapture(event.pointerId);
+  imageEditorStart = editorPoint(event);
+});
+
+imageEditorCanvas.addEventListener("pointerup", function(event) {
+  if (!imageEditorStart || !imageEditorBitmap) return;
+  const end = editorPoint(event);
+  applyImageEditorSelection(imageEditorStart, end);
+  imageEditorStart = null;
+});
+
+imageEditorCanvas.addEventListener("pointercancel", function() {
+  imageEditorStart = null;
+});
+
+imageEditorUndo.addEventListener("click", function() {
+  const snapshot = imageEditorUndoStack.pop();
+  if (!snapshot) return;
+  imageEditorContext.putImageData(snapshot, 0, 0);
+});
+
+imageEditorReset.addEventListener("click", function() {
+  redrawImageEditorOriginal();
+});
+
+imageEditorClose.addEventListener("click", closePublicImageEditor);
+
+imageEditorModal.addEventListener("click", function(event) {
+  if (event.target === imageEditorModal) {
+    closePublicImageEditor();
+  }
+});
+
+imageEditorSave.addEventListener("click", function() {
+  if (!imageEditorAttachment || !imageEditorBitmap) return;
+
+  imageEditorSave.disabled = true;
+  imageEditorStatus.textContent = "正在產生公開圖片…";
+
+  imageEditorCanvas.toBlob(async function(blob) {
+    if (!blob) {
+      imageEditorStatus.textContent = "圖片輸出失敗。";
+      imageEditorSave.disabled = false;
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        "/dashboard/api/feedback/attachment/public?id=" +
+        encodeURIComponent(imageEditorAttachment.id),
+        {
+          method:"PUT",
+          headers:{
+            "Content-Type":"image/png"
+          },
+          body:blob
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "save_failed");
+      }
+
+      imageEditorStatus.textContent = "公開圖片已儲存。";
+
+      if (typeof imageEditorRefresh === "function") {
+        await imageEditorRefresh();
+      }
+
+      closePublicImageEditor();
+    } catch {
+      imageEditorStatus.textContent = "公開圖片儲存失敗。";
+      imageEditorSave.disabled = false;
+    }
+  }, "image/png");
+});
+
+async function setAttachmentPublic(attachment, enabled) {
+  const response = await fetch(
+    "/dashboard/api/feedback/attachment/public?id=" +
+    encodeURIComponent(attachment.id),
+    {
+      method: enabled ? "PATCH" : "DELETE",
+      headers:{ "Accept":"application/json" }
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.ok) {
+    const error = new Error(result.error || "update_failed");
+    error.code = result.error;
+    throw error;
+  }
+
+  return result;
+}
+
 async function loadAttachments(item, container) {
   container.replaceChildren(
     make("div", "正在讀取附件…", "attachment-placeholder")
@@ -769,7 +1158,74 @@ async function loadAttachments(item, container) {
         meta.append(make("div", "來源連結到期：" + formatDate(attachment.expires_at)));
       }
 
-      card.append(meta);
+      if (attachment.public_ready) {
+        meta.append(
+          make(
+            "div",
+            "公開版本：" +
+              (attachment.is_public ? "目前公開" : "已建立但未公開") +
+              (attachment.public_updated_at
+                ? " · " + formatDate(attachment.public_updated_at)
+                : "")
+          )
+        );
+      }
+
+      const actions = make("div", null, "attachment-actions");
+
+      const editButton = make(
+        "button",
+        attachment.public_ready ? "重新編輯公開版本" : "編輯公開版本",
+        "secondary-button"
+      );
+      editButton.type = "button";
+      editButton.disabled = !attachment.available;
+
+      const publicLabel = make("label", null, "attachment-public-toggle");
+      const publicToggle = document.createElement("input");
+      publicToggle.type = "checkbox";
+      publicToggle.checked = Number(attachment.is_public) === 1;
+      publicLabel.append(publicToggle, document.createTextNode("公開這張圖片"));
+
+      const actionStatus = make("span", "", "save-status");
+
+      async function refreshAttachments() {
+        await loadAttachments(item, container);
+      }
+
+      editButton.addEventListener("click", function() {
+        openPublicImageEditor(attachment, refreshAttachments);
+      });
+
+      publicToggle.addEventListener("change", async function() {
+        const wanted = publicToggle.checked;
+        publicToggle.disabled = true;
+        actionStatus.textContent = "正在更新…";
+
+        try {
+          if (wanted && !attachment.public_ready) {
+            publicToggle.checked = false;
+            actionStatus.textContent = "請先建立公開版本。";
+            openPublicImageEditor(attachment, refreshAttachments);
+            return;
+          }
+
+          await setAttachmentPublic(attachment, wanted);
+          actionStatus.textContent = wanted ? "已公開。" : "已停止公開。";
+          await refreshAttachments();
+        } catch (error) {
+          publicToggle.checked = !wanted;
+          actionStatus.textContent =
+            error.code === "Public derivative required"
+              ? "請先建立公開版本。"
+              : "更新失敗。";
+        } finally {
+          publicToggle.disabled = false;
+        }
+      });
+
+      actions.append(editButton, publicLabel, actionStatus);
+      card.append(meta, actions);
       grid.append(card);
     });
 
