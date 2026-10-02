@@ -1540,7 +1540,14 @@ async function handleDashboardApi(request, env, url) {
           Boolean(item.remote_url),
         url:
           "/dashboard/api/feedback/attachment?id=" +
-          encodeURIComponent(item.id)
+          encodeURIComponent(item.id),
+        public_url: item.public_storage_key
+          ? (
+              "/dashboard/api/feedback/attachment?id=" +
+              encodeURIComponent(item.id) +
+              "&variant=public"
+            )
+          : null
       }))
     });
   }
