@@ -601,8 +601,27 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
   const description = clean(attributes.comment, 5000);
   const createdAt =
     clean(attributes.createdDate, 80) || new Date().toISOString();
-  const appVersion = "";
+
+  let appVersion = "";
   const buildNumber = clean(build?.attributes?.version, 80);
+
+  if (build?.id) {
+    try {
+      const preRelease = await fetchAppStoreConnectJson(
+        env,
+        "/v1/builds/" +
+          encodeURIComponent(build.id) +
+          "/preReleaseVersion?fields%5BpreReleaseVersions%5D=version"
+      );
+      appVersion = clean(
+        preRelease?.data?.attributes?.version,
+        40
+      );
+    } catch (error) {
+      console.error("Unable to resolve TestFlight app version", error);
+    }
+  }
+
   const iosVersion = clean(attributes.osVersion, 80);
   const deviceModel = clean(attributes.deviceModel, 120);
   const hiddenLegacyNumber = await nextReportNumber(env);
