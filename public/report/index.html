@@ -254,6 +254,134 @@
       background:var(--card);
     }
 
+    .track-card {
+      overflow:hidden;
+    }
+
+    .track-card > summary {
+      list-style:none;
+      cursor:pointer;
+      padding:14px;
+      user-select:none;
+    }
+
+    .track-card > summary::-webkit-details-marker { display:none; }
+
+    .track-summary-meta {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px 10px;
+      margin-top:7px;
+      color:var(--muted);
+      font-size:.78rem;
+    }
+
+    .track-detail {
+      border-top:1px solid var(--line);
+      padding:0 14px 14px;
+    }
+
+    .track-detail-section {
+      padding-top:12px;
+      margin-top:12px;
+      border-top:1px solid var(--line);
+    }
+
+    .track-detail-section:first-child {
+      border-top:0;
+      margin-top:0;
+    }
+
+    .track-detail-section h3 {
+      margin:0 0 6px;
+      font-size:.92rem;
+    }
+
+    .public-field-list {
+      display:grid;
+      gap:6px;
+      margin-top:10px;
+    }
+
+    .public-field {
+      display:grid;
+      grid-template-columns:92px minmax(0,1fr);
+      gap:8px;
+      font-size:.82rem;
+    }
+
+    .public-field strong {
+      color:var(--muted);
+      font-weight:650;
+    }
+
+    .hidden-value {
+      color:var(--muted);
+      opacity:.72;
+      font-style:italic;
+    }
+
+    .public-feedback-button {
+      appearance:none;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--bg);
+      color:var(--text);
+      padding:9px 12px;
+      font:inherit;
+      font-weight:720;
+      cursor:pointer;
+    }
+
+    .public-feedback-modal {
+      position:fixed;
+      inset:0;
+      z-index:999;
+      display:grid;
+      place-items:center;
+      padding:14px;
+      background:rgba(0,0,0,.72);
+    }
+
+    .public-feedback-modal[hidden] { display:none; }
+
+    .public-feedback-panel {
+      width:min(620px,100%);
+      max-height:90vh;
+      overflow:auto;
+      padding:16px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--card);
+    }
+
+    .public-feedback-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .public-feedback-head h2 {
+      margin:0;
+      font-size:1.1rem;
+    }
+
+    .public-feedback-panel label {
+      display:grid;
+      gap:6px;
+      margin-top:10px;
+    }
+
+    .public-feedback-claim {
+      display:flex !important;
+      align-items:center;
+      gap:7px;
+    }
+
+    .public-feedback-claim input { width:auto; }
+
     @media (max-width:640px) {
       main { width:min(100% - 20px,940px); }
       .tabs { grid-template-columns:1fr; }
@@ -427,6 +555,44 @@
   <footer>© 2026 ChaiPhoto</footer>
 </main>
 
+<div id="public-feedback-modal" class="public-feedback-modal" hidden>
+  <div class="public-feedback-panel" role="dialog" aria-modal="true" aria-labelledby="public-feedback-title">
+    <div class="public-feedback-head">
+      <div>
+        <h2 id="public-feedback-title">提供公開回報反饋</h2>
+        <p id="public-feedback-report-id" class="muted"></p>
+      </div>
+      <button id="public-feedback-close" class="small-button" type="button">關閉</button>
+    </div>
+
+    <label>
+      反饋類型
+      <select id="public-feedback-category">
+        <option value="incorrect">公開資訊有錯誤</option>
+        <option value="privacy">我是原回報者，希望隱藏部分資訊</option>
+        <option value="image">公開圖片含有不應公開的內容</option>
+        <option value="description">問題描述不正確</option>
+        <option value="other">其他</option>
+      </select>
+    </label>
+
+    <label class="public-feedback-claim">
+      <input id="public-feedback-claimant" type="checkbox">
+      我聲稱自己是這筆回報的原提交者
+    </label>
+
+    <label>
+      補充說明
+      <textarea id="public-feedback-message" rows="6" maxlength="2000" placeholder="請描述希望修正或隱藏的內容。"></textarea>
+    </label>
+
+    <div class="action-row">
+      <button id="public-feedback-submit" class="primary-button" type="button">送出反饋</button>
+      <span id="public-feedback-status" class="muted"></span>
+    </div>
+  </div>
+</div>
+
 <script>
 const statusLabels = {
   new: "待處理",
@@ -473,6 +639,17 @@ const issueList = document.getElementById("issue-list");
 const issueCount = document.getElementById("issue-count");
 const issueSearch = document.getElementById("issue-search");
 const filterButtons = Array.from(document.querySelectorAll(".issue-filter"));
+
+const publicFeedbackModal = document.getElementById("public-feedback-modal");
+const publicFeedbackClose = document.getElementById("public-feedback-close");
+const publicFeedbackReportId = document.getElementById("public-feedback-report-id");
+const publicFeedbackCategory = document.getElementById("public-feedback-category");
+const publicFeedbackClaimant = document.getElementById("public-feedback-claimant");
+const publicFeedbackMessage = document.getElementById("public-feedback-message");
+const publicFeedbackSubmit = document.getElementById("public-feedback-submit");
+const publicFeedbackStatus = document.getElementById("public-feedback-status");
+
+let activePublicFeedbackItem = null;
 
 let parsedDiagnostics = {};
 let allIssues = [];
@@ -754,10 +931,117 @@ function formatDue(value) {
   return date + " " + time;
 }
 
+function formatPublicDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString("zh-TW", {
+    year:"numeric",
+    month:"numeric",
+    day:"numeric",
+    hour:"numeric",
+    minute:"2-digit"
+  });
+}
+
+function publicFieldVisible(item, key) {
+  if (!item.field_visibility) return Boolean(item[key]);
+  return item.field_visibility[key] !== false;
+}
+
+function appendPublicField(container, label, value, visible) {
+  const row = document.createElement("div");
+  row.className = "public-field";
+
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+
+  const output = document.createElement("span");
+  if (!visible) {
+    output.textContent = "未公開";
+    output.className = "hidden-value";
+  } else {
+    output.textContent =
+      value === undefined || value === null || value === ""
+        ? "未提供"
+        : String(value);
+  }
+
+  row.append(strong, output);
+  container.append(row);
+}
+
+function openPublicFeedback(item) {
+  activePublicFeedbackItem = item;
+  publicFeedbackReportId.textContent =
+    "針對 " + (item.report_id || "") + " 提供反饋";
+  publicFeedbackCategory.value = "incorrect";
+  publicFeedbackClaimant.checked = false;
+  publicFeedbackMessage.value = "";
+  publicFeedbackStatus.textContent = "";
+  publicFeedbackModal.hidden = false;
+}
+
+function closePublicFeedback() {
+  publicFeedbackModal.hidden = true;
+  activePublicFeedbackItem = null;
+  publicFeedbackStatus.textContent = "";
+}
+
+publicFeedbackClose.addEventListener("click", closePublicFeedback);
+publicFeedbackModal.addEventListener("click", function(event) {
+  if (event.target === publicFeedbackModal) closePublicFeedback();
+});
+
+publicFeedbackCategory.addEventListener("change", function() {
+  if (publicFeedbackCategory.value === "privacy") {
+    publicFeedbackClaimant.checked = true;
+  }
+});
+
+publicFeedbackSubmit.addEventListener("click", async function() {
+  if (!activePublicFeedbackItem) return;
+
+  const message = publicFeedbackMessage.value.trim();
+  if (message.length < 3) {
+    publicFeedbackStatus.textContent = "請至少填寫 3 個字的補充說明。";
+    publicFeedbackMessage.focus();
+    return;
+  }
+
+  publicFeedbackSubmit.disabled = true;
+  publicFeedbackStatus.textContent = "正在送出…";
+
+  try {
+    const response = await fetch("/api/public-feedback/comment", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        reportId:activePublicFeedbackItem.report_id,
+        category:publicFeedbackCategory.value,
+        claimantOriginal:publicFeedbackClaimant.checked,
+        message
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error();
+
+    publicFeedbackStatus.textContent = "反饋已送出。";
+    setTimeout(closePublicFeedback, 500);
+  } catch {
+    publicFeedbackStatus.textContent = "送出失敗，請稍後再試。";
+  } finally {
+    publicFeedbackSubmit.disabled = false;
+  }
+});
+
 function createTrackCard(item) {
-  const card = document.createElement("div");
+  const card = document.createElement("details");
   const status = item.status || "new";
   card.className = "track-card status-" + status + "-card";
+
+  const summary = document.createElement("summary");
 
   const top = document.createElement("div");
   top.className = "track-top";
@@ -771,25 +1055,101 @@ function createTrackCard(item) {
   pill.textContent = statusLabels[status] || status;
 
   top.append(id, pill);
-  card.append(top);
+  summary.append(top);
 
   const title = document.createElement("div");
   title.className = "track-title";
   title.textContent = item.public_title || (
     status === "deleted"
       ? "此回報已從追蹤系統移除"
-      : "ChaiPhoto 問題回報"
+      : (item.description || "ChaiPhoto 問題回報")
   );
-  card.append(title);
+  summary.append(title);
+
+  const summaryMeta = document.createElement("div");
+  summaryMeta.className = "track-summary-meta";
+
+  const buildVisible = publicFieldVisible(item, "build_number");
+  summaryMeta.append(
+    document.createTextNode(
+      buildVisible
+        ? "Build " + (item.build_number || "未提供")
+        : "Build 未公開"
+    )
+  );
+
+  const iosVisible = publicFieldVisible(item, "ios_version");
+  summaryMeta.append(
+    document.createTextNode(
+      iosVisible
+        ? "iOS " + (item.ios_version || "未提供")
+        : "iOS 未公開"
+    )
+  );
+
+  const timeVisible = publicFieldVisible(item, "created_at");
+  summaryMeta.append(
+    document.createTextNode(
+      timeVisible
+        ? (formatPublicDate(item.created_at) || "時間未提供")
+        : "時間未公開"
+    )
+  );
+
+  summary.append(summaryMeta);
+  card.append(summary);
+
+  const detail = document.createElement("div");
+  detail.className = "track-detail";
 
   if (item.public_note) {
+    const section = document.createElement("div");
+    section.className = "track-detail-section";
+    const heading = document.createElement("h3");
+    heading.textContent = "開發者說明";
     const note = document.createElement("p");
     note.className = "track-note";
     note.textContent = item.public_note;
-    card.append(note);
+    section.append(heading, note);
+    detail.append(section);
   }
 
+  const contentSection = document.createElement("div");
+  contentSection.className = "track-detail-section";
+  const contentTitle = document.createElement("h3");
+  contentTitle.textContent = "公開回報內容";
+  contentSection.append(contentTitle);
+
+  const description = document.createElement("p");
+  description.className = "track-note";
+  if (publicFieldVisible(item, "description")) {
+    description.textContent = item.description || "未提供問題描述";
+  } else {
+    description.textContent = "問題描述：未公開";
+    description.classList.add("hidden-value");
+  }
+  contentSection.append(description);
+
+  const steps = document.createElement("p");
+  steps.className = "track-note";
+  if (publicFieldVisible(item, "steps")) {
+    steps.textContent = item.steps
+      ? "發生時機／重現步驟：" + item.steps
+      : "發生時機／重現步驟：未提供";
+  } else {
+    steps.textContent = "發生時機／重現步驟：未公開";
+    steps.classList.add("hidden-value");
+  }
+  contentSection.append(steps);
+  detail.append(contentSection);
+
   if (Array.isArray(item.attachments) && item.attachments.length) {
+    const imageSection = document.createElement("div");
+    imageSection.className = "track-detail-section";
+
+    const heading = document.createElement("h3");
+    heading.textContent = "公開圖片";
+
     const images = document.createElement("div");
     images.className = "track-images";
 
@@ -802,89 +1162,131 @@ function createTrackCard(item) {
       images.append(image);
     });
 
-    if (images.childElementCount) {
-      card.append(images);
-    }
+    imageSection.append(heading, images);
+    detail.append(imageSection);
   }
 
-  const meta = document.createElement("div");
-  meta.className = "track-meta";
+  const fieldsSection = document.createElement("div");
+  fieldsSection.className = "track-detail-section";
+  const fieldsTitle = document.createElement("h3");
+  fieldsTitle.textContent = "回報資訊";
+  const fields = document.createElement("div");
+  fields.className = "public-field-list";
 
-  if (item.source) {
-    const line = document.createElement("div");
-    line.textContent = item.source === "tf"
-      ? "來源：TestFlight"
-      : "來源：網站回報";
-    meta.append(line);
-  }
+  appendPublicField(
+    fields,
+    "問題類型",
+    item.category ? (categoryLabels[item.category] || item.category) : "",
+    publicFieldVisible(item, "category")
+  );
+  appendPublicField(
+    fields,
+    "App",
+    item.app_version,
+    publicFieldVisible(item, "app_version")
+  );
+  appendPublicField(
+    fields,
+    "Build",
+    item.build_number,
+    publicFieldVisible(item, "build_number")
+  );
+  appendPublicField(
+    fields,
+    "iOS",
+    item.ios_version,
+    publicFieldVisible(item, "ios_version")
+  );
+  appendPublicField(
+    fields,
+    "裝置",
+    item.device_model,
+    publicFieldVisible(item, "device_model")
+  );
+  appendPublicField(
+    fields,
+    "回報時間",
+    formatPublicDate(item.created_at),
+    publicFieldVisible(item, "created_at")
+  );
+  appendPublicField(
+    fields,
+    "來源",
+    item.source === "tf" ? "TestFlight" : "網站回報",
+    publicFieldVisible(item, "source")
+  );
 
-  const environmentParts = [
-    item.app_version ? "App " + item.app_version : "",
-    item.build_number ? "Build " + item.build_number : "",
-    item.ios_version ? "iOS " + item.ios_version : "",
-    item.device_model || ""
-  ].filter(Boolean);
+  fieldsSection.append(fieldsTitle, fields);
+  detail.append(fieldsSection);
 
-  if (environmentParts.length) {
-    const line = document.createElement("div");
-    line.textContent = environmentParts.join(" · ");
-    meta.append(line);
-  }
+  const progressSection = document.createElement("div");
+  progressSection.className = "track-detail-section";
+  const progressTitle = document.createElement("h3");
+  progressTitle.textContent = "處理進度";
+  const progress = document.createElement("div");
+  progress.className = "track-meta";
 
   if (status === "new") {
-    meta.append(document.createTextNode("已收到回報，等待開發者查看。"));
+    progress.textContent = "已收到回報，等待開發者查看。";
   }
 
   if (status === "in_progress") {
     if (item.eta_seconds) {
       const line = document.createElement("div");
       line.textContent = "預計需要：約 " + formatDuration(item.eta_seconds);
-      meta.append(line);
+      progress.append(line);
     }
     if (item.eta_due_at) {
       const line = document.createElement("div");
       line.textContent = "預計完成：" + formatDue(item.eta_due_at);
-      meta.append(line);
+      progress.append(line);
     }
   }
 
   if (status === "resolved") {
-    const version = [item.fixed_version, item.fixed_build ? "(" + item.fixed_build + ")" : ""]
-      .filter(Boolean)
-      .join(" ");
+    const version = [
+      item.fixed_version,
+      item.fixed_build ? "(" + item.fixed_build + ")" : ""
+    ].filter(Boolean).join(" ");
 
-    const line = document.createElement("div");
-    if (version) {
-      line.textContent = Number(item.fix_published) === 1
-        ? "已於 ChaiPhoto " + version + " 修正。"
-        : "預計於 ChaiPhoto " + version + " 提供修正。";
-    } else {
-      line.textContent = "此問題已完成修正。";
-    }
-    meta.append(line);
+    progress.textContent = version
+      ? (
+          Number(item.fix_published) === 1
+            ? "已於 ChaiPhoto " + version + " 修正。"
+            : "預計於 ChaiPhoto " + version + " 提供修正。"
+        )
+      : "此問題已完成修正。";
   }
 
   if (status === "closed") {
-    const line = document.createElement("div");
-    line.textContent = item.unable_reason
+    progress.textContent = item.unable_reason
       ? "原因：" + item.unable_reason
       : "目前無法完成處理。";
-    meta.append(line);
   }
 
   if (status === "deleted") {
-    const line = document.createElement("div");
-    line.textContent = "原始回報內容已刪除，此編號不會再次使用。";
-    meta.append(line);
-
-    if (item.deletion_reason) {
-      const reason = document.createElement("div");
-      reason.textContent = "原因：" + item.deletion_reason;
-      meta.append(reason);
-    }
+    progress.textContent = "此回報已從追蹤系統移除。";
   }
 
-  card.append(meta);
+  progressSection.append(progressTitle, progress);
+  detail.append(progressSection);
+
+  if (status !== "deleted" && item.public_title) {
+    const feedbackSection = document.createElement("div");
+    feedbackSection.className = "track-detail-section";
+    const feedbackButton = document.createElement("button");
+    feedbackButton.type = "button";
+    feedbackButton.className = "public-feedback-button";
+    feedbackButton.textContent = "對這則回報提供反饋";
+    feedbackButton.addEventListener("click", function(event) {
+      event.preventDefault();
+      openPublicFeedback(item);
+    });
+    feedbackSection.append(feedbackButton);
+    detail.append(feedbackSection);
+  }
+
+  card.append(detail);
   return card;
 }
 
@@ -988,6 +1390,12 @@ function renderIssues() {
       item.report_id,
       item.public_title,
       item.public_note,
+      item.description,
+      item.steps,
+      item.app_version,
+      item.build_number,
+      item.ios_version,
+      item.device_model,
       item.fixed_version,
       item.fixed_build,
       categoryLabels[item.category]
