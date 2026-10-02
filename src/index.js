@@ -145,6 +145,7 @@ async function ensureFeedbackV2Schema(env) {
           CHECK (steps_state IN ('provided', 'missing', 'not_applicable')),
         external_resource_id TEXT,
         external_event_type TEXT,
+        private_metadata_json TEXT,
         updated_at TEXT NOT NULL,
         UNIQUE (source_key, source_number),
         UNIQUE (source_key, external_resource_id)
@@ -174,6 +175,10 @@ async function ensureFeedbackV2Schema(env) {
         mime_type TEXT,
         original_filename TEXT,
         byte_size INTEGER,
+        remote_url TEXT,
+        expires_at TEXT,
+        width INTEGER,
+        height INTEGER,
         is_public INTEGER NOT NULL DEFAULT 0 CHECK (is_public IN (0, 1)),
         created_at TEXT NOT NULL
       )`
@@ -299,6 +304,447 @@ function cleanDiagnostics(value) {
   }
 
   return Object.keys(output).length ? output : null;
+}
+
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function constantTimeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    diff |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return diff === 0;
+}
+
+async function verifyAppleWebhookSignature(rawBody, signatureHeader, secret) {
+  const expectedSecret = clean(secret, 1024);
+  if (!expectedSecret || !signatureHeader) return false;
+
+  const normalizedHeader = String(signatureHeader).trim().toLowerCase();
+  const prefix = "hmacsha256=";
+  if (!normalizedHeader.startsWith(prefix)) return false;
+
+  const supplied = normalizedHeader.slice(prefix.length);
+  if (!/^[0-9a-f]{64}$/.test(supplied)) return false;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(expectedSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const digest = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(rawBody)
+  );
+
+  return constantTimeEqual(
+    bytesToHex(new Uint8Array(digest)),
+    supplied
+  );
+}
+
+function base64UrlEncodeBytes(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary)
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+}
+
+function base64UrlEncodeText(value) {
+  return base64UrlEncodeBytes(new TextEncoder().encode(value));
+}
+
+function pemToBytes(value) {
+  const normalized = String(value || "")
+    .replace(/\\n/g, "\n")
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s+/g, "");
+
+  if (!normalized) throw new Error("Missing App Store Connect private key");
+
+  const binary = atob(normalized);
+  return Uint8Array.from(binary, char => char.charCodeAt(0));
+}
+
+async function createAppStoreConnectToken(env) {
+  const keyId = clean(env.APP_STORE_API_KEY_ID, 128);
+  const privateKey = String(env.APP_STORE_API_PRIVATE_KEY || "");
+  const issuerId = clean(env.APP_STORE_API_ISSUER_ID, 160);
+
+  if (!keyId || !privateKey) {
+    throw new Error("App Store Connect API credentials are incomplete");
+  }
+
+  const header = {
+    alg: "ES256",
+    kid: keyId,
+    typ: "JWT"
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+  const payload = issuerId
+    ? {
+        iss: issuerId,
+        iat: now,
+        exp: now + 120,
+        aud: "appstoreconnect-v1"
+      }
+    : {
+        sub: "user",
+        iat: now,
+        exp: now + 120,
+        aud: "appstoreconnect-v1"
+      };
+
+  const signingInput =
+    base64UrlEncodeText(JSON.stringify(header)) +
+    "." +
+    base64UrlEncodeText(JSON.stringify(payload));
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToBytes(privateKey),
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    key,
+    new TextEncoder().encode(signingInput)
+  );
+
+  return signingInput + "." + base64UrlEncodeBytes(new Uint8Array(signature));
+}
+
+async function fetchAppStoreConnectJson(env, path) {
+  const token = await createAppStoreConnectToken(env);
+  const response = await fetch(
+    "https://api.appstoreconnect.apple.com" + path,
+    {
+      headers: {
+        Authorization: "Bearer " + token,
+        Accept: "application/json"
+      }
+    }
+  );
+
+  const text = await response.text();
+  let body = null;
+
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { raw: text };
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      "App Store Connect API failed with HTTP " + response.status
+    );
+    error.status = response.status;
+    error.body = body;
+    throw error;
+  }
+
+  return body;
+}
+
+function includedResource(payload, type) {
+  return (payload?.included || []).find(item => item?.type === type) || null;
+}
+
+function testFlightPrivateMetadata(attributes, tester) {
+  return {
+    testerEmail: clean(
+      tester?.attributes?.email || attributes?.email,
+      320
+    ) || null,
+    testerFirstName: clean(tester?.attributes?.firstName, 160) || null,
+    testerLastName: clean(tester?.attributes?.lastName, 160) || null,
+    locale: clean(attributes?.locale, 80) || null,
+    timeZone: clean(attributes?.timeZone, 80) || null,
+    architecture: clean(attributes?.architecture, 80) || null,
+    connectionType: clean(attributes?.connectionType, 80) || null,
+    batteryPercentage:
+      Number.isFinite(Number(attributes?.batteryPercentage))
+        ? Number(attributes.batteryPercentage)
+        : null,
+    deviceFamily: clean(attributes?.deviceFamily, 80) || null,
+    appPlatform: clean(attributes?.appPlatform, 80) || null
+  };
+}
+
+async function insertTestFlightFeedback(env, resourceType, resourceId, eventType) {
+  await ensureTrackingRows(env);
+
+  const existing = await env.DB.prepare(
+    `SELECT feedback_id
+     FROM feedback_v2_meta
+     WHERE source_key = 'tf'
+       AND external_resource_id = ?
+     LIMIT 1`
+  )
+    .bind(resourceId)
+    .first();
+
+  if (existing?.feedback_id) {
+    return { created: false, feedbackId: existing.feedback_id };
+  }
+
+  const isCrash = resourceType === "betaFeedbackCrashSubmissions";
+  const path = isCrash
+    ? "/v1/betaFeedbackCrashSubmissions/" + encodeURIComponent(resourceId) +
+      "?include=build,tester"
+    : "/v1/betaFeedbackScreenshotSubmissions/" + encodeURIComponent(resourceId) +
+      "?include=build,tester";
+
+  const payload = await fetchAppStoreConnectJson(env, path);
+  const data = payload?.data;
+  const attributes = data?.attributes || {};
+
+  if (!data?.id) {
+    throw new Error("App Store Connect feedback payload missing data");
+  }
+
+  const build = includedResource(payload, "builds");
+  const tester = includedResource(payload, "betaTesters");
+  const description = clean(attributes.comment, 5000);
+  const createdAt =
+    clean(attributes.createdDate, 80) || new Date().toISOString();
+  const appVersion = "";
+  const buildNumber = clean(build?.attributes?.version, 80);
+  const iosVersion = clean(attributes.osVersion, 80);
+  const deviceModel = clean(attributes.deviceModel, 120);
+  const hiddenLegacyNumber = await nextReportNumber(env);
+  const sourceNumber = await nextSourceNumber(env, "tf");
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const privateMetadata = testFlightPrivateMetadata(attributes, tester);
+
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO feedback (
+        id,
+        created_at,
+        status,
+        category,
+        description,
+        steps,
+        app_version,
+        build_number,
+        ios_version,
+        device_model,
+        source
+      )
+      VALUES (?, ?, 'new', ?, ?, NULL, ?, ?, ?, ?, 'testflight')`
+    ).bind(
+      id,
+      createdAt,
+      isCrash ? "crash" : "other",
+      description,
+      appVersion || null,
+      buildNumber || null,
+      iosVersion || null,
+      deviceModel || null
+    ),
+    env.DB.prepare(
+      `INSERT INTO feedback_tracking (
+        feedback_id,
+        report_number,
+        diagnostics_json
+      )
+      VALUES (?, ?, ?)`
+    ).bind(
+      id,
+      hiddenLegacyNumber,
+      JSON.stringify({
+        source: "testflight",
+        eventType,
+        resourceType
+      })
+    ),
+    env.DB.prepare(
+      `INSERT INTO feedback_v2_meta (
+        feedback_id,
+        source_key,
+        source_number,
+        original_description,
+        original_steps,
+        edited_description,
+        edited_steps,
+        description_state,
+        steps_state,
+        external_resource_id,
+        external_event_type,
+        private_metadata_json,
+        updated_at
+      )
+      VALUES (?, 'tf', ?, ?, NULL, NULL, NULL, ?, 'missing', ?, ?, ?, ?)`
+    ).bind(
+      id,
+      sourceNumber,
+      description || null,
+      description ? "provided" : "missing",
+      resourceId,
+      eventType,
+      JSON.stringify(privateMetadata),
+      now
+    )
+  ]);
+
+  const screenshots = Array.isArray(attributes.screenshots)
+    ? attributes.screenshots
+    : [];
+
+  for (let index = 0; index < screenshots.length; index += 1) {
+    const screenshot = screenshots[index] || {};
+    await env.DB.prepare(
+      `INSERT INTO feedback_attachments (
+        id,
+        feedback_id,
+        source,
+        storage_key,
+        mime_type,
+        original_filename,
+        byte_size,
+        remote_url,
+        expires_at,
+        width,
+        height,
+        is_public,
+        created_at
+      )
+      VALUES (?, ?, 'testflight', NULL, 'image/*', ?, NULL, ?, ?, ?, ?, 0, ?)`
+    )
+      .bind(
+        crypto.randomUUID(),
+        id,
+        "testflight-" + String(index + 1),
+        clean(screenshot.url, 4000) || null,
+        clean(screenshot.expirationDate, 80) || null,
+        Number.isFinite(Number(screenshot.width))
+          ? Number(screenshot.width)
+          : null,
+        Number.isFinite(Number(screenshot.height))
+          ? Number(screenshot.height)
+          : null,
+        now
+      )
+      .run();
+  }
+
+  return {
+    created: true,
+    feedbackId: id,
+    reportId: formatSourceReportId("tf", sourceNumber)
+  };
+}
+
+async function processAppStoreWebhookEvent(env, eventPayload) {
+  const data = eventPayload?.data || {};
+  const eventId = clean(data.id, 160);
+  const eventType = clean(data.type, 160);
+  const instance = data?.relationships?.instance?.data || {};
+  const resourceType = clean(instance.type, 160);
+  const resourceId = clean(instance.id, 240);
+  const receivedAt = new Date().toISOString();
+
+  if (!eventId) {
+    throw new Error("Webhook event is missing an id");
+  }
+
+  await ensureFeedbackV2Schema(env);
+
+  const alreadySeen = await env.DB.prepare(
+    `SELECT event_id, processed_at
+     FROM feedback_ingest_events
+     WHERE event_id = ?
+     LIMIT 1`
+  )
+    .bind(eventId)
+    .first();
+
+  if (alreadySeen?.processed_at) {
+    return { duplicate: true };
+  }
+
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO feedback_ingest_events (
+      event_id,
+      provider,
+      event_type,
+      resource_id,
+      feedback_id,
+      received_at,
+      processed_at,
+      payload_json
+    )
+    VALUES (?, 'appstore', ?, ?, NULL, ?, NULL, ?)`
+  )
+    .bind(
+      eventId,
+      eventType || null,
+      resourceId || null,
+      receivedAt,
+      JSON.stringify(eventPayload)
+    )
+    .run();
+
+  const supported =
+    (
+      eventType === "betaFeedbackScreenshotSubmissionCreated" &&
+      resourceType === "betaFeedbackScreenshotSubmissions"
+    ) ||
+    (
+      eventType === "betaFeedbackCrashSubmissionCreated" &&
+      resourceType === "betaFeedbackCrashSubmissions"
+    );
+
+  if (!supported || !resourceId) {
+    await env.DB.prepare(
+      `UPDATE feedback_ingest_events
+       SET processed_at = ?
+       WHERE event_id = ?`
+    )
+      .bind(new Date().toISOString(), eventId)
+      .run();
+
+    return { ignored: true, eventType };
+  }
+
+  const ingested = await insertTestFlightFeedback(
+    env,
+    resourceType,
+    resourceId,
+    eventType
+  );
+
+  await env.DB.prepare(
+    `UPDATE feedback_ingest_events
+     SET feedback_id = ?, processed_at = ?
+     WHERE event_id = ?`
+  )
+    .bind(
+      ingested.feedbackId || null,
+      new Date().toISOString(),
+      eventId
+    )
+    .run();
+
+  return ingested;
 }
 
 async function ensureAppReleaseSchema(env) {
@@ -873,7 +1319,7 @@ async function handleDashboardApi(request, env, url) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (isDashboardRequest(url)) {
@@ -911,6 +1357,47 @@ export default {
         statusText: assetResponse.statusText,
         headers
       });
+    }
+
+    if (
+      url.pathname === "/api/webhooks/appstore" &&
+      request.method === "POST"
+    ) {
+      const rawBody = await request.text();
+      const signature = request.headers.get("x-apple-signature");
+      const valid = await verifyAppleWebhookSignature(
+        rawBody,
+        signature,
+        env.APP_STORE_WEBHOOK_SECRET
+      );
+
+      if (!valid) {
+        return json({ ok: false, error: "Invalid signature" }, 401);
+      }
+
+      let body;
+
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        return json({ ok: false, error: "Invalid JSON" }, 400);
+      }
+
+      // Apple webhook pings and future event types should still receive a 2xx
+      // after signature verification. Supported TestFlight feedback events are
+      // processed asynchronously so Apple doesn't need to wait on ASC API I/O.
+      const work = processAppStoreWebhookEvent(env, body)
+        .catch(error => {
+          console.error("App Store webhook processing failed", error);
+        });
+
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(work);
+      } else {
+        await work;
+      }
+
+      return json({ ok: true }, 202);
     }
 
     if (url.pathname === "/api/health") {
