@@ -231,34 +231,10 @@
     .source-badge-beta { color:#4f67c8; }
     .source-badge-tf { color:#8c5bb8; }
 
-    .content-editor {
-      display:grid;
-      gap:12px;
-    }
 
-    .content-editor textarea {
-      min-height:110px;
-      resize:vertical;
-    }
 
-    .field-state-row {
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px 14px;
-      align-items:center;
-      margin-top:7px;
-      color:var(--muted);
-      font-size:.8rem;
-    }
 
-    .field-state-row label {
-      display:flex;
-      align-items:center;
-      gap:6px;
-      font-weight:650;
-    }
 
-    .field-state-row input { width:auto; }
 
     .original-box {
       margin-top:10px;
@@ -965,6 +941,8 @@ let imageEditorTool = "pixelate";
 let imageEditorStart = null;
 let imageEditorPendingSelection = null;
 let imageEditorUndoStack = [];
+let imageEditorGeneration = 0;
+let imageEditorSaving = false;
 let imageEditorZoom = 1;
 let imageEditorPanX = 0;
 let imageEditorPanY = 0;
@@ -1003,11 +981,11 @@ function originalSteps(item) {
 }
 
 function effectiveDescription(item) {
-  return item.edited_description || originalDescription(item);
+  return item.edited_description ?? originalDescription(item);
 }
 
 function effectiveSteps(item) {
-  return item.edited_steps || originalSteps(item);
+  return item.edited_steps ?? originalSteps(item);
 }
 
 function displayStatus(item) {
@@ -1159,17 +1137,6 @@ function createTextInput(labelText, value, placeholder) {
   input.placeholder = placeholder || "";
   label.append(input);
   return { label, input };
-}
-
-function createTextarea(labelText, value, placeholder) {
-  const label = make("label");
-  label.append(document.createTextNode(labelText));
-  const textarea = document.createElement("textarea");
-  textarea.value = value || "";
-  textarea.placeholder = placeholder || "";
-  textarea.rows = 4;
-  label.append(textarea);
-  return { label, textarea };
 }
 
 function renderPrivateMetadata(item) {
@@ -1383,17 +1350,17 @@ function layoutImageEditorCanvas() {
   resetImageEditorView();
 }
 
-function pushImageEditorUndo() {
+function pushImageEditorUndo(selection) {
   imageEditorUndoStack.push(
-    imageEditorContext.getImageData(
-      0,
-      0,
-      imageEditorCanvas.width,
-      imageEditorCanvas.height
-    )
+    { x:selection.x, y:selection.y, data:imageEditorContext.getImageData(
+      selection.x, selection.y, selection.width, selection.height
+    ) }
   );
 
-  if (imageEditorUndoStack.length > 12) {
+  while (imageEditorUndoStack.length > 1 && (
+    imageEditorUndoStack.length > 12 ||
+    imageEditorUndoStack.reduce((sum, item) => sum + item.data.data.byteLength, 0) > 64 * 1024 * 1024
+  )) {
     imageEditorUndoStack.shift();
   }
 }
@@ -1467,7 +1434,7 @@ function applyPixelate(x, y, width, height) {
 function applyConfirmedImageEditorSelection(selection) {
   if (!selection) return;
 
-  pushImageEditorUndo();
+  pushImageEditorUndo(selection);
 
   if (selection.tool === "blackout") {
     imageEditorContext.save();
@@ -1560,6 +1527,8 @@ function updateImageEditorPinch() {
 }
 
 async function openPublicImageEditor(attachment, refreshCallback) {
+  closePublicImageEditor();
+  const generation = imageEditorGeneration;
   imageEditorAttachment = attachment;
   imageEditorRefresh = refreshCallback;
   imageEditorStatus.textContent =
@@ -1579,18 +1548,23 @@ async function openPublicImageEditor(attachment, refreshCallback) {
     if (!response.ok) throw new Error();
 
     const blob = await response.blob();
-    imageEditorBitmap = await createImageBitmap(blob);
+    const bitmap = await createImageBitmap(blob);
+    if (generation !== imageEditorGeneration) { bitmap.close(); return; }
+    imageEditorBitmap = bitmap;
     redrawImageEditorOriginal();
     imageEditorStatus.textContent =
       (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
       "：正在等待你選取區域…";
     imageEditorSave.disabled = false;
   } catch {
+    if (generation !== imageEditorGeneration) return;
     imageEditorStatus.textContent = "無法載入圖片。";
   }
 }
 
 function closePublicImageEditor() {
+  imageEditorGeneration += 1;
+  imageEditorSaving = false;
   imageEditorModal.hidden = true;
   imageEditorAttachment = null;
   imageEditorRefresh = null;
@@ -1752,7 +1726,7 @@ imageEditorUndo.addEventListener("click", function() {
     return;
   }
 
-  imageEditorContext.putImageData(snapshot, 0, 0);
+  imageEditorContext.putImageData(snapshot.data, snapshot.x, snapshot.y);
   imageEditorStatus.textContent = "已復原上一個修改。";
 });
 
@@ -1779,7 +1753,7 @@ window.addEventListener("resize", function() {
 });
 
 imageEditorSave.addEventListener("click", function() {
-  if (!imageEditorAttachment || !imageEditorBitmap) return;
+  if (!imageEditorAttachment || !imageEditorBitmap || imageEditorSaving) return;
 
   if (imageEditorPendingSelection) {
     imageEditorStatus.textContent = "請先確認或取消目前的虛線選取框。";
@@ -1787,10 +1761,16 @@ imageEditorSave.addEventListener("click", function() {
   }
 
   imageEditorSave.disabled = true;
+  imageEditorSaving = true;
+  const generation = imageEditorGeneration;
+  const attachmentId = imageEditorAttachment.id;
+  const refreshAfterClose = imageEditorRefresh;
   imageEditorStatus.textContent = "正在產生完整尺寸公開圖片…";
 
   imageEditorCanvas.toBlob(async function(blob) {
+    if (generation !== imageEditorGeneration) return;
     if (!blob) {
+      imageEditorSaving = false;
       imageEditorStatus.textContent = "圖片輸出失敗。";
       imageEditorSave.disabled = false;
       return;
@@ -1799,7 +1779,7 @@ imageEditorSave.addEventListener("click", function() {
     try {
       const response = await fetch(
         "/dashboard/api/feedback/attachment/public?id=" +
-        encodeURIComponent(imageEditorAttachment.id),
+        encodeURIComponent(attachmentId),
         {
           method:"PUT",
           headers:{ "Content-Type":"image/png" },
@@ -1808,6 +1788,7 @@ imageEditorSave.addEventListener("click", function() {
       );
 
       const result = await response.json();
+      if (generation !== imageEditorGeneration) return;
 
       if (!response.ok || !result.ok) {
         throw new Error(result.error || "save_failed");
@@ -1815,13 +1796,14 @@ imageEditorSave.addEventListener("click", function() {
 
       imageEditorStatus.textContent = "公開圖片已儲存。";
 
-      const refreshAfterClose = imageEditorRefresh;
       closePublicImageEditor();
 
       if (typeof refreshAfterClose === "function") {
         await refreshAfterClose();
       }
     } catch {
+      if (generation !== imageEditorGeneration) return;
+      imageEditorSaving = false;
       imageEditorStatus.textContent = "公開圖片儲存失敗。";
       imageEditorSave.disabled = false;
     }
@@ -1927,6 +1909,9 @@ async function loadAttachments(item, container) {
 }
 
 async function loadPublicationAttachments(item, container) {
+  const loadToken = Symbol();
+  container.publicationLoadToken = loadToken;
+  const current = () => container.publicationLoadToken === loadToken && publicationItem?.id === item.id;
   const hadContent = container.childElementCount > 0;
   const savedScrollTop = publicationPanel?.scrollTop || 0;
 
@@ -1948,6 +1933,7 @@ async function loadPublicationAttachments(item, container) {
     );
 
     const result = await response.json();
+    if (!current()) return;
     if (!response.ok || !result.ok) throw new Error();
 
     const attachments = result.attachments || [];
@@ -1975,6 +1961,7 @@ async function loadPublicationAttachments(item, container) {
           originalImage.alt =
             (attachment.original_filename || "回報附件") + " 原始照片";
           originalImage.loading = "lazy";
+          originalImage.onerror = () => originalImage.replaceWith(make("div", "原始圖片載入失敗", "attachment-preview-empty"));
           originalCell.append(originalImage);
         } else {
           originalCell.append(
@@ -2014,6 +2001,7 @@ async function loadPublicationAttachments(item, container) {
           publicImage.alt =
             (attachment.original_filename || "回報附件") + " 公開版本";
           publicImage.loading = "eager";
+          publicImage.onerror = () => publicImage.replaceWith(make("div", "公開圖片載入失敗，請重新整理", "attachment-preview-empty"));
           publicCell.append(publicImage);
         } else {
           publicCell.append(
@@ -2051,7 +2039,7 @@ async function loadPublicationAttachments(item, container) {
         const publicToggle = document.createElement("input");
         publicToggle.type = "checkbox";
         publicToggle.checked = Number(attachment.is_public) === 1;
-        publicToggle.disabled = !attachment.available || !isImage;
+        publicToggle.disabled = !attachment.public_ready || !isImage;
         publicLabel.append(
           publicToggle,
           document.createTextNode("顯示這張照片")
@@ -2063,7 +2051,7 @@ async function loadPublicationAttachments(item, container) {
           "secondary-button"
         );
         editButton.type = "button";
-        editButton.disabled = !attachment.available || !isImage;
+        editButton.disabled = !(attachment.available || attachment.public_ready) || !isImage;
 
         const actionStatus = make("span", "", "save-status");
 
@@ -2090,8 +2078,8 @@ async function loadPublicationAttachments(item, container) {
                 ? "原始附件目前無法取得。"
                 : "更新失敗。";
           } finally {
-            publicToggle.disabled = false;
-            editButton.disabled = !attachment.available || !isImage;
+            publicToggle.disabled = !attachment.public_ready || !isImage;
+            editButton.disabled = !(attachment.available || attachment.public_ready) || !isImage;
           }
         });
 
@@ -2118,14 +2106,17 @@ async function loadPublicationAttachments(item, container) {
       }
     });
   } catch {
+    if (!current()) return;
     if (!hadContent) {
       container.replaceChildren(
         make("div", "公開圖片讀取失敗。", "attachment-placeholder")
       );
     }
   } finally {
-    container.classList.remove("is-refreshing");
-    container.removeAttribute("aria-busy");
+    if (current()) {
+      container.classList.remove("is-refreshing");
+      container.removeAttribute("aria-busy");
+    }
   }
 }
 
@@ -2269,174 +2260,6 @@ function createPublicationSection(item) {
 
   row.append(button);
   section.append(note, row);
-  return section;
-}
-
-function createContentEditor(item) {
-  const section = make("div", null, "detail-section");
-  section.append(make("h3", "回報內容編輯"));
-
-  if (item.deleted_at) {
-    section.append(make("div", "已刪除回報不能編輯內容。", "attachment-placeholder"));
-    return section;
-  }
-
-  const editor = make("div", null, "content-editor");
-
-  const descriptionField = createTextarea(
-    "問題描述",
-    item.edited_description ?? item.description ?? "",
-    "可整理、修正文句，或替只有截圖的回報補上描述"
-  );
-  descriptionField.textarea.rows = 5;
-
-  const descriptionStateRow = make("div", null, "field-state-row");
-  const descriptionMissing = make("label");
-  const descriptionMissingInput = document.createElement("input");
-  descriptionMissingInput.type = "checkbox";
-  descriptionMissingInput.checked = item.description_state === "missing";
-  descriptionMissing.append(descriptionMissingInput, document.createTextNode("未提供"));
-
-  const descriptionNA = make("label");
-  const descriptionNAInput = document.createElement("input");
-  descriptionNAInput.type = "checkbox";
-  descriptionNAInput.checked = item.description_state === "not_applicable";
-  descriptionNA.append(descriptionNAInput, document.createTextNode("不適用"));
-
-  descriptionStateRow.append(descriptionMissing, descriptionNA);
-  descriptionField.label.append(descriptionStateRow);
-
-  const stepsField = createTextarea(
-    "發生時機／重現步驟",
-    item.edited_steps ?? item.steps ?? "",
-    "可補上重現方式；若沒有固定步驟，可標記不適用"
-  );
-  stepsField.textarea.rows = 5;
-
-  const stepsStateRow = make("div", null, "field-state-row");
-  const stepsMissing = make("label");
-  const stepsMissingInput = document.createElement("input");
-  stepsMissingInput.type = "checkbox";
-  stepsMissingInput.checked = item.steps_state === "missing";
-  stepsMissing.append(stepsMissingInput, document.createTextNode("未提供"));
-
-  const stepsNA = make("label");
-  const stepsNAInput = document.createElement("input");
-  stepsNAInput.type = "checkbox";
-  stepsNAInput.checked = item.steps_state === "not_applicable";
-  stepsNA.append(stepsNAInput, document.createTextNode("不適用"));
-
-  stepsStateRow.append(stepsMissing, stepsNA);
-  stepsField.label.append(stepsStateRow);
-
-  function syncFieldState(textarea, missing, notApplicable) {
-    if (missing.checked) {
-      notApplicable.checked = false;
-      textarea.disabled = true;
-    } else if (notApplicable.checked) {
-      missing.checked = false;
-      textarea.disabled = true;
-    } else {
-      textarea.disabled = false;
-    }
-  }
-
-  [
-    [descriptionField.textarea, descriptionMissingInput, descriptionNAInput],
-    [stepsField.textarea, stepsMissingInput, stepsNAInput]
-  ].forEach(function(group) {
-    const [textarea, missing, notApplicable] = group;
-    missing.addEventListener("change", function() {
-      syncFieldState(textarea, missing, notApplicable);
-    });
-    notApplicable.addEventListener("change", function() {
-      syncFieldState(textarea, missing, notApplicable);
-    });
-    syncFieldState(textarea, missing, notApplicable);
-  });
-
-  editor.append(descriptionField.label, stepsField.label);
-
-  const originalButton = make("button", "查看原始回報", "secondary-button");
-  originalButton.type = "button";
-
-  const originalBox = make("div", null, "original-box");
-  originalBox.hidden = true;
-  originalBox.append(
-    make("strong", "原始問題描述"),
-    make("pre", item.original_description || "（原本未提供）"),
-    make("strong", "原始重現步驟"),
-    make("pre", item.original_steps || "（原本未提供）")
-  );
-
-  originalButton.addEventListener("click", function() {
-    originalBox.hidden = !originalBox.hidden;
-    originalButton.textContent = originalBox.hidden
-      ? "查看原始回報"
-      : "收起原始回報";
-  });
-
-  const actionRow = make("div", null, "action-row");
-  const save = make("button", "儲存回報內容", "save-button");
-  save.type = "button";
-  const status = make("span", "", "save-status");
-
-  save.addEventListener("click", async function() {
-    const descriptionState = descriptionNAInput.checked
-      ? "not_applicable"
-      : (descriptionMissingInput.checked ? "missing" : "provided");
-    const stepsState = stepsNAInput.checked
-      ? "not_applicable"
-      : (stepsMissingInput.checked ? "missing" : "provided");
-
-    if (
-      descriptionState === "provided" &&
-      !descriptionField.textarea.value.trim()
-    ) {
-      status.textContent = "問題描述為空，請填寫內容或標記「未提供／不適用」。";
-      descriptionField.textarea.focus();
-      return;
-    }
-
-    if (
-      stepsState === "provided" &&
-      !stepsField.textarea.value.trim()
-    ) {
-      status.textContent = "重現步驟為空，請填寫內容或標記「未提供／不適用」。";
-      stepsField.textarea.focus();
-      return;
-    }
-
-    save.disabled = true;
-    status.textContent = "正在儲存…";
-
-    try {
-      const response = await fetch("/dashboard/api/feedback/content", {
-        method:"PATCH",
-        headers:{ "Content-Type":"application/json" },
-        body:JSON.stringify({
-          id:item.id,
-          description:descriptionField.textarea.value,
-          steps:stepsField.textarea.value,
-          descriptionState,
-          stepsState
-        })
-      });
-
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error();
-
-      status.textContent = "內容已儲存。";
-      await loadFeedback();
-    } catch {
-      status.textContent = "內容儲存失敗，請稍後再試。";
-    } finally {
-      save.disabled = false;
-    }
-  });
-
-  actionRow.append(save, originalButton, status);
-  section.append(editor, originalBox, actionRow);
   return section;
 }
 

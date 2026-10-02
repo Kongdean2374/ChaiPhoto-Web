@@ -44,6 +44,39 @@ const diagnosticKeys = new Set([
 
 const dashboardHost = "photo.chaihome.cc";
 
+// Enforce limits while reading, including requests without Content-Length.
+async function boundedRequest(request, limit) {
+  if (Number(request.headers.get("Content-Length")) > limit) {
+    return json({ ok: false, error: "Payload too large" }, 413);
+  }
+  const chunks = [];
+  let size = 0;
+  const reader = request.body?.getReader();
+  if (!reader) return request;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return json({ ok: false, error: "Payload too large" }, 413);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  if ((request.headers.get("Content-Type") || "").includes("application/json")) {
+    try {
+      const value = JSON.parse(new TextDecoder().decode(bytes));
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    } catch {
+      return json({ ok: false, error: "JSON object required" }, 400);
+    }
+  }
+  return new Request(request, { body: bytes });
+}
+
 function isDashboardRequest(url) {
   return (
     url.pathname === "/dashboard" ||
@@ -98,6 +131,7 @@ function formatSourceReportId(sourceKey, number) {
 }
 
 function parseReportReference(value) {
+  if (typeof value !== "string" || value.length > 80) return null;
   const raw = clean(value, 80).toUpperCase();
   if (!raw) return null;
 
@@ -127,6 +161,16 @@ function parseReportReference(value) {
   return null;
 }
 
+async function addColumnIfMissing(env, table, name, type) {
+  try {
+    await env.DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`).run();
+  } catch (error) {
+    // Concurrent first requests may both observe the pre-upgrade schema.
+    const info = await env.DB.prepare(`PRAGMA table_info(${table})`).all();
+    if (!(info.results || []).some(row => row.name === name)) throw error;
+  }
+}
+
 async function ensureFeedbackAttachmentPublicSchema(env) {
   const info = await env.DB.prepare(
     "PRAGMA table_info(feedback_attachments)"
@@ -146,9 +190,7 @@ async function ensureFeedbackAttachmentPublicSchema(env) {
   for (const [name, type] of additions) {
     if (columns.has(name)) continue;
 
-    await env.DB.prepare(
-      "ALTER TABLE feedback_attachments ADD COLUMN " + name + " " + type
-    ).run();
+    await addColumnIfMissing(env, "feedback_attachments", name, type);
   }
 }
 
@@ -175,9 +217,7 @@ async function ensureFeedbackPublicationSchema(env) {
 
   for (const [name, type] of additions) {
     if (columns.has(name)) continue;
-    await env.DB.prepare(
-      "ALTER TABLE feedback_v2_meta ADD COLUMN " + name + " " + type
-    ).run();
+    await addColumnIfMissing(env, "feedback_v2_meta", name, type);
   }
 }
 
@@ -629,6 +669,7 @@ async function persistTestFlightScreenshot(env, feedbackId, screenshot, index) {
         );
       }
     } catch (error) {
+      storageKey = null;
       console.error("Unable to persist TestFlight screenshot", error);
     }
   }
@@ -712,7 +753,7 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
   const now = new Date().toISOString();
   const privateMetadata = testFlightPrivateMetadata(attributes, tester);
 
-  await env.DB.batch([
+  const statements = [
     env.DB.prepare(
       `INSERT INTO feedback (
         id,
@@ -781,7 +822,7 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
       JSON.stringify(privateMetadata),
       now
     )
-  ]);
+  ];
 
   const screenshots = Array.isArray(attributes.screenshots)
     ? attributes.screenshots
@@ -795,7 +836,7 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
       index
     );
 
-    await env.DB.prepare(
+    statements.push(env.DB.prepare(
       `INSERT INTO feedback_attachments (
         id,
         feedback_id,
@@ -825,8 +866,16 @@ async function insertTestFlightFeedback(env, resourceType, resourceId, eventType
         attachment.width,
         attachment.height,
         now
-      )
-      .run();
+      ));
+  }
+
+  try {
+    await env.DB.batch(statements);
+  } catch (error) {
+    // A concurrent delivery may have committed the same external resource.
+    const winner = await env.DB.prepare("SELECT feedback_id FROM feedback_v2_meta WHERE source_key = 'tf' AND external_resource_id = ?").bind(resourceId).first();
+    if (winner?.feedback_id) return { created: false, feedbackId: winner.feedback_id };
+    throw error;
   }
 
   return {
@@ -950,7 +999,23 @@ async function ensureAppReleaseSchema(env) {
 }
 
 async function ensureTrackingSchema(env) {
+  // Older live databases were altered manually; clean installs need these too.
+  const columns = new Set((await env.DB.prepare("PRAGMA table_info(feedback)").all()).results.map(row => row.name));
+  for (const [name, type] of [
+    ["is_public", "INTEGER NOT NULL DEFAULT 0"],
+    ["public_title", "TEXT"], ["public_note", "TEXT"],
+    ["fixed_version", "TEXT"], ["fixed_build", "TEXT"], ["updated_at", "TEXT"]
+  ]) {
+    if (!columns.has(name)) await addColumnIfMissing(env, "feedback", name, type);
+  }
   await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_requests (
+        request_id TEXT PRIMARY KEY,
+        payload_hash TEXT NOT NULL,
+        report_number INTEGER NOT NULL
+      )`
+    ),
     env.DB.prepare(
       `CREATE TABLE IF NOT EXISTS feedback_tracking (
         feedback_id TEXT PRIMARY KEY,
@@ -1038,6 +1103,16 @@ async function loadPublicAttachmentRefs(env, feedbackIds) {
 
   const output = new Map();
   if (!ids.length) return output;
+
+  // D1 limits the number of bound parameters per statement.
+  if (ids.length > 80) {
+    for (let offset = 0; offset < ids.length; offset += 80) {
+      for (const [id, refs] of await loadPublicAttachmentRefs(env, ids.slice(offset, offset + 80))) {
+        output.set(id, refs);
+      }
+    }
+    return output;
+  }
 
   const placeholders = ids.map(() => "?").join(",");
   const result = await env.DB.prepare(
@@ -1454,10 +1529,13 @@ async function handleDashboardApi(request, env, url) {
              public_show_created_at = ?,
              public_show_source = ?,
              updated_at = ?
-         WHERE feedback_id = ?`
+         WHERE feedback_id = ? AND EXISTS (
+           SELECT 1 FROM feedback_tracking t
+           WHERE t.feedback_id = feedback_v2_meta.feedback_id AND t.deleted_at IS NULL
+         )`
       ).bind(
-        publicDescription || null,
-        publicSteps || null,
+        publicDescription,
+        publicSteps,
         flag(body.showDescription),
         flag(body.showSteps),
         flag(body.showCategory),
@@ -1694,6 +1772,7 @@ async function handleDashboardApi(request, env, url) {
          a.expires_at,
          a.mime_type,
          a.public_storage_key,
+         a.is_public,
          t.deleted_at
        FROM feedback_attachments a
        JOIN feedback_tracking t ON t.feedback_id = a.feedback_id
@@ -1774,30 +1853,30 @@ async function handleDashboardApi(request, env, url) {
       const oldKey = clean(item.public_storage_key, 1000);
       const now = new Date().toISOString();
 
-      await env.DB.prepare(
+      const saved = await env.DB.prepare(
         `UPDATE feedback_attachments
          SET public_storage_key = ?,
              public_mime_type = ?,
              public_byte_size = ?,
              public_updated_at = ?,
              is_public = 1
-         WHERE id = ?`
+         WHERE id = ? AND COALESCE(public_storage_key, '') = ? AND is_public = ?
+           AND EXISTS (SELECT 1 FROM feedback_tracking t
+             WHERE t.feedback_id = feedback_attachments.feedback_id AND t.deleted_at IS NULL)`
       )
         .bind(
           storageKey,
           contentType,
           body.byteLength,
           now,
-          attachmentId
+          attachmentId,
+          item.public_storage_key || "",
+          item.is_public
         )
         .run();
 
-      if (oldKey && oldKey !== storageKey && env.FEEDBACK_MEDIA?.delete) {
-        try {
-          await env.FEEDBACK_MEDIA.delete(oldKey);
-        } catch (error) {
-          console.error("Unable to remove old public derivative", error);
-        }
+      if (!Number(saved.meta?.changes)) {
+        return json({ ok: false, error: "Attachment changed; reload before saving" }, 409);
       }
 
       return json({
@@ -1828,88 +1907,7 @@ async function handleDashboardApi(request, env, url) {
       let publicStorageKey = clean(item.public_storage_key, 1000);
 
       if (!publicStorageKey) {
-        if (!env.FEEDBACK_MEDIA?.put) {
-          return json({ ok: false, error: "Media storage unavailable" }, 503);
-        }
-
-        let sourceBody = null;
-        let sourceType = clean(item.mime_type, 160) || "image/jpeg";
-
-        if (item.storage_key && env.FEEDBACK_MEDIA?.get) {
-          const originalObject = await env.FEEDBACK_MEDIA.get(item.storage_key);
-          if (originalObject) {
-            sourceBody = await originalObject.arrayBuffer();
-            sourceType =
-              originalObject.httpMetadata?.contentType ||
-              sourceType;
-          }
-        }
-
-        if (!sourceBody && item.remote_url) {
-          const expiresAt = item.expires_at
-            ? new Date(item.expires_at).getTime()
-            : null;
-
-          if (!Number.isFinite(expiresAt) || expiresAt > Date.now()) {
-            try {
-              const originalResponse = await fetch(item.remote_url);
-              if (originalResponse.ok) {
-                sourceBody = await originalResponse.arrayBuffer();
-                sourceType =
-                  originalResponse.headers.get("Content-Type") ||
-                  sourceType;
-              }
-            } catch (error) {
-              console.error("Unable to copy original attachment", error);
-            }
-          }
-        }
-
-        if (!sourceBody?.byteLength) {
-          return json({ ok: false, error: "Original attachment unavailable" }, 410);
-        }
-
-        const extension =
-          sourceType.includes("png")
-            ? "png"
-            : (sourceType.includes("webp") ? "webp" : "jpg");
-
-        publicStorageKey =
-          "public/" +
-          item.feedback_id +
-          "/" +
-          attachmentId +
-          "-" +
-          crypto.randomUUID() +
-          "." +
-          extension;
-
-        await env.FEEDBACK_MEDIA.put(publicStorageKey, sourceBody, {
-          httpMetadata: { contentType: sourceType },
-          customMetadata: {
-            feedbackId: item.feedback_id,
-            attachmentId,
-            variant: "public-flat"
-          }
-        });
-
-        await env.DB.prepare(
-          `UPDATE feedback_attachments
-           SET public_storage_key = ?,
-               public_mime_type = ?,
-               public_byte_size = ?,
-               public_updated_at = ?,
-               is_public = 1
-           WHERE id = ?`
-        )
-          .bind(
-            publicStorageKey,
-            sourceType,
-            sourceBody.byteLength,
-            new Date().toISOString(),
-            attachmentId
-          )
-          .run();
+        return json({ ok: false, error: "Public image must be created in the editor first" }, 409);
       } else {
         await env.DB.prepare(
           `UPDATE feedback_attachments
@@ -2002,10 +2000,13 @@ async function handleDashboardApi(request, env, url) {
              description_state = ?,
              steps_state = ?,
              updated_at = ?
-         WHERE feedback_id = ?`
+         WHERE feedback_id = ? AND EXISTS (
+           SELECT 1 FROM feedback_tracking t
+           WHERE t.feedback_id = feedback_v2_meta.feedback_id AND t.deleted_at IS NULL
+         )`
       ).bind(
-        descriptionState === "provided" ? description : null,
-        stepsState === "provided" ? steps : null,
+        descriptionState === "provided" ? description : "",
+        stepsState === "provided" ? steps : "",
         descriptionState,
         stepsState,
         now,
@@ -2172,6 +2173,14 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
+    if (["POST", "PUT", "PATCH"].includes(request.method)) {
+      const bounded = await boundedRequest(request,
+        url.pathname === "/dashboard/api/feedback/attachment/public" && request.method === "PUT"
+          ? 15 * 1024 * 1024 : 64 * 1024);
+      if (bounded instanceof Response) return bounded;
+      request = bounded;
+    }
+
     if (isDashboardRequest(url)) {
       if (
         url.hostname !== dashboardHost ||
@@ -2233,18 +2242,12 @@ export default {
         return json({ ok: false, error: "Invalid JSON" }, 400);
       }
 
-      // Apple webhook pings and future event types should still receive a 2xx
-      // after signature verification. Supported TestFlight feedback events are
-      // processed asynchronously so Apple doesn't need to wait on ASC API I/O.
-      const work = processAppStoreWebhookEvent(env, body)
-        .catch(error => {
-          console.error("App Store webhook processing failed", error);
-        });
-
-      if (ctx?.waitUntil) {
-        ctx.waitUntil(work);
-      } else {
-        await work;
+      // Acknowledge only after durable ingestion so failures remain retryable.
+      try {
+        await processAppStoreWebhookEvent(env, body);
+      } catch (error) {
+        console.error("App Store webhook processing failed", error);
+        return json({ ok: false, error: "Feedback ingestion temporarily unavailable" }, 503);
       }
 
       return json({ ok: true }, 202);
@@ -2492,12 +2495,12 @@ export default {
       const attachmentMap = await loadPublicAttachmentRefs(
         env,
         rows
-          .filter(item => Number(item.is_public) === 1)
+          .filter(item => Number(item.is_public) === 1 && !item.deleted_at)
           .map(item => item.feedback_id)
       );
 
       const matches = rows.map(item => {
-        const published = Number(item.is_public) === 1;
+        const published = Number(item.is_public) === 1 && !item.deleted_at;
         const enabled = key => Number(item[key] ?? 1) === 1;
 
         return {
@@ -2519,10 +2522,10 @@ export default {
             ? item.category
             : null,
           description: published && enabled("public_show_description")
-            ? (item.edited_description || item.original_description || "")
+            ? (item.edited_description ?? "")
             : null,
           steps: published && enabled("public_show_steps")
-            ? (item.edited_steps || item.original_steps || "")
+            ? (item.edited_steps ?? "")
             : null,
           app_version: published && enabled("public_show_app_version")
             ? item.app_version
@@ -2608,6 +2611,9 @@ export default {
       if (message.length < 3) {
         return json({ ok: false, error: "Message is too short" }, 400);
       }
+      if (typeof body.message !== "string" || body.message.trim().length > 2000) {
+        return json({ ok: false, error: "Message is too long" }, 400);
+      }
 
       await ensureTrackingRows(env);
 
@@ -2632,7 +2638,7 @@ export default {
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
 
-      await env.DB.prepare(
+      const inserted = await env.DB.prepare(
         `INSERT INTO feedback_public_comments
          (
            id,
@@ -2643,7 +2649,18 @@ export default {
            status,
            created_at
          )
-         VALUES (?, ?, ?, ?, ?, 'new', ?)`
+         SELECT ?, ?, ?, ?, ?, 'new', ?
+         WHERE EXISTS (
+           SELECT 1 FROM feedback f JOIN feedback_tracking t ON t.feedback_id = f.id
+           WHERE f.id = ? AND f.is_public = 1 AND t.deleted_at IS NULL
+         ) AND (
+           SELECT COUNT(*) FROM feedback_public_comments
+           WHERE feedback_id = ? AND created_at >= ?
+         ) < 10
+         AND NOT EXISTS (
+           SELECT 1 FROM feedback_public_comments
+           WHERE feedback_id = ? AND category = ? AND message = ? AND created_at >= ?
+         )`
       )
         .bind(
           id,
@@ -2651,10 +2668,16 @@ export default {
           category,
           message,
           claimantOriginal ? 1 : 0,
-          createdAt
+          createdAt,
+          target.id,
+          target.id, new Date(Date.now() - 60_000).toISOString(),
+          target.id, category, message, new Date(Date.now() - 60_000).toISOString()
         )
         .run();
 
+      if (!Number(inserted.meta?.changes)) {
+        return json({ ok: false, error: "Please wait before sending another comment" }, 429);
+      }
       return json({ ok: true, id }, 201);
     }
 
@@ -2794,10 +2817,10 @@ export default {
             public_title: item.public_title,
             public_note: item.public_note,
             description: enabled("public_show_description")
-              ? (item.edited_description || item.original_description || "")
+              ? (item.edited_description ?? "")
               : null,
             steps: enabled("public_show_steps")
-              ? (item.edited_steps || item.original_steps || "")
+              ? (item.edited_steps ?? "")
               : null,
             category: enabled("public_show_category") ? item.category : null,
             app_version: enabled("public_show_app_version") ? item.app_version : null,
@@ -2845,6 +2868,8 @@ export default {
 
       const item = await env.DB.prepare(
         `SELECT
+           f.id AS feedback_id,
+           m.public_show_created_at,
            f.created_at,
            f.status,
            f.category,
@@ -2863,7 +2888,8 @@ export default {
            t.deletion_reason
          FROM feedback f
          JOIN feedback_tracking t ON t.feedback_id = f.id
-         WHERE t.report_number = ?
+         JOIN feedback_v2_meta m ON m.feedback_id = f.id
+         WHERE m.source_key = 'beta' AND m.source_number = ?
          LIMIT 1`
       )
         .bind(reportNumber)
@@ -2878,9 +2904,7 @@ export default {
           ok: true,
           feedback: {
             report_id: formatReportId(reportNumber),
-            status: "deleted",
-            deleted_at: item.deleted_at,
-            deletion_reason: item.deletion_reason || ""
+            status: "deleted"
           }
         });
       }
@@ -2894,7 +2918,8 @@ export default {
         ok: true,
         feedback: {
           report_id: formatReportId(reportNumber),
-          created_at: item.created_at,
+          created_at: Number(item.is_public) === 1 && Number(item.public_show_created_at ?? 1) === 1
+            ? item.created_at : null,
           status: item.status,
           eta_seconds: item.eta_seconds,
           eta_due_at: item.eta_due_at,
@@ -2980,6 +3005,22 @@ export default {
 
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
+      const requestId = clean(body.requestId, 80);
+      if (requestId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+        return json({ ok: false, error: "Invalid request id" }, 400);
+      }
+      const payloadHash = bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256",
+        new TextEncoder().encode(JSON.stringify([category, description, steps, appVersion, buildNumber, iosVersion, deviceModel, diagnostics])))));
+      const replay = async () => {
+        if (!requestId) return null;
+        const saved = await env.DB.prepare("SELECT payload_hash, report_number FROM feedback_requests WHERE request_id = ?").bind(requestId).first();
+        if (!saved) return null;
+        return saved.payload_hash === payloadHash
+          ? json({ ok: true, id: formatReportId(saved.report_number) })
+          : json({ ok: false, error: "Request id already used for different content" }, 409);
+      };
+      const repeated = await replay();
+      if (repeated) return repeated;
       const reportNumber = await nextReportNumber(env);
 
       try {
@@ -3023,9 +3064,12 @@ export default {
             id,
             reportNumber,
             diagnostics ? JSON.stringify(diagnostics) : null
-          )
+          ),
+          ...(requestId ? [env.DB.prepare("INSERT INTO feedback_requests (request_id, payload_hash, report_number) VALUES (?, ?, ?)").bind(requestId, payloadHash, reportNumber)] : [])
         ]);
       } catch (error) {
+        const repeated = await replay();
+        if (repeated) return repeated;
         console.error("Feedback insert failed", error);
         return json(
           { ok: false, error: "Unable to save feedback" },
