@@ -980,6 +980,40 @@ function etaFromBody(body) {
   return Math.min(Math.floor(parsed), 60 * 60 * 24 * 365);
 }
 
+async function loadPublicAttachmentRefs(env, feedbackIds) {
+  const ids = Array.from(new Set(
+    (feedbackIds || []).filter(Boolean).map(String)
+  ));
+
+  const output = new Map();
+  if (!ids.length) return output;
+
+  const placeholders = ids.map(() => "?").join(",");
+  const result = await env.DB.prepare(
+    `SELECT id, feedback_id
+     FROM feedback_attachments
+     WHERE feedback_id IN (${placeholders})
+       AND is_public = 1
+       AND public_storage_key IS NOT NULL
+     ORDER BY created_at ASC, id ASC`
+  )
+    .bind(...ids)
+    .all();
+
+  for (const row of result.results || []) {
+    const list = output.get(row.feedback_id) || [];
+    list.push({
+      id: row.id,
+      url:
+        "/api/public-feedback/attachment?id=" +
+        encodeURIComponent(row.id)
+    });
+    output.set(row.feedback_id, list);
+  }
+
+  return output;
+}
+
 async function handleDashboardApi(request, env, url) {
   await ensureTrackingRows(env);
 
@@ -2016,6 +2050,7 @@ export default {
 
       const list = await env.DB.prepare(
         `SELECT
+           f.id AS feedback_id,
            f.created_at,
            f.status,
            f.category,
@@ -2072,6 +2107,7 @@ export default {
 
       const baseSql =
         `SELECT
+           f.id AS feedback_id,
            f.created_at,
            f.status,
            f.category,
@@ -2226,12 +2262,24 @@ export default {
         ? await statement.bind(filter).all()
         : await statement.all();
 
+      const rows = result.results || [];
+      const attachmentMap = await loadPublicAttachmentRefs(
+        env,
+        rows.map(item => item.feedback_id)
+      );
+
       return json({
         ok: true,
-        feedback: (result.results || []).map(item => ({
-          ...item,
-          report_id: formatReportId(item.report_number)
-        }))
+        feedback: rows.map(item => {
+          const feedbackId = item.feedback_id;
+          const copy = {
+            ...item,
+            report_id: formatReportId(item.report_number),
+            attachments: attachmentMap.get(feedbackId) || []
+          };
+          delete copy.feedback_id;
+          return copy;
+        })
       });
     }
 
@@ -2291,6 +2339,11 @@ export default {
         });
       }
 
+      const attachmentMap =
+        Number(item.is_public) === 1
+          ? await loadPublicAttachmentRefs(env, [item.feedback_id])
+          : new Map();
+
       return json({
         ok: true,
         feedback: {
@@ -2308,7 +2361,10 @@ export default {
             : null,
           public_note: Number(item.is_public) === 1
             ? item.public_note
-            : null
+            : null,
+          attachments: Number(item.is_public) === 1
+            ? (attachmentMap.get(item.feedback_id) || [])
+            : []
         }
       });
     }
