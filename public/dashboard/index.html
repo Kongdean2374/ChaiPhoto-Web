@@ -32,7 +32,7 @@
 
     .filters {
       display:grid;
-      grid-template-columns:2fr repeat(5,minmax(120px,1fr)) auto;
+      grid-template-columns:2fr repeat(6,minmax(120px,1fr)) auto;
       gap:8px;
       align-items:end;
       margin-top:12px;
@@ -228,6 +228,375 @@
     .save-status { color:var(--muted); font-size:.8rem; }
     .diag { margin:0; white-space:pre-wrap; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); }
 
+    .source-badge-beta { color:#4f67c8; }
+    .source-badge-tf { color:#8c5bb8; }
+
+
+
+
+
+
+    .original-box {
+      margin-top:10px;
+      padding:11px;
+      border-radius:13px;
+      border:1px dashed var(--line);
+      background:var(--bg);
+    }
+
+    .original-box[hidden] { display:none; }
+    .original-box pre {
+      margin:6px 0 0;
+      white-space:pre-wrap;
+      font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+
+    .secondary-button {
+      appearance:none;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:9px 12px;
+      background:var(--card);
+      color:var(--text);
+      font:inherit;
+      font-weight:720;
+      cursor:pointer;
+    }
+
+    .attachment-placeholder {
+      padding:11px;
+      border-radius:13px;
+      background:var(--bg);
+      color:var(--muted);
+      font-size:.82rem;
+    }
+
+    .attachment-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .attachment-card {
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:8px;
+      background:var(--bg);
+    }
+
+    .attachment-card img {
+      width:100%;
+      aspect-ratio:9 / 16;
+      object-fit:contain;
+      border-radius:10px;
+      background:#111;
+      display:block;
+    }
+
+    .attachment-meta {
+      margin-top:7px;
+      color:var(--muted);
+      font-size:.75rem;
+      line-height:1.45;
+    }
+
+    .attachment-actions {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      gap:8px;
+      margin-top:9px;
+    }
+
+    .attachment-public-toggle {
+      display:flex;
+      align-items:center;
+      gap:6px;
+      font-size:.8rem;
+      font-weight:700;
+    }
+
+    .attachment-public-toggle input { width:auto; }
+
+    .image-editor-modal {
+      position:fixed;
+      inset:0;
+      z-index:999;
+      display:grid;
+      place-items:center;
+      padding:14px;
+      background:rgba(0,0,0,.76);
+      overflow:hidden;
+      overscroll-behavior:none;
+    }
+
+    .image-editor-modal[hidden] { display:none; }
+
+    .image-editor-panel {
+      width:min(980px,100%);
+      max-height:94vh;
+      overflow:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:var(--card);
+      padding:14px;
+    }
+
+    .image-editor-head {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .image-editor-head h2 {
+      margin:0;
+      font-size:1.08rem;
+    }
+
+    .image-editor-toolbar {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:10px;
+    }
+
+    .editor-tool.active {
+      border-color:var(--accent);
+      color:var(--accent);
+    }
+
+    .image-editor-stage {
+      position:relative;
+      min-height:240px;
+      height:min(66vh,720px);
+      padding:8px;
+      border-radius:14px;
+      background:#101012;
+      overflow:hidden;
+      touch-action:none;
+    }
+
+    .image-editor-canvas-wrap {
+      position:absolute;
+      left:8px;
+      top:8px;
+      transform-origin:0 0;
+      will-change:transform;
+    }
+
+    #image-editor-canvas,
+    #image-editor-selection-canvas {
+      position:absolute;
+      inset:0;
+      display:block;
+    }
+
+    #image-editor-canvas { z-index:1; }
+    #image-editor-selection-canvas {
+      z-index:2;
+      touch-action:none;
+      cursor:crosshair;
+    }
+
+    .image-selection-actions {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+      padding:9px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--bg);
+    }
+
+    .image-selection-actions[hidden] { display:none; }
+
+    .image-editor-help {
+      margin:9px 0 0;
+      color:var(--muted);
+      font-size:.8rem;
+      line-height:1.5;
+    }
+
+    .dashboard-tabs {
+      display:flex;
+      gap:8px;
+      margin:12px 0 10px;
+    }
+
+    .dashboard-tab {
+      appearance:none;
+      border:1px solid var(--line);
+      background:var(--card);
+      color:var(--muted);
+      border-radius:999px;
+      padding:9px 14px;
+      font:inherit;
+      font-weight:760;
+      cursor:pointer;
+    }
+
+    .dashboard-tab.active {
+      border-color:var(--accent);
+      color:var(--accent);
+    }
+
+    .public-comments-panel[hidden],
+    .feedback-panel[hidden] { display:none; }
+
+    .comment-list { display:grid; gap:10px; }
+
+    .comment-card {
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:var(--card);
+      padding:13px;
+    }
+
+    .comment-head {
+      display:flex;
+      gap:8px;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .comment-message {
+      margin:9px 0;
+      white-space:pre-wrap;
+    }
+
+    .publication-modal {
+      position:fixed;
+      inset:0;
+      z-index:980;
+      display:grid;
+      place-items:center;
+      padding:14px;
+      background:rgba(0,0,0,.72);
+      overflow:hidden;
+      overscroll-behavior:none;
+    }
+
+    .publication-modal[hidden] { display:none; }
+
+    .publication-panel {
+      width:min(920px,100%);
+      max-height:94vh;
+      overflow:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      touch-action:pan-y;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background:var(--card);
+      padding:16px;
+    }
+
+    .publication-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:12px;
+    }
+
+    .publication-head h2 { margin:0; font-size:1.15rem; }
+
+    .publication-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .publication-grid .wide { grid-column:1 / -1; }
+
+    .publication-field-toggles {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:7px;
+      margin-top:9px;
+    }
+
+    .publication-field-toggles label {
+      display:flex;
+      align-items:center;
+      gap:7px;
+      padding:8px 9px;
+      border:1px solid var(--line);
+      border-radius:11px;
+      font-size:.82rem;
+      font-weight:680;
+    }
+
+    .publication-field-toggles input { width:auto; }
+
+    .publication-attachments {
+      margin-top:12px;
+      transition:opacity .15s ease;
+    }
+
+    .publication-attachments .attachment-grid {
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    }
+
+    .publication-attachments.is-refreshing {
+      opacity:.68;
+      pointer-events:none;
+    }
+
+    .attachment-preview-pair {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;
+    }
+
+    .attachment-preview-cell {
+      min-width:0;
+    }
+
+    .attachment-preview-label {
+      margin:0 0 6px;
+      color:var(--muted);
+      font-size:.72rem;
+      font-weight:750;
+      text-align:center;
+    }
+
+    .attachment-preview-cell img {
+      width:100%;
+      aspect-ratio:9 / 16;
+      object-fit:contain;
+      border-radius:10px;
+      background:#111;
+      display:block;
+    }
+
+    .attachment-preview-empty {
+      display:grid;
+      place-items:center;
+      width:100%;
+      aspect-ratio:9 / 16;
+      padding:8px;
+      border-radius:10px;
+      background:#111;
+      color:var(--muted);
+      text-align:center;
+      font-size:.75rem;
+    }
+
+    .readonly-note {
+      margin:8px 0 0;
+      color:var(--muted);
+      font-size:.8rem;
+    }
+
     @media (max-width:900px) {
       .filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
       .filters .search-wrap { grid-column:1 / -1; }
@@ -239,7 +608,8 @@
       .dashboard-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
       .filters { grid-template-columns:1fr 1fr; }
       .filters .search-wrap { grid-column:1 / -1; }
-      .editor-grid,.meta-grid { grid-template-columns:1fr; }
+      .editor-grid,.meta-grid,.publication-grid,.publication-field-toggles { grid-template-columns:1fr; }
+      .publication-attachments .attachment-grid { grid-template-columns:1fr; }
       .eta-grid { grid-template-columns:1fr 1fr; }
       .feedback-right .visibility-label { display:none; }
     }
@@ -251,16 +621,31 @@
   <div class="hero">
     <p class="muted">ChaiPhoto Dashboard</p>
     <h1>回報管理</h1>
-    <p>查看 BETA 回報、更新處理進度、設定預計時間、公開資訊與修復版本。</p>
+    <p>統一管理網站與 TestFlight 回報、編輯內容、更新處理進度與公開資訊。</p>
   </div>
 
+  <div class="dashboard-tabs" role="tablist">
+    <button id="feedback-tab" class="dashboard-tab active" type="button">回報</button>
+    <button id="public-comments-tab" class="dashboard-tab" type="button">公開反饋</button>
+  </div>
+
+  <section id="feedback-panel" class="feedback-panel">
   <div class="toolbar-box">
     <div class="dashboard-summary" id="summary"></div>
 
     <div class="filters">
       <label class="filter-label search-wrap">
         搜尋
-        <input id="search-filter" type="search" placeholder="BETA ID、描述、版本、裝置">
+        <input id="search-filter" type="search" placeholder="BETA / TF ID、描述、版本、裝置">
+      </label>
+
+      <label class="filter-label">
+        來源
+        <select id="source-filter">
+          <option value="">全部</option>
+          <option value="beta">網站回報</option>
+          <option value="tf">TestFlight</option>
+        </select>
       </label>
 
       <label class="filter-label">
@@ -309,9 +694,124 @@
   </div>
 
   <div id="feedback-list" class="feedback-list"></div>
+  </section>
+
+  <section id="public-comments-panel" class="public-comments-panel" hidden>
+    <div class="toolbar-box">
+      <div class="comment-head">
+        <div>
+          <strong>公開頁面反饋</strong>
+          <p class="muted">查看使用者針對公開回報提出的資料錯誤、隱私或圖片問題。</p>
+        </div>
+        <button id="public-comments-refresh" class="button dashboard-refresh" type="button">重新整理</button>
+      </div>
+      <p id="public-comments-status" class="muted">尚未載入。</p>
+    </div>
+    <div id="public-comments-list" class="comment-list"></div>
+  </section>
 
   <footer>© 2026 ChaiPhoto</footer>
 </main>
+
+<div id="publication-modal" class="publication-modal" hidden>
+  <div class="publication-panel" role="dialog" aria-modal="true" aria-labelledby="publication-title">
+    <div class="publication-head">
+      <div>
+        <h2 id="publication-title">公開回報設定</h2>
+        <p id="publication-report-id" class="muted"></p>
+      </div>
+      <button id="publication-close" class="secondary-button" type="button">關閉</button>
+    </div>
+
+    <label class="inline-toggle">
+      <input id="publication-enabled" type="checkbox">
+      公開此回報
+    </label>
+
+    <div class="publication-grid" style="margin-top:12px">
+      <label class="wide">
+        公開標題
+        <input id="publication-public-title" maxlength="180" placeholder="對外顯示的問題標題">
+      </label>
+      <label class="wide">
+        公開問題描述
+        <textarea id="publication-description" rows="5" maxlength="5000"></textarea>
+      </label>
+      <label class="wide">
+        公開發生時機／重現步驟
+        <textarea id="publication-steps" rows="4" maxlength="5000"></textarea>
+      </label>
+      <label class="wide">
+        公開說明／處理進度
+        <textarea id="publication-note" rows="4" maxlength="2000"></textarea>
+      </label>
+    </div>
+
+    <div class="detail-section">
+      <h3>公開欄位</h3>
+      <p class="readonly-note">預設全部公開。取消勾選後，公開頁會保留欄位名稱並顯示「未公開」。</p>
+      <div class="publication-field-toggles">
+        <label><input id="publication-show-description" type="checkbox">問題描述</label>
+        <label><input id="publication-show-steps" type="checkbox">重現步驟</label>
+        <label><input id="publication-show-category" type="checkbox">問題類型</label>
+        <label><input id="publication-show-app-version" type="checkbox">App 版本</label>
+        <label><input id="publication-show-build-number" type="checkbox">Build</label>
+        <label><input id="publication-show-ios-version" type="checkbox">iOS 版本</label>
+        <label><input id="publication-show-device-model" type="checkbox">裝置型號</label>
+        <label><input id="publication-show-created-at" type="checkbox">回報時間</label>
+        <label><input id="publication-show-source" type="checkbox">回報來源</label>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h3>公開圖片</h3>
+      <p class="readonly-note">這裡才控制圖片是否對外顯示。原始 Bug 內的附件永遠保持唯讀。</p>
+      <div id="publication-attachments" class="publication-attachments"></div>
+    </div>
+
+    <div class="action-row">
+      <button id="publication-save" class="save-button" type="button">套用公開設定</button>
+      <span id="publication-status" class="save-status"></span>
+    </div>
+  </div>
+</div>
+
+<div id="image-editor-modal" class="image-editor-modal" hidden>
+  <div class="image-editor-panel" role="dialog" aria-modal="true" aria-labelledby="image-editor-title">
+    <div class="image-editor-head">
+      <h2 id="image-editor-title">編輯公開圖片</h2>
+      <button id="image-editor-close" class="secondary-button" type="button">關閉</button>
+    </div>
+
+    <div class="image-editor-toolbar">
+      <button class="secondary-button editor-tool active" data-tool="pixelate" type="button">馬賽克</button>
+      <button class="secondary-button editor-tool" data-tool="blackout" type="button">塗黑</button>
+      <button id="image-editor-undo" class="secondary-button" type="button">復原</button>
+      <button id="image-editor-reset" class="secondary-button" type="button">重設</button>
+      <button id="image-editor-save" class="save-button" type="button">儲存公開版本</button>
+      <span id="image-editor-status" class="save-status"></span>
+    </div>
+
+    <div id="image-editor-stage" class="image-editor-stage">
+      <div id="image-editor-canvas-wrap" class="image-editor-canvas-wrap">
+        <canvas id="image-editor-canvas"></canvas>
+        <canvas id="image-editor-selection-canvas"></canvas>
+      </div>
+    </div>
+
+    <div id="image-selection-actions" class="image-selection-actions" hidden>
+      <strong id="image-selection-info">已選取區域</strong>
+      <button id="image-selection-confirm" class="save-button" type="button">確認選取</button>
+      <button id="image-selection-cancel" class="secondary-button" type="button">取消</button>
+    </div>
+
+    <p class="image-editor-help">
+      選擇「馬賽克」或「塗黑」後拖曳框選，放開手指只會保留虛線預覽；
+      按「確認選取」才會真正套用。可用兩指縮放與平移做細部處理，
+      縮放只影響檢視，不會裁切圖片；儲存永遠輸出完整原始尺寸。
+    </p>
+  </div>
+</div>
 
 <script>
 const statusLabels = {
@@ -337,6 +837,7 @@ const summary = document.getElementById("summary");
 const list = document.getElementById("feedback-list");
 const statusText = document.getElementById("dashboard-status");
 const searchFilter = document.getElementById("search-filter");
+const sourceFilter = document.getElementById("source-filter");
 const statusFilter = document.getElementById("status-filter");
 const categoryFilter = document.getElementById("category-filter");
 const versionFilter = document.getElementById("version-filter");
@@ -344,8 +845,110 @@ const buildFilter = document.getElementById("build-filter");
 const iosFilter = document.getElementById("ios-filter");
 const deviceFilter = document.getElementById("device-filter");
 const refresh = document.getElementById("refresh-button");
+const feedbackTab = document.getElementById("feedback-tab");
+const publicCommentsTab = document.getElementById("public-comments-tab");
+const feedbackPanel = document.getElementById("feedback-panel");
+const publicCommentsPanel = document.getElementById("public-comments-panel");
+const publicCommentsRefresh = document.getElementById("public-comments-refresh");
+const publicCommentsStatus = document.getElementById("public-comments-status");
+const publicCommentsList = document.getElementById("public-comments-list");
+
+const publicationModal = document.getElementById("publication-modal");
+const publicationPanel = publicationModal.querySelector(".publication-panel");
+const publicationClose = document.getElementById("publication-close");
+const publicationReportId = document.getElementById("publication-report-id");
+const publicationEnabled = document.getElementById("publication-enabled");
+const publicationTitleInput = document.getElementById("publication-public-title");
+const publicationDescription = document.getElementById("publication-description");
+const publicationSteps = document.getElementById("publication-steps");
+const publicationNote = document.getElementById("publication-note");
+const publicationAttachments = document.getElementById("publication-attachments");
+const publicationSave = document.getElementById("publication-save");
+const publicationStatus = document.getElementById("publication-status");
+
+const publicationFieldInputs = {
+  showDescription: document.getElementById("publication-show-description"),
+  showSteps: document.getElementById("publication-show-steps"),
+  showCategory: document.getElementById("publication-show-category"),
+  showAppVersion: document.getElementById("publication-show-app-version"),
+  showBuildNumber: document.getElementById("publication-show-build-number"),
+  showIosVersion: document.getElementById("publication-show-ios-version"),
+  showDeviceModel: document.getElementById("publication-show-device-model"),
+  showCreatedAt: document.getElementById("publication-show-created-at"),
+  showSource: document.getElementById("publication-show-source")
+};
 
 let loadedItems = [];
+let publicationItem = null;
+let loadedPublicComments = [];
+
+let modalScrollLocked = false;
+let modalScrollY = 0;
+
+function syncModalScrollLock() {
+  const shouldLock =
+    !publicationModal.hidden ||
+    !imageEditorModal.hidden;
+
+  if (shouldLock && !modalScrollLocked) {
+    modalScrollY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = "-" + modalScrollY + "px";
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    modalScrollLocked = true;
+    return;
+  }
+
+  if (!shouldLock && modalScrollLocked) {
+    document.documentElement.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    document.body.style.overflow = "";
+    modalScrollLocked = false;
+    window.scrollTo(0, modalScrollY);
+  }
+}
+
+const imageEditorModal = document.getElementById("image-editor-modal");
+const imageEditorStage = document.getElementById("image-editor-stage");
+const imageEditorCanvasWrap = document.getElementById("image-editor-canvas-wrap");
+const imageEditorCanvas = document.getElementById("image-editor-canvas");
+const imageEditorSelectionCanvas = document.getElementById("image-editor-selection-canvas");
+const imageEditorContext = imageEditorCanvas.getContext("2d", { willReadFrequently:true });
+const imageEditorSelectionContext = imageEditorSelectionCanvas.getContext("2d");
+const imageEditorClose = document.getElementById("image-editor-close");
+const imageEditorUndo = document.getElementById("image-editor-undo");
+const imageEditorReset = document.getElementById("image-editor-reset");
+const imageEditorSave = document.getElementById("image-editor-save");
+const imageEditorStatus = document.getElementById("image-editor-status");
+const imageEditorTools = Array.from(document.querySelectorAll(".editor-tool"));
+const imageSelectionActions = document.getElementById("image-selection-actions");
+const imageSelectionInfo = document.getElementById("image-selection-info");
+const imageSelectionConfirm = document.getElementById("image-selection-confirm");
+const imageSelectionCancel = document.getElementById("image-selection-cancel");
+
+let imageEditorAttachment = null;
+let imageEditorRefresh = null;
+let imageEditorBitmap = null;
+let imageEditorTool = "pixelate";
+let imageEditorStart = null;
+let imageEditorPendingSelection = null;
+let imageEditorUndoStack = [];
+let imageEditorGeneration = 0;
+let imageEditorSaving = false;
+let imageEditorZoom = 1;
+let imageEditorPanX = 0;
+let imageEditorPanY = 0;
+let imageEditorBaseScale = 1;
+let imageEditorPinch = null;
+const imageEditorPointers = new Map();
 
 function make(tag, text, className) {
   const element = document.createElement(tag);
@@ -354,8 +957,35 @@ function make(tag, text, className) {
   return element;
 }
 
+function sourceKey(item) {
+  if (item.source_key === "tf" || item.source === "testflight") return "tf";
+  return "beta";
+}
+
+function sourceLabel(item) {
+  return sourceKey(item) === "tf" ? "TestFlight" : "網站回報";
+}
+
 function reportId(item) {
-  return "BETA-" + String(Number(item.report_number) || 0).padStart(3, "0");
+  const number = Number(item.source_number || item.report_number) || 0;
+  const prefix = sourceKey(item) === "tf" ? "TF" : "BETA";
+  return prefix + "-" + String(number).padStart(3, "0");
+}
+
+function originalDescription(item) {
+  return item.original_description || item.description || "未提供描述";
+}
+
+function originalSteps(item) {
+  return item.original_steps || item.steps || "";
+}
+
+function effectiveDescription(item) {
+  return item.edited_description ?? originalDescription(item);
+}
+
+function effectiveSteps(item) {
+  return item.edited_steps ?? originalSteps(item);
 }
 
 function displayStatus(item) {
@@ -437,6 +1067,7 @@ function renderSummary(counts) {
 function matchesFilters(item) {
   const keyword = searchFilter.value.trim().toLowerCase();
 
+  if (sourceFilter.value && sourceKey(item) !== sourceFilter.value) return false;
   if (statusFilter.value && displayStatus(item) !== statusFilter.value) return false;
   if (categoryFilter.value && item.category !== categoryFilter.value) return false;
   if (versionFilter.value && item.app_version !== versionFilter.value) return false;
@@ -450,6 +1081,11 @@ function matchesFilters(item) {
     reportId(item),
     item.description,
     item.steps,
+    item.original_description,
+    item.original_steps,
+    item.edited_description,
+    item.edited_steps,
+    sourceLabel(item),
     item.app_version,
     item.build_number,
     item.ios_version,
@@ -503,15 +1139,1128 @@ function createTextInput(labelText, value, placeholder) {
   return { label, input };
 }
 
-function createTextarea(labelText, value, placeholder) {
-  const label = make("label");
-  label.append(document.createTextNode(labelText));
-  const textarea = document.createElement("textarea");
-  textarea.value = value || "";
-  textarea.placeholder = placeholder || "";
-  textarea.rows = 4;
-  label.append(textarea);
-  return { label, textarea };
+function renderPrivateMetadata(item) {
+  if (!item.private_metadata_json) return null;
+
+  let data;
+
+  try {
+    data = JSON.parse(item.private_metadata_json);
+  } catch {
+    return null;
+  }
+
+  const values = Object.entries(data || {}).filter(function(entry) {
+    return entry[1] !== null && entry[1] !== undefined && entry[1] !== "";
+  });
+
+  if (!values.length) return null;
+
+  const section = make("div", null, "detail-section");
+  section.append(make("h3", "TestFlight 私有資訊"));
+
+  const box = make("div", null, "meta-grid");
+  const labels = {
+    testerEmail:"Tester Email",
+    testerFirstName:"Tester 名字",
+    testerLastName:"Tester 姓氏",
+    locale:"語系",
+    timeZone:"時區",
+    architecture:"架構",
+    connectionType:"連線",
+    batteryPercentage:"電量",
+    deviceFamily:"裝置家族",
+    appPlatform:"平台"
+  };
+
+  values.forEach(function(entry) {
+    const key = entry[0];
+    let value = entry[1];
+
+    if (key === "batteryPercentage" && value !== null) {
+      value = String(value) + "%";
+    }
+
+    addMeta(box, labels[key] || key, value);
+  });
+
+  section.append(box);
+  return section;
+}
+
+function editorPoint(event) {
+  const rect = imageEditorSelectionCanvas.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) {
+    return { x:0, y:0 };
+  }
+
+  return {
+    x: Math.max(0, Math.min(
+      imageEditorCanvas.width,
+      (event.clientX - rect.left) * imageEditorCanvas.width / rect.width
+    )),
+    y: Math.max(0, Math.min(
+      imageEditorCanvas.height,
+      (event.clientY - rect.top) * imageEditorCanvas.height / rect.height
+    ))
+  };
+}
+
+function normalizeImageEditorSelection(start, end, tool) {
+  const x = Math.round(Math.min(start.x, end.x));
+  const y = Math.round(Math.min(start.y, end.y));
+  const width = Math.round(Math.abs(end.x - start.x));
+  const height = Math.round(Math.abs(end.y - start.y));
+
+  if (width < 4 || height < 4) return null;
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    tool:tool || imageEditorTool
+  };
+}
+
+function clearImageEditorSelectionPreview() {
+  imageEditorSelectionContext.clearRect(
+    0,
+    0,
+    imageEditorSelectionCanvas.width,
+    imageEditorSelectionCanvas.height
+  );
+}
+
+function drawImageEditorSelection(selection) {
+  clearImageEditorSelectionPreview();
+  if (!selection) return;
+
+  const lineWidth = Math.max(
+    2,
+    Math.round(Math.min(
+      imageEditorSelectionCanvas.width,
+      imageEditorSelectionCanvas.height
+    ) / 450)
+  );
+
+  imageEditorSelectionContext.save();
+  imageEditorSelectionContext.lineWidth = lineWidth;
+  imageEditorSelectionContext.setLineDash([
+    lineWidth * 4,
+    lineWidth * 3
+  ]);
+  imageEditorSelectionContext.strokeStyle = "#fff";
+  imageEditorSelectionContext.shadowColor = "rgba(0,0,0,.9)";
+  imageEditorSelectionContext.shadowBlur = lineWidth * 2;
+  imageEditorSelectionContext.strokeRect(
+    selection.x + lineWidth / 2,
+    selection.y + lineWidth / 2,
+    Math.max(1, selection.width - lineWidth),
+    Math.max(1, selection.height - lineWidth)
+  );
+
+  imageEditorSelectionContext.fillStyle = "rgba(255,255,255,.08)";
+  imageEditorSelectionContext.fillRect(
+    selection.x,
+    selection.y,
+    selection.width,
+    selection.height
+  );
+  imageEditorSelectionContext.restore();
+}
+
+function setImageEditorSelection(selection) {
+  imageEditorPendingSelection = selection;
+  drawImageEditorSelection(selection);
+  imageSelectionActions.hidden = !selection;
+
+  if (selection) {
+    imageSelectionInfo.textContent =
+      "已選取 " +
+      selection.width +
+      " × " +
+      selection.height +
+      " px";
+    imageEditorStatus.textContent =
+      "確認選取後才會套用" +
+      (selection.tool === "blackout" ? "塗黑。" : "馬賽克。");
+  } else {
+    imageSelectionInfo.textContent = "已選取區域";
+    imageEditorStatus.textContent =
+      (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
+      "：正在等待你選取區域…";
+  }
+}
+
+function updateImageEditorTransform() {
+  imageEditorCanvasWrap.style.transform =
+    "translate(" +
+    imageEditorPanX +
+    "px," +
+    imageEditorPanY +
+    "px) scale(" +
+    imageEditorZoom +
+    ")";
+}
+
+function resetImageEditorView() {
+  imageEditorZoom = 1;
+  imageEditorPanX = 0;
+  imageEditorPanY = 0;
+  imageEditorPinch = null;
+  imageEditorPointers.clear();
+  updateImageEditorTransform();
+}
+
+function layoutImageEditorCanvas() {
+  if (!imageEditorBitmap) return;
+
+  const availableWidth = Math.max(1, imageEditorStage.clientWidth - 16);
+  const availableHeight = Math.max(1, imageEditorStage.clientHeight - 16);
+
+  imageEditorBaseScale = Math.min(
+    1,
+    availableWidth / imageEditorBitmap.width,
+    availableHeight / imageEditorBitmap.height
+  );
+
+  const displayWidth = Math.max(
+    1,
+    Math.round(imageEditorBitmap.width * imageEditorBaseScale)
+  );
+  const displayHeight = Math.max(
+    1,
+    Math.round(imageEditorBitmap.height * imageEditorBaseScale)
+  );
+
+  imageEditorCanvasWrap.style.width = displayWidth + "px";
+  imageEditorCanvasWrap.style.height = displayHeight + "px";
+  imageEditorCanvasWrap.style.left =
+    Math.max(8, 8 + (availableWidth - displayWidth) / 2) + "px";
+  imageEditorCanvasWrap.style.top =
+    Math.max(8, 8 + (availableHeight - displayHeight) / 2) + "px";
+
+  [imageEditorCanvas, imageEditorSelectionCanvas].forEach(function(canvas) {
+    canvas.style.width = displayWidth + "px";
+    canvas.style.height = displayHeight + "px";
+  });
+
+  resetImageEditorView();
+}
+
+function pushImageEditorUndo(selection) {
+  imageEditorUndoStack.push(
+    { x:selection.x, y:selection.y, data:imageEditorContext.getImageData(
+      selection.x, selection.y, selection.width, selection.height
+    ) }
+  );
+
+  while (imageEditorUndoStack.length > 1 && (
+    imageEditorUndoStack.length > 12 ||
+    imageEditorUndoStack.reduce((sum, item) => sum + item.data.data.byteLength, 0) > 64 * 1024 * 1024
+  )) {
+    imageEditorUndoStack.shift();
+  }
+}
+
+function redrawImageEditorOriginal() {
+  if (!imageEditorBitmap) return;
+
+  imageEditorCanvas.width = imageEditorBitmap.width;
+  imageEditorCanvas.height = imageEditorBitmap.height;
+  imageEditorSelectionCanvas.width = imageEditorBitmap.width;
+  imageEditorSelectionCanvas.height = imageEditorBitmap.height;
+
+  imageEditorContext.clearRect(
+    0,
+    0,
+    imageEditorCanvas.width,
+    imageEditorCanvas.height
+  );
+  imageEditorContext.drawImage(imageEditorBitmap, 0, 0);
+
+  imageEditorUndoStack = [];
+  imageEditorStart = null;
+  setImageEditorSelection(null);
+  layoutImageEditorCanvas();
+}
+
+function applyPixelate(x, y, width, height) {
+  const safeWidth = Math.max(1, Math.round(width));
+  const safeHeight = Math.max(1, Math.round(height));
+  const pixelSize = Math.max(
+    10,
+    Math.round(Math.min(safeWidth, safeHeight) / 10)
+  );
+  const smallWidth = Math.max(1, Math.round(safeWidth / pixelSize));
+  const smallHeight = Math.max(1, Math.round(safeHeight / pixelSize));
+
+  const temp = document.createElement("canvas");
+  temp.width = smallWidth;
+  temp.height = smallHeight;
+  const tempContext = temp.getContext("2d");
+
+  tempContext.imageSmoothingEnabled = true;
+  tempContext.drawImage(
+    imageEditorCanvas,
+    x,
+    y,
+    safeWidth,
+    safeHeight,
+    0,
+    0,
+    smallWidth,
+    smallHeight
+  );
+
+  imageEditorContext.save();
+  imageEditorContext.imageSmoothingEnabled = false;
+  imageEditorContext.drawImage(
+    temp,
+    0,
+    0,
+    smallWidth,
+    smallHeight,
+    x,
+    y,
+    safeWidth,
+    safeHeight
+  );
+  imageEditorContext.restore();
+}
+
+function applyConfirmedImageEditorSelection(selection) {
+  if (!selection) return;
+
+  pushImageEditorUndo(selection);
+
+  if (selection.tool === "blackout") {
+    imageEditorContext.save();
+    imageEditorContext.fillStyle = "#000";
+    imageEditorContext.fillRect(
+      selection.x,
+      selection.y,
+      selection.width,
+      selection.height
+    );
+    imageEditorContext.restore();
+  } else {
+    applyPixelate(
+      selection.x,
+      selection.y,
+      selection.width,
+      selection.height
+    );
+  }
+
+  setImageEditorSelection(null);
+}
+
+function imageEditorPointerMidpoint(points) {
+  return {
+    x:(points[0].clientX + points[1].clientX) / 2,
+    y:(points[0].clientY + points[1].clientY) / 2
+  };
+}
+
+function imageEditorPointerDistance(points) {
+  return Math.hypot(
+    points[1].clientX - points[0].clientX,
+    points[1].clientY - points[0].clientY
+  );
+}
+
+function beginImageEditorPinch() {
+  const points = Array.from(imageEditorPointers.values()).slice(0, 2);
+  if (points.length < 2) return;
+
+  imageEditorStart = null;
+
+  const midpoint = imageEditorPointerMidpoint(points);
+  const stageRect = imageEditorStage.getBoundingClientRect();
+  const wrapLeft = parseFloat(imageEditorCanvasWrap.style.left || "0");
+  const wrapTop = parseFloat(imageEditorCanvasWrap.style.top || "0");
+  const stageX = midpoint.x - stageRect.left;
+  const stageY = midpoint.y - stageRect.top;
+
+  imageEditorPinch = {
+    distance:Math.max(1, imageEditorPointerDistance(points)),
+    zoom:imageEditorZoom,
+    contentX:(stageX - wrapLeft - imageEditorPanX) / imageEditorZoom,
+    contentY:(stageY - wrapTop - imageEditorPanY) / imageEditorZoom
+  };
+}
+
+function updateImageEditorPinch() {
+  if (!imageEditorPinch || imageEditorPointers.size < 2) return;
+
+  const points = Array.from(imageEditorPointers.values()).slice(0, 2);
+  const midpoint = imageEditorPointerMidpoint(points);
+  const distance = Math.max(1, imageEditorPointerDistance(points));
+  const stageRect = imageEditorStage.getBoundingClientRect();
+  const wrapLeft = parseFloat(imageEditorCanvasWrap.style.left || "0");
+  const wrapTop = parseFloat(imageEditorCanvasWrap.style.top || "0");
+  const stageX = midpoint.x - stageRect.left;
+  const stageY = midpoint.y - stageRect.top;
+
+  const nextZoom = Math.max(
+    1,
+    Math.min(
+      6,
+      imageEditorPinch.zoom * distance / imageEditorPinch.distance
+    )
+  );
+
+  imageEditorZoom = nextZoom;
+  imageEditorPanX =
+    stageX -
+    wrapLeft -
+    imageEditorPinch.contentX * nextZoom;
+  imageEditorPanY =
+    stageY -
+    wrapTop -
+    imageEditorPinch.contentY * nextZoom;
+
+  updateImageEditorTransform();
+}
+
+async function openPublicImageEditor(attachment, refreshCallback) {
+  closePublicImageEditor();
+  const generation = imageEditorGeneration;
+  imageEditorAttachment = attachment;
+  imageEditorRefresh = refreshCallback;
+  imageEditorStatus.textContent =
+    attachment.public_url
+      ? "正在載入目前公開版本…"
+      : "正在載入原始圖片…";
+  imageEditorSave.disabled = true;
+  imageEditorModal.hidden = false;
+  syncModalScrollLock();
+
+  try {
+    const response = await fetch(
+      attachment.public_url || attachment.url,
+      { cache:"no-store" }
+    );
+
+    if (!response.ok) throw new Error();
+
+    const blob = await response.blob();
+    const bitmap = await createImageBitmap(blob);
+    if (generation !== imageEditorGeneration) { bitmap.close(); return; }
+    imageEditorBitmap = bitmap;
+    redrawImageEditorOriginal();
+    imageEditorStatus.textContent =
+      (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
+      "：正在等待你選取區域…";
+    imageEditorSave.disabled = false;
+  } catch {
+    if (generation !== imageEditorGeneration) return;
+    imageEditorStatus.textContent = "無法載入圖片。";
+  }
+}
+
+function closePublicImageEditor() {
+  imageEditorGeneration += 1;
+  imageEditorSaving = false;
+  imageEditorModal.hidden = true;
+  imageEditorAttachment = null;
+  imageEditorRefresh = null;
+  imageEditorStart = null;
+  imageEditorPendingSelection = null;
+  imageEditorUndoStack = [];
+  imageEditorPointers.clear();
+  imageEditorPinch = null;
+  clearImageEditorSelectionPreview();
+  imageSelectionActions.hidden = true;
+
+  if (imageEditorBitmap?.close) {
+    imageEditorBitmap.close();
+  }
+
+  imageEditorBitmap = null;
+  imageEditorStatus.textContent = "";
+  resetImageEditorView();
+  syncModalScrollLock();
+}
+
+imageEditorTools.forEach(function(button) {
+  button.addEventListener("click", function() {
+    if (imageEditorPendingSelection) {
+      imageEditorStatus.textContent = "請先確認或取消目前的選取區域。";
+      return;
+    }
+
+    imageEditorTool = button.dataset.tool || "pixelate";
+    imageEditorTools.forEach(function(item) {
+      item.classList.toggle("active", item === button);
+    });
+
+    imageEditorStatus.textContent =
+      (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
+      "：正在等待你選取區域…";
+  });
+});
+
+imageEditorSelectionCanvas.addEventListener("pointerdown", function(event) {
+  if (!imageEditorBitmap) return;
+
+  event.preventDefault();
+  imageEditorSelectionCanvas.setPointerCapture(event.pointerId);
+  imageEditorPointers.set(event.pointerId, {
+    clientX:event.clientX,
+    clientY:event.clientY
+  });
+
+  if (imageEditorPointers.size >= 2) {
+    beginImageEditorPinch();
+    return;
+  }
+
+  if (imageEditorPendingSelection) {
+    imageEditorStatus.textContent = "請先確認或取消目前的選取區域。";
+    return;
+  }
+
+  imageEditorStart = editorPoint(event);
+});
+
+imageEditorSelectionCanvas.addEventListener("pointermove", function(event) {
+  if (!imageEditorPointers.has(event.pointerId)) return;
+
+  event.preventDefault();
+  imageEditorPointers.set(event.pointerId, {
+    clientX:event.clientX,
+    clientY:event.clientY
+  });
+
+  if (imageEditorPointers.size >= 2) {
+    if (!imageEditorPinch) beginImageEditorPinch();
+    updateImageEditorPinch();
+    return;
+  }
+
+  if (!imageEditorStart || imageEditorPendingSelection) return;
+
+  const current = editorPoint(event);
+  const preview = normalizeImageEditorSelection(
+    imageEditorStart,
+    current,
+    imageEditorTool
+  );
+
+  if (preview) {
+    drawImageEditorSelection(preview);
+    imageEditorStatus.textContent =
+      "選取中：" +
+      preview.width +
+      " × " +
+      preview.height +
+      " px";
+  } else {
+    clearImageEditorSelectionPreview();
+  }
+});
+
+function finishImageEditorPointer(event, cancelled) {
+  const wasPinching = imageEditorPointers.size >= 2 || Boolean(imageEditorPinch);
+
+  if (
+    !cancelled &&
+    !wasPinching &&
+    imageEditorStart &&
+    !imageEditorPendingSelection
+  ) {
+    const end = editorPoint(event);
+    const selection = normalizeImageEditorSelection(
+      imageEditorStart,
+      end,
+      imageEditorTool
+    );
+
+    if (selection) {
+      setImageEditorSelection(selection);
+    } else {
+      clearImageEditorSelectionPreview();
+      imageEditorStatus.textContent =
+        "選取範圍太小，請重新框選。";
+    }
+  }
+
+  imageEditorPointers.delete(event.pointerId);
+  imageEditorStart = null;
+
+  if (imageEditorPointers.size < 2) {
+    imageEditorPinch = null;
+  }
+}
+
+imageEditorSelectionCanvas.addEventListener("pointerup", function(event) {
+  finishImageEditorPointer(event, false);
+});
+
+imageEditorSelectionCanvas.addEventListener("pointercancel", function(event) {
+  finishImageEditorPointer(event, true);
+});
+
+imageSelectionConfirm.addEventListener("click", function() {
+  if (!imageEditorPendingSelection) return;
+  applyConfirmedImageEditorSelection(imageEditorPendingSelection);
+});
+
+imageSelectionCancel.addEventListener("click", function() {
+  setImageEditorSelection(null);
+});
+
+imageEditorUndo.addEventListener("click", function() {
+  if (imageEditorPendingSelection) {
+    imageEditorStatus.textContent = "請先確認或取消目前選取。";
+    return;
+  }
+
+  const snapshot = imageEditorUndoStack.pop();
+  if (!snapshot) {
+    imageEditorStatus.textContent = "目前沒有可復原的操作。";
+    return;
+  }
+
+  imageEditorContext.putImageData(snapshot.data, snapshot.x, snapshot.y);
+  imageEditorStatus.textContent = "已復原上一個修改。";
+});
+
+imageEditorReset.addEventListener("click", function() {
+  redrawImageEditorOriginal();
+  imageEditorStatus.textContent = "圖片修改與縮放檢視已重設。";
+});
+
+imageEditorClose.addEventListener("click", closePublicImageEditor);
+
+imageEditorModal.addEventListener("click", function(event) {
+  if (event.target === imageEditorModal) {
+    closePublicImageEditor();
+  }
+});
+
+window.addEventListener("resize", function() {
+  if (!imageEditorModal.hidden && imageEditorBitmap) {
+    layoutImageEditorCanvas();
+    if (imageEditorPendingSelection) {
+      drawImageEditorSelection(imageEditorPendingSelection);
+    }
+  }
+});
+
+imageEditorSave.addEventListener("click", function() {
+  if (!imageEditorAttachment || !imageEditorBitmap || imageEditorSaving) return;
+
+  if (imageEditorPendingSelection) {
+    imageEditorStatus.textContent = "請先確認或取消目前的虛線選取框。";
+    return;
+  }
+
+  imageEditorSave.disabled = true;
+  imageEditorSaving = true;
+  const generation = imageEditorGeneration;
+  const attachmentId = imageEditorAttachment.id;
+  const refreshAfterClose = imageEditorRefresh;
+  imageEditorStatus.textContent = "正在產生完整尺寸公開圖片…";
+
+  imageEditorCanvas.toBlob(async function(blob) {
+    if (generation !== imageEditorGeneration) return;
+    if (!blob) {
+      imageEditorSaving = false;
+      imageEditorStatus.textContent = "圖片輸出失敗。";
+      imageEditorSave.disabled = false;
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        "/dashboard/api/feedback/attachment/public?id=" +
+        encodeURIComponent(attachmentId),
+        {
+          method:"PUT",
+          headers:{ "Content-Type":"image/png" },
+          body:blob
+        }
+      );
+
+      const result = await response.json();
+      if (generation !== imageEditorGeneration) return;
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || "save_failed");
+      }
+
+      imageEditorStatus.textContent = "公開圖片已儲存。";
+
+      closePublicImageEditor();
+
+      if (typeof refreshAfterClose === "function") {
+        await refreshAfterClose();
+      }
+    } catch {
+      if (generation !== imageEditorGeneration) return;
+      imageEditorSaving = false;
+      imageEditorStatus.textContent = "公開圖片儲存失敗。";
+      imageEditorSave.disabled = false;
+    }
+  }, "image/png");
+});
+
+async function setAttachmentPublic(attachment, enabled) {
+  const response = await fetch(
+    "/dashboard/api/feedback/attachment/public?id=" +
+    encodeURIComponent(attachment.id),
+    {
+      method: enabled ? "PATCH" : "DELETE",
+      headers:{ "Accept":"application/json" }
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.ok) {
+    const error = new Error(result.error || "update_failed");
+    error.code = result.error;
+    throw error;
+  }
+
+  return result;
+}
+
+async function loadAttachments(item, container) {
+  container.replaceChildren(
+    make("div", "正在讀取原始附件…", "attachment-placeholder")
+  );
+
+  try {
+    const response = await fetch(
+      "/dashboard/api/feedback/attachments?feedbackId=" +
+      encodeURIComponent(item.id),
+      { headers:{ "Accept":"application/json" }, cache:"no-store" }
+    );
+
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error();
+
+    const attachments = result.attachments || [];
+    container.replaceChildren();
+
+    if (!attachments.length) {
+      container.append(make("div", "目前沒有附件。", "attachment-placeholder"));
+      return;
+    }
+
+    const grid = make("div", null, "attachment-grid");
+
+    attachments.forEach(function(attachment) {
+      const card = make("div", null, "attachment-card");
+
+      if (
+        attachment.available &&
+        String(attachment.mime_type || "").startsWith("image/")
+      ) {
+        const image = document.createElement("img");
+        image.src = attachment.url;
+        image.alt = attachment.original_filename || "原始回報附件";
+        image.loading = "lazy";
+        image.addEventListener("click", function() {
+          window.open(attachment.url, "_blank", "noopener");
+        });
+        card.append(image);
+      } else {
+        card.append(
+          make(
+            "div",
+            attachment.available ? "附件可讀取" : "附件目前無法讀取",
+            "attachment-placeholder"
+          )
+        );
+      }
+
+      const meta = make("div", null, "attachment-meta");
+      meta.append(
+        make("div", attachment.original_filename || "附件"),
+        make(
+          "div",
+          [
+            attachment.width && attachment.height
+              ? attachment.width + "×" + attachment.height
+              : "",
+            attachment.mime_type || "",
+            "原始附件 · 唯讀"
+          ].filter(Boolean).join(" · ")
+        )
+      );
+
+      card.append(meta);
+      grid.append(card);
+    });
+
+    container.append(grid);
+  } catch {
+    container.replaceChildren(
+      make("div", "附件讀取失敗。", "attachment-placeholder")
+    );
+  }
+}
+
+async function loadPublicationAttachments(item, container) {
+  const loadToken = Symbol();
+  container.publicationLoadToken = loadToken;
+  const current = () => container.publicationLoadToken === loadToken && publicationItem?.id === item.id;
+  const hadContent = container.childElementCount > 0;
+  const savedScrollTop = publicationPanel?.scrollTop || 0;
+
+  if (!hadContent) {
+    container.replaceChildren(
+      make("div", "正在讀取可公開圖片…", "attachment-placeholder")
+    );
+  } else {
+    container.classList.add("is-refreshing");
+  }
+
+  container.setAttribute("aria-busy", "true");
+
+  try {
+    const response = await fetch(
+      "/dashboard/api/feedback/attachments?feedbackId=" +
+      encodeURIComponent(item.id),
+      { headers:{ "Accept":"application/json" }, cache:"no-store" }
+    );
+
+    const result = await response.json();
+    if (!current()) return;
+    if (!response.ok || !result.ok) throw new Error();
+
+    const attachments = result.attachments || [];
+    const fragment = document.createDocumentFragment();
+
+    if (!attachments.length) {
+      fragment.append(
+        make("div", "這筆回報沒有附件。", "attachment-placeholder")
+      );
+    } else {
+      const grid = make("div", null, "attachment-grid");
+
+      attachments.forEach(function(attachment) {
+        const card = make("div", null, "attachment-card");
+        const isImage = String(attachment.mime_type || "").startsWith("image/");
+
+        const previews = make("div", null, "attachment-preview-pair");
+
+        const originalCell = make("div", null, "attachment-preview-cell");
+        originalCell.append(make("div", "原始照片", "attachment-preview-label"));
+
+        if (attachment.available && isImage) {
+          const originalImage = document.createElement("img");
+          originalImage.src = attachment.url;
+          originalImage.alt =
+            (attachment.original_filename || "回報附件") + " 原始照片";
+          originalImage.loading = "lazy";
+          originalImage.onerror = () => originalImage.replaceWith(make("div", "原始圖片載入失敗", "attachment-preview-empty"));
+          originalCell.append(originalImage);
+        } else {
+          originalCell.append(
+            make(
+              "div",
+              attachment.available ? "不是可預覽圖片" : "原始附件目前無法讀取",
+              "attachment-preview-empty"
+            )
+          );
+        }
+
+        const publicCell = make("div", null, "attachment-preview-cell");
+        publicCell.append(
+          make(
+            "div",
+            attachment.public_ready
+              ? (
+                  attachment.is_public
+                    ? "公開版本"
+                    : "公開版本（目前未顯示）"
+                )
+              : "公開版本",
+            "attachment-preview-label"
+          )
+        );
+
+        if (attachment.public_ready && attachment.public_url && isImage) {
+          const publicImage = document.createElement("img");
+          const cacheKey =
+            attachment.public_updated_at ||
+            attachment.public_byte_size ||
+            Date.now();
+          publicImage.src =
+            attachment.public_url +
+            "&v=" +
+            encodeURIComponent(String(cacheKey));
+          publicImage.alt =
+            (attachment.original_filename || "回報附件") + " 公開版本";
+          publicImage.loading = "eager";
+          publicImage.onerror = () => publicImage.replaceWith(make("div", "公開圖片載入失敗，請重新整理", "attachment-preview-empty"));
+          publicCell.append(publicImage);
+        } else {
+          publicCell.append(
+            make(
+              "div",
+              "尚未建立公開版本",
+              "attachment-preview-empty"
+            )
+          );
+        }
+
+        previews.append(originalCell, publicCell);
+
+        const meta = make("div", null, "attachment-meta");
+        meta.append(
+          make("div", attachment.original_filename || "附件"),
+          make(
+            "div",
+            [
+              attachment.width && attachment.height
+                ? attachment.width + "×" + attachment.height
+                : "",
+              attachment.public_ready
+                ? (attachment.is_public ? "公開中" : "已有公開版本")
+                : "尚未建立公開版本",
+              attachment.public_updated_at
+                ? "公開版更新：" + formatDate(attachment.public_updated_at)
+                : ""
+            ].filter(Boolean).join(" · ")
+          )
+        );
+
+        const actions = make("div", null, "attachment-actions");
+        const publicLabel = make("label", null, "attachment-public-toggle");
+        const publicToggle = document.createElement("input");
+        publicToggle.type = "checkbox";
+        publicToggle.checked = Number(attachment.is_public) === 1;
+        publicToggle.disabled = !attachment.public_ready || !isImage;
+        publicLabel.append(
+          publicToggle,
+          document.createTextNode("顯示這張照片")
+        );
+
+        const editButton = make(
+          "button",
+          attachment.public_ready ? "編輯公開版本" : "編輯後公開",
+          "secondary-button"
+        );
+        editButton.type = "button";
+        editButton.disabled = !(attachment.available || attachment.public_ready) || !isImage;
+
+        const actionStatus = make("span", "", "save-status");
+
+        async function refreshPublicationAttachments() {
+          await loadPublicationAttachments(item, container);
+        }
+
+        publicToggle.addEventListener("change", async function() {
+          const wanted = publicToggle.checked;
+          publicToggle.disabled = true;
+          editButton.disabled = true;
+          actionStatus.textContent = wanted
+            ? "正在建立／啟用公開版本…"
+            : "正在停止公開…";
+
+          try {
+            await setAttachmentPublic(attachment, wanted);
+            actionStatus.textContent = wanted ? "已公開。" : "已停止公開。";
+            await refreshPublicationAttachments();
+          } catch (error) {
+            publicToggle.checked = !wanted;
+            actionStatus.textContent =
+              error.code === "Original attachment unavailable"
+                ? "原始附件目前無法取得。"
+                : "更新失敗。";
+          } finally {
+            publicToggle.disabled = !attachment.public_ready || !isImage;
+            editButton.disabled = !(attachment.available || attachment.public_ready) || !isImage;
+          }
+        });
+
+        editButton.addEventListener("click", function() {
+          openPublicImageEditor(
+            attachment,
+            refreshPublicationAttachments
+          );
+        });
+
+        actions.append(publicLabel, editButton, actionStatus);
+        card.append(previews, meta, actions);
+        grid.append(card);
+      });
+
+      fragment.append(grid);
+    }
+
+    container.replaceChildren(fragment);
+
+    requestAnimationFrame(function() {
+      if (!publicationModal.hidden && publicationPanel) {
+        publicationPanel.scrollTop = savedScrollTop;
+      }
+    });
+  } catch {
+    if (!current()) return;
+    if (!hadContent) {
+      container.replaceChildren(
+        make("div", "公開圖片讀取失敗。", "attachment-placeholder")
+      );
+    }
+  } finally {
+    if (current()) {
+      container.classList.remove("is-refreshing");
+      container.removeAttribute("aria-busy");
+    }
+  }
+}
+
+function flagValue(item, key) {
+  const value = item[key];
+  return value === undefined || value === null ? true : Number(value) === 1;
+}
+
+function openPublicationEditor(item) {
+  publicationItem = item;
+  publicationReportId.textContent = reportId(item);
+  publicationEnabled.checked = Number(item.is_public) === 1;
+  publicationTitleInput.value =
+    item.public_title ||
+    originalDescription(item).replace(/\s+/g, " ").slice(0, 120);
+  publicationDescription.value =
+    item.edited_description ?? originalDescription(item);
+  publicationSteps.value =
+    item.edited_steps ?? originalSteps(item);
+  publicationNote.value = item.public_note || "";
+
+  publicationFieldInputs.showDescription.checked =
+    flagValue(item, "public_show_description");
+  publicationFieldInputs.showSteps.checked =
+    flagValue(item, "public_show_steps");
+  publicationFieldInputs.showCategory.checked =
+    flagValue(item, "public_show_category");
+  publicationFieldInputs.showAppVersion.checked =
+    flagValue(item, "public_show_app_version");
+  publicationFieldInputs.showBuildNumber.checked =
+    flagValue(item, "public_show_build_number");
+  publicationFieldInputs.showIosVersion.checked =
+    flagValue(item, "public_show_ios_version");
+  publicationFieldInputs.showDeviceModel.checked =
+    flagValue(item, "public_show_device_model");
+  publicationFieldInputs.showCreatedAt.checked =
+    flagValue(item, "public_show_created_at");
+  publicationFieldInputs.showSource.checked =
+    flagValue(item, "public_show_source");
+
+  publicationStatus.textContent = "";
+  publicationModal.hidden = false;
+  syncModalScrollLock();
+
+  requestAnimationFrame(function() {
+    publicationPanel.scrollTop = 0;
+  });
+
+  loadPublicationAttachments(item, publicationAttachments);
+}
+
+function closePublicationEditor() {
+  publicationModal.hidden = true;
+  publicationItem = null;
+  publicationAttachments.replaceChildren();
+  publicationStatus.textContent = "";
+  syncModalScrollLock();
+}
+
+publicationClose.addEventListener("click", closePublicationEditor);
+publicationModal.addEventListener("click", function(event) {
+  if (event.target === publicationModal) closePublicationEditor();
+});
+
+publicationSave.addEventListener("click", async function() {
+  if (!publicationItem) return;
+
+  if (
+    publicationEnabled.checked &&
+    publicationTitleInput.value.trim().length < 3
+  ) {
+    publicationStatus.textContent = "公開前請填寫至少 3 個字的公開標題。";
+    publicationTitleInput.focus();
+    return;
+  }
+
+  publicationSave.disabled = true;
+  publicationStatus.textContent = "正在套用公開設定…";
+
+  try {
+    const response = await fetch("/dashboard/api/feedback/publication", {
+      method:"PATCH",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        id:publicationItem.id,
+        isPublic:publicationEnabled.checked,
+        publicTitle:publicationTitleInput.value,
+        publicDescription:publicationDescription.value,
+        publicSteps:publicationSteps.value,
+        publicNote:publicationNote.value,
+        showDescription:publicationFieldInputs.showDescription.checked,
+        showSteps:publicationFieldInputs.showSteps.checked,
+        showCategory:publicationFieldInputs.showCategory.checked,
+        showAppVersion:publicationFieldInputs.showAppVersion.checked,
+        showBuildNumber:publicationFieldInputs.showBuildNumber.checked,
+        showIosVersion:publicationFieldInputs.showIosVersion.checked,
+        showDeviceModel:publicationFieldInputs.showDeviceModel.checked,
+        showCreatedAt:publicationFieldInputs.showCreatedAt.checked,
+        showSource:publicationFieldInputs.showSource.checked
+      })
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "save_failed");
+
+    publicationStatus.textContent = "公開設定已套用。";
+    await loadFeedback();
+    closePublicationEditor();
+  } catch (error) {
+    publicationStatus.textContent =
+      error.message === "Public title is required"
+        ? "公開前請填寫公開標題。"
+        : "公開設定儲存失敗。";
+  } finally {
+    publicationSave.disabled = false;
+  }
+});
+
+function createPublicationSection(item) {
+  const section = make("div", null, "detail-section");
+  section.append(make("h3", "公開回報"));
+
+  const note = make(
+    "p",
+    Number(item.is_public) === 1
+      ? "目前已公開。所有對外文字、欄位與圖片都在獨立的公開版本中管理，不會修改原始 Bug。"
+      : "目前未公開。原始 Bug 保持唯讀；需要對外顯示時再建立獨立公開版本。",
+    "readonly-note"
+  );
+
+  const row = make("div", null, "action-row");
+  const button = make(
+    "button",
+    Number(item.is_public) === 1 ? "編輯公開資訊" : "公開此回報",
+    "secondary-button"
+  );
+  button.type = "button";
+  button.addEventListener("click", function() {
+    openPublicationEditor(item);
+  });
+
+  row.append(button);
+  section.append(note, row);
+  return section;
 }
 
 function createEditor(item, details) {
@@ -599,7 +2348,7 @@ function createEditor(item, details) {
     return section;
   }
 
-  section.append(make("h3", "處理與公開設定"));
+  section.append(make("h3", "處理設定"));
 
   const grid = make("div", null, "editor-grid");
 
@@ -613,19 +2362,7 @@ function createEditor(item, details) {
   });
   statusLabel.append(statusSelect);
 
-  const publicLabel = make("label", null, "inline-toggle");
-  const publicToggle = document.createElement("input");
-  publicToggle.type = "checkbox";
-  publicToggle.checked = Number(item.is_public) === 1;
-  publicLabel.append(publicToggle, document.createTextNode("公開到「公開進度」"));
-
-  const titleField = createTextInput("公開標題", item.public_title, "例如：照片滑動放手時偶爾卡頓");
-  titleField.label.classList.add("wide");
-
-  const noteField = createTextarea("公開說明／處理進度", item.public_note, "給測試者看的說明");
-  noteField.label.classList.add("wide");
-
-  grid.append(statusLabel, publicLabel, titleField.label, noteField.label);
+  grid.append(statusLabel);
   section.append(grid);
 
   const etaBox = make("div", null, "conditional");
@@ -685,12 +2422,6 @@ function createEditor(item, details) {
       (Number(etaMinutes.input.value) || 0) * 60 +
       (Number(etaSeconds.input.value) || 0);
 
-    if (publicToggle.checked && titleField.input.value.trim().length < 3) {
-      saveStatus.textContent = "公開前請填寫公開標題。";
-      titleField.input.focus();
-      return;
-    }
-
     save.disabled = true;
     saveStatus.textContent = "正在儲存…";
 
@@ -702,9 +2433,6 @@ function createEditor(item, details) {
           id:item.id,
           status:statusSelect.value,
           etaSeconds:eta,
-          isPublic:publicToggle.checked,
-          publicTitle:titleField.input.value,
-          publicNote:noteField.textarea.value,
           fixedVersion:fixedVersion.input.value,
           fixedBuild:fixedBuild.input.value,
           fixPublished:publishedToggle.checked,
@@ -781,6 +2509,7 @@ function renderFeedback() {
     const details = document.createElement("details");
     const shownStatus = displayStatus(item);
     details.className = "feedback-item status-" + shownStatus;
+    details.dataset.reportId = reportId(item);
 
     const summaryEl = document.createElement("summary");
     const summaryGrid = make("div", null, "feedback-summary");
@@ -790,23 +2519,29 @@ function renderFeedback() {
       "div",
       reportId(item) + " · " + (
         shownStatus === "deleted"
-          ? (item.description || "已刪除回報")
-          : (item.description || "未提供描述")
+          ? (originalDescription(item) || "已刪除回報")
+          : originalDescription(item)
       ).replace(/\s+/g, " "),
       "feedback-title"
     );
 
     const subtitle = make("div", null, "feedback-subtitle");
     subtitle.append(
-      make("span", categoryLabels[item.category] || item.category || "其他"),
-      make("span", "·"),
-      make("span", formatDate(item.created_at))
+      make(
+        "span",
+        sourceLabel(item),
+        "mini-badge source-badge-" + sourceKey(item)
+      )
     );
-    if (item.app_version) {
-      subtitle.append(make("span", "·"), make("span", "v" + item.app_version));
-    }
     if (item.build_number) {
       subtitle.append(make("span", "Build " + item.build_number));
+    }
+    if (item.ios_version) {
+      subtitle.append(make("span", "iOS " + item.ios_version));
+    }
+    subtitle.append(make("span", formatDate(item.created_at)));
+    if (item.app_version) {
+      subtitle.append(make("span", "App " + item.app_version));
     }
 
     main.append(title, subtitle);
@@ -837,14 +2572,22 @@ function renderFeedback() {
     const detail = make("div", null, "feedback-detail");
 
     const reportSection = make("div", null, "detail-section");
-    reportSection.append(make("h3", "回報內容"));
-    reportSection.append(make("p", item.description || "未提供描述", "description-full"));
+    reportSection.append(make("h3", "原始回報（唯讀）"));
+    reportSection.append(make("p", originalDescription(item), "description-full"));
+    reportSection.append(
+      make(
+        "p",
+        "此區保存收到當下的 Bug 資料，不提供編輯。所有對外整理請使用下方「公開回報設定」。",
+        "readonly-note"
+      )
+    );
 
-    if (item.steps) {
-      const steps = make("div", null, "steps");
-      steps.append(make("strong", "發生時機／重現步驟"), make("div", item.steps));
-      reportSection.append(steps);
-    }
+    const steps = make("div", null, "steps");
+    steps.append(
+      make("strong", "發生時機／重現步驟"),
+      make("div", originalSteps(item) || "未提供")
+    );
+    reportSection.append(steps);
 
     const meta = make("div", null, "meta-grid");
     addMeta(meta, "回報 ID", reportId(item));
@@ -852,7 +2595,9 @@ function renderFeedback() {
     addMeta(meta, "Build", item.build_number);
     addMeta(meta, "iOS", item.ios_version);
     addMeta(meta, "裝置", item.device_model);
-    addMeta(meta, "來源", item.source);
+    addMeta(meta, "來源", sourceLabel(item));
+    addMeta(meta, "回報時間", formatDate(item.created_at));
+    addMeta(meta, "附件", Number(item.attachment_count || 0) + " 個");
     if (item.deleted_at) {
       addMeta(meta, "刪除時間", formatDate(item.deleted_at));
       addMeta(meta, "刪除原因", item.deletion_reason);
@@ -872,15 +2617,208 @@ function renderFeedback() {
       detail.append(diagSection);
     }
 
+    const privateMetadataSection = renderPrivateMetadata(item);
+    if (privateMetadataSection) detail.append(privateMetadataSection);
+
+    const attachmentSection = make("div", null, "detail-section");
+    attachmentSection.append(make("h3", "原始附件（唯讀）"));
+    const attachmentContainer = make("div");
+    attachmentContainer.append(
+      make(
+        "div",
+        Number(item.attachment_count || 0) > 0
+          ? "展開此回報後載入 " + Number(item.attachment_count) + " 個附件。"
+          : "目前沒有附件。",
+        "attachment-placeholder"
+      )
+    );
+    attachmentSection.append(attachmentContainer);
+    detail.append(attachmentSection);
+
+    let attachmentsLoaded = false;
+    details.addEventListener("toggle", function() {
+      if (
+        details.open &&
+        !attachmentsLoaded &&
+        Number(item.attachment_count || 0) > 0
+      ) {
+        attachmentsLoaded = true;
+        loadAttachments(item, attachmentContainer);
+      }
+    });
+
+    if (!item.deleted_at) {
+      detail.append(createPublicationSection(item));
+    }
     detail.append(createEditor(item, details));
     details.append(summaryEl, detail);
     list.append(details);
   });
 }
 
+function setDashboardTab(name) {
+  const comments = name === "comments";
+  feedbackTab.classList.toggle("active", !comments);
+  publicCommentsTab.classList.toggle("active", comments);
+  feedbackPanel.hidden = comments;
+  publicCommentsPanel.hidden = !comments;
+
+  if (comments) loadPublicComments();
+}
+
+feedbackTab.addEventListener("click", function() {
+  setDashboardTab("feedback");
+});
+
+publicCommentsTab.addEventListener("click", function() {
+  setDashboardTab("comments");
+});
+
+const publicCommentCategoryLabels = {
+  incorrect:"公開資訊有錯誤",
+  privacy:"隱私／希望隱藏資料",
+  image:"公開圖片有問題",
+  description:"問題描述不正確",
+  other:"其他"
+};
+
+async function updatePublicComment(comment, status, adminNote) {
+  const response = await fetch("/dashboard/api/public-feedback-comments", {
+    method:"PATCH",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      id:comment.id,
+      status,
+      adminNote
+    })
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) throw new Error();
+}
+
+function renderPublicComments() {
+  publicCommentsList.replaceChildren();
+
+  if (!loadedPublicComments.length) {
+    publicCommentsList.append(
+      make("div", "目前沒有公開頁面反饋。", "empty-state")
+    );
+    return;
+  }
+
+  loadedPublicComments.forEach(function(comment) {
+    const card = make("div", null, "comment-card");
+    const head = make("div", null, "comment-head");
+    const left = make("div");
+    left.append(
+      make("strong", "來自 " + comment.report_id + " 的反饋"),
+      make(
+        "div",
+        (publicCommentCategoryLabels[comment.category] || comment.category) +
+          " · " + formatDate(comment.created_at),
+        "save-status"
+      )
+    );
+
+    const statusBadge = make(
+      "span",
+      comment.status === "new"
+        ? "未處理"
+        : (comment.status === "reviewed"
+            ? "已查看"
+            : (comment.status === "resolved" ? "已處理" : "已忽略")),
+      "mini-badge"
+    );
+    head.append(left, statusBadge);
+
+    const message = make("p", comment.message || "（未提供內容）", "comment-message");
+
+    if (Number(comment.claimant_original) === 1) {
+      message.prepend("【聲稱為原回報者】\n");
+    }
+
+    const adminNote = document.createElement("textarea");
+    adminNote.rows = 2;
+    adminNote.placeholder = "後台備註（不對外顯示）";
+    adminNote.value = comment.admin_note || "";
+
+    const actions = make("div", null, "action-row");
+    const view = make("button", "查看回報", "secondary-button");
+    view.type = "button";
+    view.addEventListener("click", function() {
+      setDashboardTab("feedback");
+      const target = Array.from(
+        document.querySelectorAll(".feedback-item")
+      ).find(function(item) {
+        return item.dataset.reportId === comment.report_id;
+      });
+      if (target) {
+        target.open = true;
+        target.scrollIntoView({ behavior:"smooth", block:"start" });
+      }
+    });
+
+    [
+      ["reviewed", "標記已查看"],
+      ["resolved", "標記已處理"],
+      ["dismissed", "忽略"]
+    ].forEach(function(entry) {
+      const button = make("button", entry[1], "secondary-button");
+      button.type = "button";
+      button.addEventListener("click", async function() {
+        button.disabled = true;
+        try {
+          await updatePublicComment(comment, entry[0], adminNote.value);
+          await loadPublicComments();
+        } catch {
+          publicCommentsStatus.textContent = "反饋狀態更新失敗。";
+        } finally {
+          button.disabled = false;
+        }
+      });
+      actions.append(button);
+    });
+
+    actions.prepend(view);
+    card.append(head, message, adminNote, actions);
+    publicCommentsList.append(card);
+  });
+}
+
+async function loadPublicComments() {
+  publicCommentsRefresh.disabled = true;
+  publicCommentsStatus.textContent = "正在載入…";
+
+  try {
+    const response = await fetch("/dashboard/api/public-feedback-comments", {
+      headers:{ "Accept":"application/json" },
+      cache:"no-store"
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error();
+
+    loadedPublicComments = result.comments || [];
+    const newCount = loadedPublicComments.filter(function(item) {
+      return item.status === "new";
+    }).length;
+    publicCommentsTab.textContent =
+      "公開反饋" + (newCount ? " (" + newCount + ")" : "");
+    publicCommentsStatus.textContent =
+      "共 " + loadedPublicComments.length + " 筆反饋。";
+    renderPublicComments();
+  } catch {
+    publicCommentsStatus.textContent = "讀取公開反饋失敗。";
+  } finally {
+    publicCommentsRefresh.disabled = false;
+  }
+}
+
+publicCommentsRefresh.addEventListener("click", loadPublicComments);
+
 function attachFilterEvents() {
   [
     searchFilter,
+    sourceFilter,
     statusFilter,
     categoryFilter,
     versionFilter,

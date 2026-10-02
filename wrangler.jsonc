@@ -18,5 +18,11 @@
       "database_id": "91dadc10-8e16-4015-b4ad-282a667488ee",
       "migrations_dir": "migrations"
     }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FEEDBACK_MEDIA",
+      "bucket_name": "chaiphoto-feedback-media"
+    }
   ]
 }
