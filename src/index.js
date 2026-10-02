@@ -152,6 +152,35 @@ async function ensureFeedbackAttachmentPublicSchema(env) {
   }
 }
 
+async function ensureFeedbackPublicationSchema(env) {
+  const info = await env.DB.prepare(
+    "PRAGMA table_info(feedback_v2_meta)"
+  ).all();
+
+  const columns = new Set(
+    (info.results || []).map(row => String(row.name || ""))
+  );
+
+  const additions = [
+    ["public_show_description", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_steps", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_category", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_app_version", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_build_number", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_ios_version", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_device_model", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_created_at", "INTEGER NOT NULL DEFAULT 1"],
+    ["public_show_source", "INTEGER NOT NULL DEFAULT 1"]
+  ];
+
+  for (const [name, type] of additions) {
+    if (columns.has(name)) continue;
+    await env.DB.prepare(
+      "ALTER TABLE feedback_v2_meta ADD COLUMN " + name + " " + type
+    ).run();
+  }
+}
+
 async function ensureFeedbackV2Schema(env) {
   await env.DB.batch([
     env.DB.prepare(
@@ -223,10 +252,32 @@ async function ensureFeedbackV2Schema(env) {
         processed_at TEXT,
         payload_json TEXT
       )`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_public_comments (
+        id TEXT PRIMARY KEY,
+        feedback_id TEXT NOT NULL,
+        category TEXT NOT NULL,
+        message TEXT,
+        claimant_original INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'new',
+        admin_note TEXT,
+        created_at TEXT NOT NULL,
+        resolved_at TEXT
+      )`
+    ),
+    env.DB.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_feedback_public_comments_feedback
+       ON feedback_public_comments(feedback_id, created_at DESC)`
+    ),
+    env.DB.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_feedback_public_comments_status
+       ON feedback_public_comments(status, created_at DESC)`
     )
   ]);
 
   await ensureFeedbackAttachmentPublicSchema(env);
+  await ensureFeedbackPublicationSchema(env);
 }
 
 async function nextSourceNumber(env, sourceKey) {
@@ -1059,6 +1110,15 @@ async function handleDashboardApi(request, env, url) {
          m.external_resource_id,
          m.external_event_type,
          m.private_metadata_json,
+         m.public_show_description,
+         m.public_show_steps,
+         m.public_show_category,
+         m.public_show_app_version,
+         m.public_show_build_number,
+         m.public_show_ios_version,
+         m.public_show_device_model,
+         m.public_show_created_at,
+         m.public_show_source,
          (
            SELECT COUNT(*)
            FROM feedback_attachments a
@@ -1130,13 +1190,6 @@ async function handleDashboardApi(request, env, url) {
       return json({ ok: false, error: "Invalid status" }, 400);
     }
 
-    const isPublic =
-      body.isPublic === true ||
-      body.isPublic === 1 ||
-      body.isPublic === "1";
-
-    const publicTitle = clean(body.publicTitle, 180);
-    const publicNote = clean(body.publicNote, 2000);
     const fixedVersion = clean(body.fixedVersion, 80);
     const fixedBuild = clean(body.fixedBuild, 80);
     const unableReason = clean(body.unableReason, 1200);
@@ -1145,13 +1198,6 @@ async function handleDashboardApi(request, env, url) {
       body.fixPublished === true ||
       body.fixPublished === 1 ||
       body.fixPublished === "1";
-
-    if (isPublic && publicTitle.length < 3) {
-      return json(
-        { ok: false, error: "Public title is required" },
-        400
-      );
-    }
 
     if (etaSeconds === null) {
       return json({ ok: false, error: "Invalid ETA" }, 400);
@@ -1166,18 +1212,12 @@ async function handleDashboardApi(request, env, url) {
         : null;
 
     const feedbackUpdates = [
-      "is_public = ?",
-      "public_title = ?",
-      "public_note = ?",
       "fixed_version = ?",
       "fixed_build = ?",
       "updated_at = ?"
     ];
 
     const feedbackValues = [
-      isPublic ? 1 : 0,
-      publicTitle || null,
-      publicNote || null,
       fixedVersion || null,
       fixedBuild || null,
       now.toISOString()
@@ -1242,6 +1282,205 @@ async function handleDashboardApi(request, env, url) {
     }
 
     return json({ ok: true });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/public-feedback-comments" &&
+    request.method === "GET"
+  ) {
+    await ensureFeedbackV2Schema(env);
+
+    const result = await env.DB.prepare(
+      `SELECT
+         c.id,
+         c.feedback_id,
+         c.category,
+         c.message,
+         c.claimant_original,
+         c.status,
+         c.admin_note,
+         c.created_at,
+         c.resolved_at,
+         m.source_key,
+         m.source_number,
+         f.public_title
+       FROM feedback_public_comments c
+       JOIN feedback f ON f.id = c.feedback_id
+       JOIN feedback_v2_meta m ON m.feedback_id = c.feedback_id
+       ORDER BY
+         CASE c.status
+           WHEN 'new' THEN 0
+           WHEN 'reviewed' THEN 1
+           WHEN 'resolved' THEN 2
+           ELSE 3
+         END,
+         c.created_at DESC
+       LIMIT 500`
+    ).all();
+
+    return json({
+      ok: true,
+      comments: (result.results || []).map(item => ({
+        ...item,
+        report_id: formatSourceReportId(item.source_key, item.source_number)
+      }))
+    });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/public-feedback-comments" &&
+    request.method === "PATCH"
+  ) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "Invalid JSON" }, 400);
+    }
+
+    const id = clean(body.id, 100);
+    const status = clean(body.status, 20);
+    const adminNote = clean(body.adminNote, 2000);
+    const allowed = new Set(["new", "reviewed", "resolved", "dismissed"]);
+
+    if (!id || !allowed.has(status)) {
+      return json({ ok: false, error: "Invalid comment update" }, 400);
+    }
+
+    const resolvedAt =
+      status === "resolved" || status === "dismissed"
+        ? new Date().toISOString()
+        : null;
+
+    const result = await env.DB.prepare(
+      `UPDATE feedback_public_comments
+       SET status = ?, admin_note = ?, resolved_at = ?
+       WHERE id = ?`
+    )
+      .bind(status, adminNote || null, resolvedAt, id)
+      .run();
+
+    if (Number(result.meta?.changes || 0) < 1) {
+      return json({ ok: false, error: "Comment not found" }, 404);
+    }
+
+    return json({ ok: true });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback/publication" &&
+    request.method === "PATCH"
+  ) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+      return json({ ok: false, error: "JSON required" }, 415);
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "Invalid JSON" }, 400);
+    }
+
+    const id = clean(body.id, 80);
+    const isPublic =
+      body.isPublic === true ||
+      body.isPublic === 1 ||
+      body.isPublic === "1";
+    const publicTitle = clean(body.publicTitle, 180);
+    const publicNote = clean(body.publicNote, 2000);
+    const publicDescription = clean(body.publicDescription, 5000);
+    const publicSteps = clean(body.publicSteps, 5000);
+
+    if (!id) {
+      return json({ ok: false, error: "Missing feedback id" }, 400);
+    }
+
+    if (isPublic && publicTitle.length < 3) {
+      return json({ ok: false, error: "Public title is required" }, 400);
+    }
+
+    const flag = value => (
+      value === false || value === 0 || value === "0" ? 0 : 1
+    );
+    const now = new Date().toISOString();
+
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE feedback
+         SET is_public = ?,
+             public_title = ?,
+             public_note = ?,
+             updated_at = ?
+         WHERE id = ?
+           AND EXISTS (
+             SELECT 1
+             FROM feedback_tracking t
+             WHERE t.feedback_id = feedback.id
+               AND t.deleted_at IS NULL
+           )`
+      ).bind(
+        isPublic ? 1 : 0,
+        publicTitle || null,
+        publicNote || null,
+        now,
+        id
+      ),
+      env.DB.prepare(
+        `UPDATE feedback_v2_meta
+         SET edited_description = ?,
+             edited_steps = ?,
+             public_show_description = ?,
+             public_show_steps = ?,
+             public_show_category = ?,
+             public_show_app_version = ?,
+             public_show_build_number = ?,
+             public_show_ios_version = ?,
+             public_show_device_model = ?,
+             public_show_created_at = ?,
+             public_show_source = ?,
+             updated_at = ?
+         WHERE feedback_id = ?`
+      ).bind(
+        publicDescription || null,
+        publicSteps || null,
+        flag(body.showDescription),
+        flag(body.showSteps),
+        flag(body.showCategory),
+        flag(body.showAppVersion),
+        flag(body.showBuildNumber),
+        flag(body.showIosVersion),
+        flag(body.showDeviceModel),
+        flag(body.showCreatedAt),
+        flag(body.showSource),
+        now,
+        id
+      )
+    ]);
+
+    const changed = results.some(
+      result => Number(result.meta?.changes || 0) > 0
+    );
+
+    if (!changed) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    return json({ ok: true, isPublic });
   }
 
   if (
@@ -1443,6 +1682,10 @@ async function handleDashboardApi(request, env, url) {
       `SELECT
          a.id,
          a.feedback_id,
+         a.storage_key,
+         a.remote_url,
+         a.expires_at,
+         a.mime_type,
          a.public_storage_key,
          t.deleted_at
        FROM feedback_attachments a
@@ -1575,20 +1818,100 @@ async function handleDashboardApi(request, env, url) {
     }
 
     if (request.method === "PATCH") {
-      if (!item.public_storage_key) {
-        return json(
-          { ok: false, error: "Public derivative required" },
-          409
-        );
-      }
+      let publicStorageKey = clean(item.public_storage_key, 1000);
 
-      await env.DB.prepare(
-        `UPDATE feedback_attachments
-         SET is_public = 1
-         WHERE id = ?`
-      )
-        .bind(attachmentId)
-        .run();
+      if (!publicStorageKey) {
+        if (!env.FEEDBACK_MEDIA?.put) {
+          return json({ ok: false, error: "Media storage unavailable" }, 503);
+        }
+
+        let sourceBody = null;
+        let sourceType = clean(item.mime_type, 160) || "image/jpeg";
+
+        if (item.storage_key && env.FEEDBACK_MEDIA?.get) {
+          const originalObject = await env.FEEDBACK_MEDIA.get(item.storage_key);
+          if (originalObject) {
+            sourceBody = await originalObject.arrayBuffer();
+            sourceType =
+              originalObject.httpMetadata?.contentType ||
+              sourceType;
+          }
+        }
+
+        if (!sourceBody && item.remote_url) {
+          const expiresAt = item.expires_at
+            ? new Date(item.expires_at).getTime()
+            : null;
+
+          if (!Number.isFinite(expiresAt) || expiresAt > Date.now()) {
+            try {
+              const originalResponse = await fetch(item.remote_url);
+              if (originalResponse.ok) {
+                sourceBody = await originalResponse.arrayBuffer();
+                sourceType =
+                  originalResponse.headers.get("Content-Type") ||
+                  sourceType;
+              }
+            } catch (error) {
+              console.error("Unable to copy original attachment", error);
+            }
+          }
+        }
+
+        if (!sourceBody?.byteLength) {
+          return json({ ok: false, error: "Original attachment unavailable" }, 410);
+        }
+
+        const extension =
+          sourceType.includes("png")
+            ? "png"
+            : (sourceType.includes("webp") ? "webp" : "jpg");
+
+        publicStorageKey =
+          "public/" +
+          item.feedback_id +
+          "/" +
+          attachmentId +
+          "-" +
+          crypto.randomUUID() +
+          "." +
+          extension;
+
+        await env.FEEDBACK_MEDIA.put(publicStorageKey, sourceBody, {
+          httpMetadata: { contentType: sourceType },
+          customMetadata: {
+            feedbackId: item.feedback_id,
+            attachmentId,
+            variant: "public-flat"
+          }
+        });
+
+        await env.DB.prepare(
+          `UPDATE feedback_attachments
+           SET public_storage_key = ?,
+               public_mime_type = ?,
+               public_byte_size = ?,
+               public_updated_at = ?,
+               is_public = 1
+           WHERE id = ?`
+        )
+          .bind(
+            publicStorageKey,
+            sourceType,
+            sourceBody.byteLength,
+            new Date().toISOString(),
+            attachmentId
+          )
+          .run();
+      } else {
+        await env.DB.prepare(
+          `UPDATE feedback_attachments
+           SET is_public = 1
+           WHERE id = ?`
+        )
+          .bind(attachmentId)
+          .run();
+      }
 
       return json({
         ok: true,
@@ -1600,6 +1923,8 @@ async function handleDashboardApi(request, env, url) {
     return json({ ok: false, error: "Method not allowed" }, 405);
   }
 
+  // Compatibility endpoint: edits only the curated/public copy.
+  // The original feedback row remains immutable.
   if (
     url.pathname === "/dashboard/api/feedback/content" &&
     request.method === "PATCH"
@@ -1654,7 +1979,7 @@ async function handleDashboardApi(request, env, url) {
     const results = await env.DB.batch([
       env.DB.prepare(
         `UPDATE feedback
-         SET description = ?, steps = ?, updated_at = ?
+         SET updated_at = ?
          WHERE id = ?
            AND EXISTS (
              SELECT 1
@@ -1662,12 +1987,7 @@ async function handleDashboardApi(request, env, url) {
              WHERE t.feedback_id = feedback.id
                AND t.deleted_at IS NULL
            )`
-      ).bind(
-        descriptionState === "provided" ? description : "",
-        stepsState === "provided" ? steps : null,
-        now,
-        id
-      ),
+      ).bind(now, id),
       env.DB.prepare(
         `UPDATE feedback_v2_meta
          SET edited_description = ?,
@@ -2128,8 +2448,21 @@ export default {
            t.deleted_at,
            m.source_key,
            m.source_number,
+           m.original_description,
+           m.original_steps,
+           m.edited_description,
+           m.edited_steps,
            m.description_state,
-           m.steps_state
+           m.steps_state,
+           m.public_show_description,
+           m.public_show_steps,
+           m.public_show_category,
+           m.public_show_app_version,
+           m.public_show_build_number,
+           m.public_show_ios_version,
+           m.public_show_device_model,
+           m.public_show_created_at,
+           m.public_show_source
          FROM feedback f
          JOIN feedback_tracking t ON t.feedback_id = f.id
          JOIN feedback_v2_meta m ON m.feedback_id = f.id`;
@@ -2156,39 +2489,166 @@ export default {
           .map(item => item.feedback_id)
       );
 
-      const matches = rows.map(item => ({
-        report_id: formatSourceReportId(item.source_key, item.source_number),
-        source: item.source_key,
-        created_at: item.created_at,
-        status: item.deleted_at ? "deleted" : item.status,
-        eta_seconds: item.eta_seconds,
-        eta_due_at: item.eta_due_at,
-        fixed_version: item.fixed_version,
-        fixed_build: item.fixed_build,
-        fix_published: item.fix_published,
-        unable_reason: item.unable_reason,
-        app_version: Number(item.is_public) === 1 ? item.app_version : null,
-        build_number: Number(item.is_public) === 1 ? item.build_number : null,
-        ios_version: Number(item.is_public) === 1 ? item.ios_version : null,
-        device_model: Number(item.is_public) === 1 ? item.device_model : null,
-        public_title: Number(item.is_public) === 1
-          ? item.public_title
-          : null,
-        public_note: Number(item.is_public) === 1
-          ? item.public_note
-          : null,
-        attachments: Number(item.is_public) === 1
-          ? (attachmentMap.get(item.feedback_id) || [])
-          : [],
-        description_state: item.description_state,
-        steps_state: item.steps_state
-      }));
+      const matches = rows.map(item => {
+        const published = Number(item.is_public) === 1;
+        const enabled = key => Number(item[key] ?? 1) === 1;
+
+        return {
+          report_id: formatSourceReportId(item.source_key, item.source_number),
+          source: published && enabled("public_show_source")
+            ? item.source_key
+            : null,
+          created_at: published && enabled("public_show_created_at")
+            ? item.created_at
+            : null,
+          status: item.deleted_at ? "deleted" : item.status,
+          eta_seconds: item.eta_seconds,
+          eta_due_at: item.eta_due_at,
+          fixed_version: item.fixed_version,
+          fixed_build: item.fixed_build,
+          fix_published: item.fix_published,
+          unable_reason: item.unable_reason,
+          category: published && enabled("public_show_category")
+            ? item.category
+            : null,
+          description: published && enabled("public_show_description")
+            ? (item.edited_description || item.original_description || "")
+            : null,
+          steps: published && enabled("public_show_steps")
+            ? (item.edited_steps || item.original_steps || "")
+            : null,
+          app_version: published && enabled("public_show_app_version")
+            ? item.app_version
+            : null,
+          build_number: published && enabled("public_show_build_number")
+            ? item.build_number
+            : null,
+          ios_version: published && enabled("public_show_ios_version")
+            ? item.ios_version
+            : null,
+          device_model: published && enabled("public_show_device_model")
+            ? item.device_model
+            : null,
+          public_title: published ? item.public_title : null,
+          public_note: published ? item.public_note : null,
+          attachments: published
+            ? (attachmentMap.get(item.feedback_id) || [])
+            : [],
+          field_visibility: published
+            ? {
+                description: enabled("public_show_description"),
+                steps: enabled("public_show_steps"),
+                category: enabled("public_show_category"),
+                app_version: enabled("public_show_app_version"),
+                build_number: enabled("public_show_build_number"),
+                ios_version: enabled("public_show_ios_version"),
+                device_model: enabled("public_show_device_model"),
+                created_at: enabled("public_show_created_at"),
+                source: enabled("public_show_source")
+              }
+            : null
+        };
+      });
 
       return json({
         ok: true,
         ambiguous: !parsed.sourceKey && matches.length > 1,
         matches
       });
+    }
+
+    if (
+      url.pathname === "/api/public-feedback/comment" &&
+      request.method === "POST"
+    ) {
+      const origin = request.headers.get("Origin");
+
+      if (origin && origin !== url.origin) {
+        return json({ ok: false, error: "Invalid origin" }, 403);
+      }
+
+      if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+        return json({ ok: false, error: "JSON required" }, 415);
+      }
+
+      let body;
+
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: "Invalid JSON" }, 400);
+      }
+
+      const parsed = parseReportReference(body.reportId);
+      const category = clean(body.category, 40);
+      const message = clean(body.message, 2000);
+      const claimantOriginal =
+        body.claimantOriginal === true ||
+        body.claimantOriginal === 1 ||
+        body.claimantOriginal === "1";
+      const allowedCategories = new Set([
+        "incorrect",
+        "privacy",
+        "image",
+        "description",
+        "other"
+      ]);
+
+      if (!parsed || !parsed.sourceKey || !allowedCategories.has(category)) {
+        return json({ ok: false, error: "Invalid feedback comment" }, 400);
+      }
+
+      if (message.length < 3) {
+        return json({ ok: false, error: "Message is too short" }, 400);
+      }
+
+      await ensureTrackingRows(env);
+
+      const target = await env.DB.prepare(
+        `SELECT f.id
+         FROM feedback f
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         JOIN feedback_v2_meta m ON m.feedback_id = f.id
+         WHERE m.source_key = ?
+           AND m.source_number = ?
+           AND f.is_public = 1
+           AND t.deleted_at IS NULL
+         LIMIT 1`
+      )
+        .bind(parsed.sourceKey, parsed.number)
+        .first();
+
+      if (!target?.id) {
+        return json({ ok: false, error: "Public feedback not found" }, 404);
+      }
+
+      const id = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+
+      await env.DB.prepare(
+        `INSERT INTO feedback_public_comments
+         (
+           id,
+           feedback_id,
+           category,
+           message,
+           claimant_original,
+           status,
+           created_at
+         )
+         VALUES (?, ?, ?, ?, ?, 'new', ?)`
+      )
+        .bind(
+          id,
+          target.id,
+          category,
+          message,
+          claimantOriginal ? 1 : 0,
+          createdAt
+        )
+        .run();
+
+      return json({ ok: true, id }, 201);
     }
 
     if (
@@ -2282,7 +2742,20 @@ export default {
            t.fix_published,
            t.unable_reason,
            m.source_key,
-           m.source_number
+           m.source_number,
+           m.original_description,
+           m.original_steps,
+           m.edited_description,
+           m.edited_steps,
+           m.public_show_description,
+           m.public_show_steps,
+           m.public_show_category,
+           m.public_show_app_version,
+           m.public_show_build_number,
+           m.public_show_ios_version,
+           m.public_show_device_model,
+           m.public_show_created_at,
+           m.public_show_source
          FROM feedback f
          JOIN feedback_tracking t ON t.feedback_id = f.id
          JOIN feedback_v2_meta m ON m.feedback_id = f.id
@@ -2306,14 +2779,45 @@ export default {
         ok: true,
         feedback: rows.map(item => {
           const feedbackId = item.feedback_id;
-          const copy = {
-            ...item,
+          const enabled = key => Number(item[key] ?? 1) === 1;
+
+          return {
             report_id: formatSourceReportId(item.source_key, item.source_number),
-            source: item.source_key,
-            attachments: attachmentMap.get(feedbackId) || []
+            status: item.status,
+            public_title: item.public_title,
+            public_note: item.public_note,
+            description: enabled("public_show_description")
+              ? (item.edited_description || item.original_description || "")
+              : null,
+            steps: enabled("public_show_steps")
+              ? (item.edited_steps || item.original_steps || "")
+              : null,
+            category: enabled("public_show_category") ? item.category : null,
+            app_version: enabled("public_show_app_version") ? item.app_version : null,
+            build_number: enabled("public_show_build_number") ? item.build_number : null,
+            ios_version: enabled("public_show_ios_version") ? item.ios_version : null,
+            device_model: enabled("public_show_device_model") ? item.device_model : null,
+            created_at: enabled("public_show_created_at") ? item.created_at : null,
+            source: enabled("public_show_source") ? item.source_key : null,
+            fixed_version: item.fixed_version,
+            fixed_build: item.fixed_build,
+            eta_seconds: item.eta_seconds,
+            eta_due_at: item.eta_due_at,
+            fix_published: item.fix_published,
+            unable_reason: item.unable_reason,
+            attachments: attachmentMap.get(feedbackId) || [],
+            field_visibility: {
+              description: enabled("public_show_description"),
+              steps: enabled("public_show_steps"),
+              category: enabled("public_show_category"),
+              app_version: enabled("public_show_app_version"),
+              build_number: enabled("public_show_build_number"),
+              ios_version: enabled("public_show_ios_version"),
+              device_model: enabled("public_show_device_model"),
+              created_at: enabled("public_show_created_at"),
+              source: enabled("public_show_source")
+            }
           };
-          delete copy.feedback_id;
-          return copy;
         })
       });
     }
