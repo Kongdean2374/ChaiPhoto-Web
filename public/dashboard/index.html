@@ -351,6 +351,8 @@
       place-items:center;
       padding:14px;
       background:rgba(0,0,0,.76);
+      overflow:hidden;
+      overscroll-behavior:none;
     }
 
     .image-editor-modal[hidden] { display:none; }
@@ -359,6 +361,8 @@
       width:min(980px,100%);
       max-height:94vh;
       overflow:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
       border-radius:18px;
       border:1px solid var(--line);
       background:var(--card);
@@ -500,6 +504,9 @@
       place-items:center;
       padding:14px;
       background:rgba(0,0,0,.72);
+      overflow:hidden;
+      overscroll-behavior:none;
+      touch-action:none;
     }
 
     .publication-modal[hidden] { display:none; }
@@ -508,6 +515,9 @@
       width:min(920px,100%);
       max-height:94vh;
       overflow:auto;
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      touch-action:pan-y;
       border:1px solid var(--line);
       border-radius:18px;
       background:var(--card);
@@ -552,7 +562,55 @@
 
     .publication-field-toggles input { width:auto; }
 
-    .publication-attachments { margin-top:12px; }
+    .publication-attachments {
+      margin-top:12px;
+      transition:opacity .15s ease;
+    }
+
+    .publication-attachments.is-refreshing {
+      opacity:.68;
+      pointer-events:none;
+    }
+
+    .attachment-preview-pair {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;
+    }
+
+    .attachment-preview-cell {
+      min-width:0;
+    }
+
+    .attachment-preview-label {
+      margin:0 0 6px;
+      color:var(--muted);
+      font-size:.72rem;
+      font-weight:750;
+      text-align:center;
+    }
+
+    .attachment-preview-cell img {
+      width:100%;
+      aspect-ratio:9 / 16;
+      object-fit:contain;
+      border-radius:10px;
+      background:#111;
+      display:block;
+    }
+
+    .attachment-preview-empty {
+      display:grid;
+      place-items:center;
+      width:100%;
+      aspect-ratio:9 / 16;
+      padding:8px;
+      border-radius:10px;
+      background:#111;
+      color:var(--muted);
+      text-align:center;
+      font-size:.75rem;
+    }
 
     .readonly-note {
       margin:8px 0 0;
@@ -816,6 +874,7 @@ const publicCommentsStatus = document.getElementById("public-comments-status");
 const publicCommentsList = document.getElementById("public-comments-list");
 
 const publicationModal = document.getElementById("publication-modal");
+const publicationPanel = publicationModal.querySelector(".publication-panel");
 const publicationClose = document.getElementById("publication-close");
 const publicationReportId = document.getElementById("publication-report-id");
 const publicationEnabled = document.getElementById("publication-enabled");
@@ -842,6 +901,40 @@ const publicationFieldInputs = {
 let loadedItems = [];
 let publicationItem = null;
 let loadedPublicComments = [];
+
+let modalScrollLocked = false;
+let modalScrollY = 0;
+
+function syncModalScrollLock() {
+  const shouldLock =
+    !publicationModal.hidden ||
+    !imageEditorModal.hidden;
+
+  if (shouldLock && !modalScrollLocked) {
+    modalScrollY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = "-" + modalScrollY + "px";
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+    modalScrollLocked = true;
+    return;
+  }
+
+  if (!shouldLock && modalScrollLocked) {
+    document.documentElement.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    document.body.style.overflow = "";
+    modalScrollLocked = false;
+    window.scrollTo(0, modalScrollY);
+  }
+}
 
 const imageEditorModal = document.getElementById("image-editor-modal");
 const imageEditorStage = document.getElementById("image-editor-stage");
@@ -1471,6 +1564,7 @@ async function openPublicImageEditor(attachment, refreshCallback) {
       : "正在載入原始圖片…";
   imageEditorSave.disabled = true;
   imageEditorModal.hidden = false;
+  syncModalScrollLock();
 
   try {
     const response = await fetch(
@@ -1511,6 +1605,7 @@ function closePublicImageEditor() {
   imageEditorBitmap = null;
   imageEditorStatus.textContent = "";
   resetImageEditorView();
+  syncModalScrollLock();
 }
 
 imageEditorTools.forEach(function(button) {
@@ -1716,11 +1811,12 @@ imageEditorSave.addEventListener("click", function() {
 
       imageEditorStatus.textContent = "公開圖片已儲存。";
 
-      if (typeof imageEditorRefresh === "function") {
-        await imageEditorRefresh();
-      }
-
+      const refreshAfterClose = imageEditorRefresh;
       closePublicImageEditor();
+
+      if (typeof refreshAfterClose === "function") {
+        await refreshAfterClose();
+      }
     } catch {
       imageEditorStatus.textContent = "公開圖片儲存失敗。";
       imageEditorSave.disabled = false;
@@ -1827,9 +1923,18 @@ async function loadAttachments(item, container) {
 }
 
 async function loadPublicationAttachments(item, container) {
-  container.replaceChildren(
-    make("div", "正在讀取可公開圖片…", "attachment-placeholder")
-  );
+  const hadContent = container.childElementCount > 0;
+  const savedScrollTop = publicationPanel?.scrollTop || 0;
+
+  if (!hadContent) {
+    container.replaceChildren(
+      make("div", "正在讀取可公開圖片…", "attachment-placeholder")
+    );
+  } else {
+    container.classList.add("is-refreshing");
+  }
+
+  container.setAttribute("aria-busy", "true");
 
   try {
     const response = await fetch(
@@ -1842,109 +1947,181 @@ async function loadPublicationAttachments(item, container) {
     if (!response.ok || !result.ok) throw new Error();
 
     const attachments = result.attachments || [];
-    container.replaceChildren();
+    const fragment = document.createDocumentFragment();
 
     if (!attachments.length) {
-      container.append(make("div", "這筆回報沒有附件。", "attachment-placeholder"));
-      return;
-    }
+      fragment.append(
+        make("div", "這筆回報沒有附件。", "attachment-placeholder")
+      );
+    } else {
+      const grid = make("div", null, "attachment-grid");
 
-    const grid = make("div", null, "attachment-grid");
+      attachments.forEach(function(attachment) {
+        const card = make("div", null, "attachment-card");
+        const isImage = String(attachment.mime_type || "").startsWith("image/");
 
-    attachments.forEach(function(attachment) {
-      const card = make("div", null, "attachment-card");
-      const isImage = String(attachment.mime_type || "").startsWith("image/");
+        const previews = make("div", null, "attachment-preview-pair");
 
-      if (attachment.available && isImage) {
-        const image = document.createElement("img");
-        image.src = attachment.url;
-        image.alt = attachment.original_filename || "原始回報附件";
-        image.loading = "lazy";
-        card.append(image);
-      } else {
-        card.append(
+        const originalCell = make("div", null, "attachment-preview-cell");
+        originalCell.append(make("div", "原始照片", "attachment-preview-label"));
+
+        if (attachment.available && isImage) {
+          const originalImage = document.createElement("img");
+          originalImage.src = attachment.url;
+          originalImage.alt =
+            (attachment.original_filename || "回報附件") + " 原始照片";
+          originalImage.loading = "lazy";
+          originalCell.append(originalImage);
+        } else {
+          originalCell.append(
+            make(
+              "div",
+              attachment.available ? "不是可預覽圖片" : "原始附件目前無法讀取",
+              "attachment-preview-empty"
+            )
+          );
+        }
+
+        const publicCell = make("div", null, "attachment-preview-cell");
+        publicCell.append(
           make(
             "div",
-            attachment.available ? "附件不是可編輯圖片" : "附件目前無法讀取",
-            "attachment-placeholder"
+            attachment.public_ready
+              ? (
+                  attachment.is_public
+                    ? "公開版本"
+                    : "公開版本（目前未顯示）"
+                )
+              : "公開版本",
+            "attachment-preview-label"
           )
         );
-      }
 
-      const meta = make("div", null, "attachment-meta");
-      meta.append(
-        make("div", attachment.original_filename || "附件"),
-        make(
-          "div",
-          [
-            attachment.width && attachment.height
-              ? attachment.width + "×" + attachment.height
-              : "",
-            attachment.public_ready
-              ? (attachment.is_public ? "公開中" : "已有公開版本")
-              : "尚未建立公開版本"
-          ].filter(Boolean).join(" · ")
-        )
-      );
-
-      const actions = make("div", null, "attachment-actions");
-      const publicLabel = make("label", null, "attachment-public-toggle");
-      const publicToggle = document.createElement("input");
-      publicToggle.type = "checkbox";
-      publicToggle.checked = Number(attachment.is_public) === 1;
-      publicToggle.disabled = !attachment.available || !isImage;
-      publicLabel.append(publicToggle, document.createTextNode("顯示這張照片"));
-
-      const editButton = make(
-        "button",
-        attachment.public_ready ? "編輯公開版本" : "編輯後公開",
-        "secondary-button"
-      );
-      editButton.type = "button";
-      editButton.disabled = !attachment.available || !isImage;
-
-      const actionStatus = make("span", "", "save-status");
-
-      async function refreshPublicationAttachments() {
-        await loadPublicationAttachments(item, container);
-      }
-
-      publicToggle.addEventListener("change", async function() {
-        const wanted = publicToggle.checked;
-        publicToggle.disabled = true;
-        actionStatus.textContent = wanted
-          ? "正在建立／啟用公開版本…"
-          : "正在停止公開…";
-
-        try {
-          await setAttachmentPublic(attachment, wanted);
-          actionStatus.textContent = wanted ? "已公開。" : "已停止公開。";
-          await refreshPublicationAttachments();
-        } catch (error) {
-          publicToggle.checked = !wanted;
-          actionStatus.textContent =
-            error.code === "Original attachment unavailable"
-              ? "原始附件目前無法取得。"
-              : "更新失敗。";
-        } finally {
-          publicToggle.disabled = false;
+        if (attachment.public_ready && attachment.public_url && isImage) {
+          const publicImage = document.createElement("img");
+          const cacheKey =
+            attachment.public_updated_at ||
+            attachment.public_byte_size ||
+            Date.now();
+          publicImage.src =
+            attachment.public_url +
+            "&v=" +
+            encodeURIComponent(String(cacheKey));
+          publicImage.alt =
+            (attachment.original_filename || "回報附件") + " 公開版本";
+          publicImage.loading = "eager";
+          publicCell.append(publicImage);
+        } else {
+          publicCell.append(
+            make(
+              "div",
+              "尚未建立公開版本",
+              "attachment-preview-empty"
+            )
+          );
         }
+
+        previews.append(originalCell, publicCell);
+
+        const meta = make("div", null, "attachment-meta");
+        meta.append(
+          make("div", attachment.original_filename || "附件"),
+          make(
+            "div",
+            [
+              attachment.width && attachment.height
+                ? attachment.width + "×" + attachment.height
+                : "",
+              attachment.public_ready
+                ? (attachment.is_public ? "公開中" : "已有公開版本")
+                : "尚未建立公開版本",
+              attachment.public_updated_at
+                ? "公開版更新：" + formatDate(attachment.public_updated_at)
+                : ""
+            ].filter(Boolean).join(" · ")
+          )
+        );
+
+        const actions = make("div", null, "attachment-actions");
+        const publicLabel = make("label", null, "attachment-public-toggle");
+        const publicToggle = document.createElement("input");
+        publicToggle.type = "checkbox";
+        publicToggle.checked = Number(attachment.is_public) === 1;
+        publicToggle.disabled = !attachment.available || !isImage;
+        publicLabel.append(
+          publicToggle,
+          document.createTextNode("顯示這張照片")
+        );
+
+        const editButton = make(
+          "button",
+          attachment.public_ready ? "編輯公開版本" : "編輯後公開",
+          "secondary-button"
+        );
+        editButton.type = "button";
+        editButton.disabled = !attachment.available || !isImage;
+
+        const actionStatus = make("span", "", "save-status");
+
+        async function refreshPublicationAttachments() {
+          await loadPublicationAttachments(item, container);
+        }
+
+        publicToggle.addEventListener("change", async function() {
+          const wanted = publicToggle.checked;
+          publicToggle.disabled = true;
+          editButton.disabled = true;
+          actionStatus.textContent = wanted
+            ? "正在建立／啟用公開版本…"
+            : "正在停止公開…";
+
+          try {
+            await setAttachmentPublic(attachment, wanted);
+            actionStatus.textContent = wanted ? "已公開。" : "已停止公開。";
+            await refreshPublicationAttachments();
+          } catch (error) {
+            publicToggle.checked = !wanted;
+            actionStatus.textContent =
+              error.code === "Original attachment unavailable"
+                ? "原始附件目前無法取得。"
+                : "更新失敗。";
+          } finally {
+            publicToggle.disabled = false;
+            editButton.disabled = !attachment.available || !isImage;
+          }
+        });
+
+        editButton.addEventListener("click", function() {
+          openPublicImageEditor(
+            attachment,
+            refreshPublicationAttachments
+          );
+        });
+
+        actions.append(publicLabel, editButton, actionStatus);
+        card.append(previews, meta, actions);
+        grid.append(card);
       });
 
-      editButton.addEventListener("click", function() {
-        openPublicImageEditor(attachment, refreshPublicationAttachments);
-      });
+      fragment.append(grid);
+    }
 
-      actions.append(publicLabel, editButton, actionStatus);
-      card.append(meta, actions);
-      grid.append(card);
+    container.replaceChildren(fragment);
+
+    requestAnimationFrame(function() {
+      if (!publicationModal.hidden && publicationPanel) {
+        publicationPanel.scrollTop = savedScrollTop;
+      }
     });
-
-    container.append(grid);
   } catch {
-    container.replaceChildren(
-      make("div", "公開圖片讀取失敗。", "attachment-placeholder")
-    );
+    if (!hadContent) {
+      container.replaceChildren(
+        make("div", "公開圖片讀取失敗。", "attachment-placeholder")
+      );
+    }
+  } finally {
+    container.classList.remove("is-refreshing");
+    container.removeAttribute("aria-busy");
   }
 }
 
@@ -1987,6 +2164,12 @@ function openPublicationEditor(item) {
 
   publicationStatus.textContent = "";
   publicationModal.hidden = false;
+  syncModalScrollLock();
+
+  requestAnimationFrame(function() {
+    publicationPanel.scrollTop = 0;
+  });
+
   loadPublicationAttachments(item, publicationAttachments);
 }
 
@@ -1995,6 +2178,7 @@ function closePublicationEditor() {
   publicationItem = null;
   publicationAttachments.replaceChildren();
   publicationStatus.textContent = "";
+  syncModalScrollLock();
 }
 
 publicationClose.addEventListener("click", closePublicationEditor);
