@@ -2116,7 +2116,15 @@ export default {
            f.public_note,
            f.fixed_version,
            f.fixed_build,
+           f.app_version,
+           f.build_number,
+           f.ios_version,
+           f.device_model,
            f.updated_at,
+           t.eta_seconds,
+           t.eta_due_at,
+           t.fix_published,
+           t.unable_reason,
            t.deleted_at,
            m.source_key,
            m.source_number,
@@ -2140,19 +2148,38 @@ export default {
             .bind(parsed.number)
             .all();
 
-      const matches = (result.results || []).map(item => ({
+      const rows = result.results || [];
+      const attachmentMap = await loadPublicAttachmentRefs(
+        env,
+        rows
+          .filter(item => Number(item.is_public) === 1)
+          .map(item => item.feedback_id)
+      );
+
+      const matches = rows.map(item => ({
         report_id: formatSourceReportId(item.source_key, item.source_number),
         source: item.source_key,
         created_at: item.created_at,
         status: item.deleted_at ? "deleted" : item.status,
+        eta_seconds: item.eta_seconds,
+        eta_due_at: item.eta_due_at,
+        fixed_version: item.fixed_version,
+        fixed_build: item.fixed_build,
+        fix_published: item.fix_published,
+        unable_reason: item.unable_reason,
+        app_version: Number(item.is_public) === 1 ? item.app_version : null,
+        build_number: Number(item.is_public) === 1 ? item.build_number : null,
+        ios_version: Number(item.is_public) === 1 ? item.ios_version : null,
+        device_model: Number(item.is_public) === 1 ? item.device_model : null,
         public_title: Number(item.is_public) === 1
           ? item.public_title
           : null,
         public_note: Number(item.is_public) === 1
           ? item.public_note
           : null,
-        fixed_version: item.fixed_version,
-        fixed_build: item.fixed_build,
+        attachments: Number(item.is_public) === 1
+          ? (attachmentMap.get(item.feedback_id) || [])
+          : [],
         description_state: item.description_state,
         steps_state: item.steps_state
       }));
@@ -2237,6 +2264,7 @@ export default {
 
       const sql =
         `SELECT
+           f.id AS feedback_id,
            f.created_at,
            f.status,
            f.category,
@@ -2244,14 +2272,20 @@ export default {
            f.public_note,
            f.fixed_version,
            f.fixed_build,
+           f.app_version,
+           f.build_number,
+           f.ios_version,
+           f.device_model,
            f.updated_at,
-           t.report_number,
            t.eta_seconds,
            t.eta_due_at,
            t.fix_published,
-           t.unable_reason
+           t.unable_reason,
+           m.source_key,
+           m.source_number
          FROM feedback f
          JOIN feedback_tracking t ON t.feedback_id = f.id
+         JOIN feedback_v2_meta m ON m.feedback_id = f.id
          WHERE f.is_public = 1
            AND t.deleted_at IS NULL` +
         (filter ? " AND f.status = ?" : "") +
@@ -2274,7 +2308,8 @@ export default {
           const feedbackId = item.feedback_id;
           const copy = {
             ...item,
-            report_id: formatReportId(item.report_number),
+            report_id: formatSourceReportId(item.source_key, item.source_number),
+            source: item.source_key,
             attachments: attachmentMap.get(feedbackId) || []
           };
           delete copy.feedback_id;
