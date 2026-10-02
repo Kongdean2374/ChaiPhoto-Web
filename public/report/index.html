@@ -377,10 +377,10 @@
   <div id="lookup-panel" class="tab-panel" hidden>
     <section>
       <h2>查詢自己的回報</h2>
-      <p class="helper">可輸入 BETA-001、001、01 或 1，會自動視為同一筆回報。</p>
+      <p class="helper">可輸入 BETA-001、B001、TF-001、T001、TEST001 等格式；不分大小寫。只輸入數字時，若 BETA 與 TF 同號會同時顯示。</p>
 
       <div class="lookup-form">
-        <input id="lookup-input" type="search" inputmode="text" placeholder="例如 BETA-001 或 001">
+        <input id="lookup-input" type="search" inputmode="text" placeholder="例如 BETA-001、TF-001 或 001">
         <button id="lookup-button" class="primary-button" type="button">查詢</button>
       </div>
 
@@ -407,7 +407,7 @@
         <input
           id="issue-search"
           type="search"
-          placeholder="搜尋 BETA ID、問題、版本或 Build">
+          placeholder="搜尋 BETA / TF ID、問題、版本或 Build">
 
         <div class="issue-filter-row">
           <button class="issue-filter active" type="button" data-status="">全部</button>
@@ -585,19 +585,18 @@ diagnosticsInput.addEventListener("input", function() {
   parseDiagnostics(diagnosticsInput.value);
 });
 
-function normalizeReportId(value) {
-  let raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
-  raw = raw.replace(/^BETA[-_]?/, "");
-  if (!/^\d+$/.test(raw)) return "";
-  const number = Number.parseInt(raw, 10);
-  if (!Number.isSafeInteger(number) || number < 1) return "";
-  return "BETA-" + String(number).padStart(3, "0");
+function normalizeLookupInput(value) {
+  return String(value || "").trim();
 }
 
 function recentIds() {
   try {
     const value = JSON.parse(localStorage.getItem("chaiphotoRecentReports") || "[]");
-    return Array.isArray(value) ? value.filter(function(id) { return /^BETA-\d+$/.test(id); }).slice(0, 12) : [];
+    return Array.isArray(value)
+      ? value.filter(function(id) {
+          return /^(BETA|TF)-\d+$/i.test(String(id || ""));
+        }).slice(0, 12)
+      : [];
   } catch {
     return [];
   }
@@ -811,6 +810,27 @@ function createTrackCard(item) {
   const meta = document.createElement("div");
   meta.className = "track-meta";
 
+  if (item.source) {
+    const line = document.createElement("div");
+    line.textContent = item.source === "tf"
+      ? "來源：TestFlight"
+      : "來源：網站回報";
+    meta.append(line);
+  }
+
+  const environmentParts = [
+    item.app_version ? "App " + item.app_version : "",
+    item.build_number ? "Build " + item.build_number : "",
+    item.ios_version ? "iOS " + item.ios_version : "",
+    item.device_model || ""
+  ].filter(Boolean);
+
+  if (environmentParts.length) {
+    const line = document.createElement("div");
+    line.textContent = environmentParts.join(" · ");
+    meta.append(line);
+  }
+
   if (status === "new") {
     meta.append(document.createTextNode("已收到回報，等待開發者查看。"));
   }
@@ -869,40 +889,60 @@ function createTrackCard(item) {
 }
 
 async function lookupReport(value) {
-  const normalized = normalizeReportId(value);
+  const input = normalizeLookupInput(value);
 
   lookupResult.replaceChildren();
 
-  if (!normalized) {
+  if (!input) {
     lookupStatus.textContent = "請輸入有效的回報 ID。";
     return;
   }
 
-  lookupInput.value = normalized;
   lookupButton.disabled = true;
   lookupStatus.textContent = "正在查詢…";
 
   try {
-    const response = await fetch("/api/feedback-status?id=" + encodeURIComponent(normalized), {
-      headers: { "Accept": "application/json" },
-      cache: "no-store"
-    });
+    const response = await fetch(
+      "/api/feedback-lookup-v2?id=" + encodeURIComponent(input),
+      {
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      }
+    );
 
     const result = await response.json();
 
-    if (response.status === 404) {
+    if (!response.ok || !result.ok) {
+      if (response.status === 400) {
+        lookupStatus.textContent = "請輸入有效的回報 ID。";
+        return;
+      }
+      throw new Error();
+    }
+
+    const matches = result.matches || [];
+
+    if (!matches.length) {
       lookupStatus.textContent = "找不到這個回報 ID。";
       return;
     }
 
-    if (!response.ok || !result.ok) {
-      throw new Error();
+    if (matches.length === 1) {
+      const item = matches[0];
+      lookupInput.value = item.report_id;
+      lookupStatus.textContent = "";
+      lookupResult.append(createTrackCard(item));
+      saveRecent(item.report_id);
+      renderRecent();
+      return;
     }
 
-    lookupStatus.textContent = "";
-    lookupResult.append(createTrackCard(result.feedback));
-    saveRecent(normalized);
-    renderRecent();
+    lookupStatus.textContent =
+      "這個數字同時存在於網站回報與 TestFlight，以下顯示所有符合結果。";
+
+    matches.forEach(function(item) {
+      lookupResult.append(createTrackCard(item));
+    });
   } catch {
     lookupStatus.textContent = "查詢失敗，請稍後再試。";
   } finally {
