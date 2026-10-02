@@ -1125,7 +1125,12 @@ function renderPrivateMetadata(item) {
 }
 
 function editorPoint(event) {
-  const rect = imageEditorCanvas.getBoundingClientRect();
+  const rect = imageEditorSelectionCanvas.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) {
+    return { x:0, y:0 };
+  }
+
   return {
     x: Math.max(0, Math.min(
       imageEditorCanvas.width,
@@ -1136,6 +1141,149 @@ function editorPoint(event) {
       (event.clientY - rect.top) * imageEditorCanvas.height / rect.height
     ))
   };
+}
+
+function normalizeImageEditorSelection(start, end, tool) {
+  const x = Math.round(Math.min(start.x, end.x));
+  const y = Math.round(Math.min(start.y, end.y));
+  const width = Math.round(Math.abs(end.x - start.x));
+  const height = Math.round(Math.abs(end.y - start.y));
+
+  if (width < 4 || height < 4) return null;
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    tool:tool || imageEditorTool
+  };
+}
+
+function clearImageEditorSelectionPreview() {
+  imageEditorSelectionContext.clearRect(
+    0,
+    0,
+    imageEditorSelectionCanvas.width,
+    imageEditorSelectionCanvas.height
+  );
+}
+
+function drawImageEditorSelection(selection) {
+  clearImageEditorSelectionPreview();
+  if (!selection) return;
+
+  const lineWidth = Math.max(
+    2,
+    Math.round(Math.min(
+      imageEditorSelectionCanvas.width,
+      imageEditorSelectionCanvas.height
+    ) / 450)
+  );
+
+  imageEditorSelectionContext.save();
+  imageEditorSelectionContext.lineWidth = lineWidth;
+  imageEditorSelectionContext.setLineDash([
+    lineWidth * 4,
+    lineWidth * 3
+  ]);
+  imageEditorSelectionContext.strokeStyle = "#fff";
+  imageEditorSelectionContext.shadowColor = "rgba(0,0,0,.9)";
+  imageEditorSelectionContext.shadowBlur = lineWidth * 2;
+  imageEditorSelectionContext.strokeRect(
+    selection.x + lineWidth / 2,
+    selection.y + lineWidth / 2,
+    Math.max(1, selection.width - lineWidth),
+    Math.max(1, selection.height - lineWidth)
+  );
+
+  imageEditorSelectionContext.fillStyle = "rgba(255,255,255,.08)";
+  imageEditorSelectionContext.fillRect(
+    selection.x,
+    selection.y,
+    selection.width,
+    selection.height
+  );
+  imageEditorSelectionContext.restore();
+}
+
+function setImageEditorSelection(selection) {
+  imageEditorPendingSelection = selection;
+  drawImageEditorSelection(selection);
+  imageSelectionActions.hidden = !selection;
+
+  if (selection) {
+    imageSelectionInfo.textContent =
+      "已選取 " +
+      selection.width +
+      " × " +
+      selection.height +
+      " px";
+    imageEditorStatus.textContent =
+      "確認選取後才會套用" +
+      (selection.tool === "blackout" ? "塗黑。" : "馬賽克。");
+  } else {
+    imageSelectionInfo.textContent = "已選取區域";
+    imageEditorStatus.textContent =
+      (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
+      "：正在等待你選取區域…";
+  }
+}
+
+function updateImageEditorTransform() {
+  imageEditorCanvasWrap.style.transform =
+    "translate(" +
+    imageEditorPanX +
+    "px," +
+    imageEditorPanY +
+    "px) scale(" +
+    imageEditorZoom +
+    ")";
+}
+
+function resetImageEditorView() {
+  imageEditorZoom = 1;
+  imageEditorPanX = 0;
+  imageEditorPanY = 0;
+  imageEditorPinch = null;
+  imageEditorPointers.clear();
+  updateImageEditorTransform();
+}
+
+function layoutImageEditorCanvas() {
+  if (!imageEditorBitmap) return;
+
+  const availableWidth = Math.max(1, imageEditorStage.clientWidth - 16);
+  const availableHeight = Math.max(1, imageEditorStage.clientHeight - 16);
+
+  imageEditorBaseScale = Math.min(
+    1,
+    availableWidth / imageEditorBitmap.width,
+    availableHeight / imageEditorBitmap.height
+  );
+
+  const displayWidth = Math.max(
+    1,
+    Math.round(imageEditorBitmap.width * imageEditorBaseScale)
+  );
+  const displayHeight = Math.max(
+    1,
+    Math.round(imageEditorBitmap.height * imageEditorBaseScale)
+  );
+
+  imageEditorCanvasWrap.style.width = displayWidth + "px";
+  imageEditorCanvasWrap.style.height = displayHeight + "px";
+  imageEditorCanvasWrap.style.left =
+    Math.max(8, 8 + (availableWidth - displayWidth) / 2) + "px";
+  imageEditorCanvasWrap.style.top =
+    Math.max(8, 8 + (availableHeight - displayHeight) / 2) + "px";
+
+  [imageEditorCanvas, imageEditorSelectionCanvas].forEach(function(canvas) {
+    canvas.style.width = displayWidth + "px";
+    canvas.style.height = displayHeight + "px";
+  });
+
+  resetImageEditorView();
 }
 
 function pushImageEditorUndo() {
@@ -1155,8 +1303,12 @@ function pushImageEditorUndo() {
 
 function redrawImageEditorOriginal() {
   if (!imageEditorBitmap) return;
+
   imageEditorCanvas.width = imageEditorBitmap.width;
   imageEditorCanvas.height = imageEditorBitmap.height;
+  imageEditorSelectionCanvas.width = imageEditorBitmap.width;
+  imageEditorSelectionCanvas.height = imageEditorBitmap.height;
+
   imageEditorContext.clearRect(
     0,
     0,
@@ -1164,13 +1316,20 @@ function redrawImageEditorOriginal() {
     imageEditorCanvas.height
   );
   imageEditorContext.drawImage(imageEditorBitmap, 0, 0);
+
   imageEditorUndoStack = [];
+  imageEditorStart = null;
+  setImageEditorSelection(null);
+  layoutImageEditorCanvas();
 }
 
 function applyPixelate(x, y, width, height) {
   const safeWidth = Math.max(1, Math.round(width));
   const safeHeight = Math.max(1, Math.round(height));
-  const pixelSize = Math.max(10, Math.round(Math.min(safeWidth, safeHeight) / 10));
+  const pixelSize = Math.max(
+    10,
+    Math.round(Math.min(safeWidth, safeHeight) / 10)
+  );
   const smallWidth = Math.max(1, Math.round(safeWidth / pixelSize));
   const smallHeight = Math.max(1, Math.round(safeHeight / pixelSize));
 
@@ -1208,48 +1367,128 @@ function applyPixelate(x, y, width, height) {
   imageEditorContext.restore();
 }
 
-function applyImageEditorSelection(start, end) {
-  const x = Math.round(Math.min(start.x, end.x));
-  const y = Math.round(Math.min(start.y, end.y));
-  const width = Math.round(Math.abs(end.x - start.x));
-  const height = Math.round(Math.abs(end.y - start.y));
-
-  if (width < 4 || height < 4) return;
+function applyConfirmedImageEditorSelection(selection) {
+  if (!selection) return;
 
   pushImageEditorUndo();
 
-  if (imageEditorTool === "blackout") {
+  if (selection.tool === "blackout") {
     imageEditorContext.save();
     imageEditorContext.fillStyle = "#000";
-    imageEditorContext.fillRect(x, y, width, height);
+    imageEditorContext.fillRect(
+      selection.x,
+      selection.y,
+      selection.width,
+      selection.height
+    );
     imageEditorContext.restore();
-    return;
+  } else {
+    applyPixelate(
+      selection.x,
+      selection.y,
+      selection.width,
+      selection.height
+    );
   }
 
-  applyPixelate(x, y, width, height);
+  setImageEditorSelection(null);
+}
+
+function imageEditorPointerMidpoint(points) {
+  return {
+    x:(points[0].clientX + points[1].clientX) / 2,
+    y:(points[0].clientY + points[1].clientY) / 2
+  };
+}
+
+function imageEditorPointerDistance(points) {
+  return Math.hypot(
+    points[1].clientX - points[0].clientX,
+    points[1].clientY - points[0].clientY
+  );
+}
+
+function beginImageEditorPinch() {
+  const points = Array.from(imageEditorPointers.values()).slice(0, 2);
+  if (points.length < 2) return;
+
+  imageEditorStart = null;
+
+  const midpoint = imageEditorPointerMidpoint(points);
+  const stageRect = imageEditorStage.getBoundingClientRect();
+  const wrapLeft = parseFloat(imageEditorCanvasWrap.style.left || "0");
+  const wrapTop = parseFloat(imageEditorCanvasWrap.style.top || "0");
+  const stageX = midpoint.x - stageRect.left;
+  const stageY = midpoint.y - stageRect.top;
+
+  imageEditorPinch = {
+    distance:Math.max(1, imageEditorPointerDistance(points)),
+    zoom:imageEditorZoom,
+    contentX:(stageX - wrapLeft - imageEditorPanX) / imageEditorZoom,
+    contentY:(stageY - wrapTop - imageEditorPanY) / imageEditorZoom
+  };
+}
+
+function updateImageEditorPinch() {
+  if (!imageEditorPinch || imageEditorPointers.size < 2) return;
+
+  const points = Array.from(imageEditorPointers.values()).slice(0, 2);
+  const midpoint = imageEditorPointerMidpoint(points);
+  const distance = Math.max(1, imageEditorPointerDistance(points));
+  const stageRect = imageEditorStage.getBoundingClientRect();
+  const wrapLeft = parseFloat(imageEditorCanvasWrap.style.left || "0");
+  const wrapTop = parseFloat(imageEditorCanvasWrap.style.top || "0");
+  const stageX = midpoint.x - stageRect.left;
+  const stageY = midpoint.y - stageRect.top;
+
+  const nextZoom = Math.max(
+    1,
+    Math.min(
+      6,
+      imageEditorPinch.zoom * distance / imageEditorPinch.distance
+    )
+  );
+
+  imageEditorZoom = nextZoom;
+  imageEditorPanX =
+    stageX -
+    wrapLeft -
+    imageEditorPinch.contentX * nextZoom;
+  imageEditorPanY =
+    stageY -
+    wrapTop -
+    imageEditorPinch.contentY * nextZoom;
+
+  updateImageEditorTransform();
 }
 
 async function openPublicImageEditor(attachment, refreshCallback) {
   imageEditorAttachment = attachment;
   imageEditorRefresh = refreshCallback;
-  imageEditorStatus.textContent = "正在載入原始圖片…";
+  imageEditorStatus.textContent =
+    attachment.public_url
+      ? "正在載入目前公開版本…"
+      : "正在載入原始圖片…";
   imageEditorSave.disabled = true;
   imageEditorModal.hidden = false;
 
   try {
-    const response = await fetch(attachment.url, {
-      cache:"no-store"
-    });
+    const response = await fetch(
+      attachment.public_url || attachment.url,
+      { cache:"no-store" }
+    );
 
     if (!response.ok) throw new Error();
 
     const blob = await response.blob();
     imageEditorBitmap = await createImageBitmap(blob);
     redrawImageEditorOriginal();
-    imageEditorStatus.textContent = "";
+    imageEditorStatus.textContent =
+      (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
+      "：正在等待你選取區域…";
     imageEditorSave.disabled = false;
   } catch {
-    imageEditorStatus.textContent = "無法載入原始圖片。";
+    imageEditorStatus.textContent = "無法載入圖片。";
   }
 }
 
@@ -1258,7 +1497,12 @@ function closePublicImageEditor() {
   imageEditorAttachment = null;
   imageEditorRefresh = null;
   imageEditorStart = null;
+  imageEditorPendingSelection = null;
   imageEditorUndoStack = [];
+  imageEditorPointers.clear();
+  imageEditorPinch = null;
+  clearImageEditorSelectionPreview();
+  imageSelectionActions.hidden = true;
 
   if (imageEditorBitmap?.close) {
     imageEditorBitmap.close();
@@ -1266,42 +1510,156 @@ function closePublicImageEditor() {
 
   imageEditorBitmap = null;
   imageEditorStatus.textContent = "";
+  resetImageEditorView();
 }
 
 imageEditorTools.forEach(function(button) {
   button.addEventListener("click", function() {
+    if (imageEditorPendingSelection) {
+      imageEditorStatus.textContent = "請先確認或取消目前的選取區域。";
+      return;
+    }
+
     imageEditorTool = button.dataset.tool || "pixelate";
     imageEditorTools.forEach(function(item) {
       item.classList.toggle("active", item === button);
     });
+
+    imageEditorStatus.textContent =
+      (imageEditorTool === "blackout" ? "塗黑" : "馬賽克") +
+      "：正在等待你選取區域…";
   });
 });
 
-imageEditorCanvas.addEventListener("pointerdown", function(event) {
+imageEditorSelectionCanvas.addEventListener("pointerdown", function(event) {
   if (!imageEditorBitmap) return;
-  imageEditorCanvas.setPointerCapture(event.pointerId);
+
+  event.preventDefault();
+  imageEditorSelectionCanvas.setPointerCapture(event.pointerId);
+  imageEditorPointers.set(event.pointerId, {
+    clientX:event.clientX,
+    clientY:event.clientY
+  });
+
+  if (imageEditorPointers.size >= 2) {
+    beginImageEditorPinch();
+    return;
+  }
+
+  if (imageEditorPendingSelection) {
+    imageEditorStatus.textContent = "請先確認或取消目前的選取區域。";
+    return;
+  }
+
   imageEditorStart = editorPoint(event);
 });
 
-imageEditorCanvas.addEventListener("pointerup", function(event) {
-  if (!imageEditorStart || !imageEditorBitmap) return;
-  const end = editorPoint(event);
-  applyImageEditorSelection(imageEditorStart, end);
-  imageEditorStart = null;
+imageEditorSelectionCanvas.addEventListener("pointermove", function(event) {
+  if (!imageEditorPointers.has(event.pointerId)) return;
+
+  event.preventDefault();
+  imageEditorPointers.set(event.pointerId, {
+    clientX:event.clientX,
+    clientY:event.clientY
+  });
+
+  if (imageEditorPointers.size >= 2) {
+    if (!imageEditorPinch) beginImageEditorPinch();
+    updateImageEditorPinch();
+    return;
+  }
+
+  if (!imageEditorStart || imageEditorPendingSelection) return;
+
+  const current = editorPoint(event);
+  const preview = normalizeImageEditorSelection(
+    imageEditorStart,
+    current,
+    imageEditorTool
+  );
+
+  if (preview) {
+    drawImageEditorSelection(preview);
+    imageEditorStatus.textContent =
+      "選取中：" +
+      preview.width +
+      " × " +
+      preview.height +
+      " px";
+  } else {
+    clearImageEditorSelectionPreview();
+  }
 });
 
-imageEditorCanvas.addEventListener("pointercancel", function() {
+function finishImageEditorPointer(event, cancelled) {
+  const wasPinching = imageEditorPointers.size >= 2 || Boolean(imageEditorPinch);
+
+  if (
+    !cancelled &&
+    !wasPinching &&
+    imageEditorStart &&
+    !imageEditorPendingSelection
+  ) {
+    const end = editorPoint(event);
+    const selection = normalizeImageEditorSelection(
+      imageEditorStart,
+      end,
+      imageEditorTool
+    );
+
+    if (selection) {
+      setImageEditorSelection(selection);
+    } else {
+      clearImageEditorSelectionPreview();
+      imageEditorStatus.textContent =
+        "選取範圍太小，請重新框選。";
+    }
+  }
+
+  imageEditorPointers.delete(event.pointerId);
   imageEditorStart = null;
+
+  if (imageEditorPointers.size < 2) {
+    imageEditorPinch = null;
+  }
+}
+
+imageEditorSelectionCanvas.addEventListener("pointerup", function(event) {
+  finishImageEditorPointer(event, false);
+});
+
+imageEditorSelectionCanvas.addEventListener("pointercancel", function(event) {
+  finishImageEditorPointer(event, true);
+});
+
+imageSelectionConfirm.addEventListener("click", function() {
+  if (!imageEditorPendingSelection) return;
+  applyConfirmedImageEditorSelection(imageEditorPendingSelection);
+});
+
+imageSelectionCancel.addEventListener("click", function() {
+  setImageEditorSelection(null);
 });
 
 imageEditorUndo.addEventListener("click", function() {
+  if (imageEditorPendingSelection) {
+    imageEditorStatus.textContent = "請先確認或取消目前選取。";
+    return;
+  }
+
   const snapshot = imageEditorUndoStack.pop();
-  if (!snapshot) return;
+  if (!snapshot) {
+    imageEditorStatus.textContent = "目前沒有可復原的操作。";
+    return;
+  }
+
   imageEditorContext.putImageData(snapshot, 0, 0);
+  imageEditorStatus.textContent = "已復原上一個修改。";
 });
 
 imageEditorReset.addEventListener("click", function() {
   redrawImageEditorOriginal();
+  imageEditorStatus.textContent = "圖片修改與縮放檢視已重設。";
 });
 
 imageEditorClose.addEventListener("click", closePublicImageEditor);
@@ -1312,11 +1670,25 @@ imageEditorModal.addEventListener("click", function(event) {
   }
 });
 
+window.addEventListener("resize", function() {
+  if (!imageEditorModal.hidden && imageEditorBitmap) {
+    layoutImageEditorCanvas();
+    if (imageEditorPendingSelection) {
+      drawImageEditorSelection(imageEditorPendingSelection);
+    }
+  }
+});
+
 imageEditorSave.addEventListener("click", function() {
   if (!imageEditorAttachment || !imageEditorBitmap) return;
 
+  if (imageEditorPendingSelection) {
+    imageEditorStatus.textContent = "請先確認或取消目前的虛線選取框。";
+    return;
+  }
+
   imageEditorSave.disabled = true;
-  imageEditorStatus.textContent = "正在產生公開圖片…";
+  imageEditorStatus.textContent = "正在產生完整尺寸公開圖片…";
 
   imageEditorCanvas.toBlob(async function(blob) {
     if (!blob) {
@@ -1331,9 +1703,7 @@ imageEditorSave.addEventListener("click", function() {
         encodeURIComponent(imageEditorAttachment.id),
         {
           method:"PUT",
-          headers:{
-            "Content-Type":"image/png"
-          },
+          headers:{ "Content-Type":"image/png" },
           body:blob
         }
       );
