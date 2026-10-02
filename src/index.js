@@ -445,7 +445,12 @@ async function handleDashboardApi(request, env, url) {
          m.description_state,
          m.steps_state,
          m.external_resource_id,
-         m.external_event_type
+         m.external_event_type,
+         (
+           SELECT COUNT(*)
+           FROM feedback_attachments a
+           WHERE a.feedback_id = f.id
+         ) AS attachment_count
        FROM feedback f
        JOIN feedback_tracking t ON t.feedback_id = f.id
        LEFT JOIN feedback_v2_meta m ON m.feedback_id = f.id
