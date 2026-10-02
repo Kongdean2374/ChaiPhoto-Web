@@ -176,6 +176,23 @@
 
     .track-title { margin:10px 0 3px; font-size:1.04rem; font-weight:800; }
     .track-note { margin:6px 0 0; white-space:pre-wrap; }
+
+    .track-images {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+      gap:8px;
+      margin-top:12px;
+    }
+
+    .track-images img {
+      width:100%;
+      max-height:520px;
+      object-fit:contain;
+      border-radius:12px;
+      background:#111;
+      display:block;
+    }
+
     .track-meta {
       display:grid;
       gap:4px;
@@ -771,6 +788,24 @@ function createTrackCard(item) {
     note.className = "track-note";
     note.textContent = item.public_note;
     card.append(note);
+  }
+
+  if (Array.isArray(item.attachments) && item.attachments.length) {
+    const images = document.createElement("div");
+    images.className = "track-images";
+
+    item.attachments.forEach(function(attachment) {
+      if (!attachment?.url) return;
+      const image = document.createElement("img");
+      image.src = attachment.url;
+      image.alt = "公開回報圖片";
+      image.loading = "lazy";
+      images.append(image);
+    });
+
+    if (images.childElementCount) {
+      card.append(images);
+    }
   }
 
   const meta = document.createElement("div");
