@@ -295,6 +295,36 @@
       font-size:.82rem;
     }
 
+    .attachment-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .attachment-card {
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:8px;
+      background:var(--bg);
+    }
+
+    .attachment-card img {
+      width:100%;
+      aspect-ratio:9 / 16;
+      object-fit:contain;
+      border-radius:10px;
+      background:#111;
+      display:block;
+    }
+
+    .attachment-meta {
+      margin-top:7px;
+      color:var(--muted);
+      font-size:.75rem;
+      line-height:1.45;
+    }
+
     @media (max-width:900px) {
       .filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
       .filters .search-wrap { grid-column:1 / -1; }
@@ -618,6 +648,137 @@ function createTextarea(labelText, value, placeholder) {
   textarea.rows = 4;
   label.append(textarea);
   return { label, textarea };
+}
+
+function renderPrivateMetadata(item) {
+  if (!item.private_metadata_json) return null;
+
+  let data;
+
+  try {
+    data = JSON.parse(item.private_metadata_json);
+  } catch {
+    return null;
+  }
+
+  const values = Object.entries(data || {}).filter(function(entry) {
+    return entry[1] !== null && entry[1] !== undefined && entry[1] !== "";
+  });
+
+  if (!values.length) return null;
+
+  const section = make("div", null, "detail-section");
+  section.append(make("h3", "TestFlight 私有資訊"));
+
+  const box = make("div", null, "meta-grid");
+  const labels = {
+    testerEmail:"Tester Email",
+    testerFirstName:"Tester 名字",
+    testerLastName:"Tester 姓氏",
+    locale:"語系",
+    timeZone:"時區",
+    architecture:"架構",
+    connectionType:"連線",
+    batteryPercentage:"電量",
+    deviceFamily:"裝置家族",
+    appPlatform:"平台"
+  };
+
+  values.forEach(function(entry) {
+    const key = entry[0];
+    let value = entry[1];
+
+    if (key === "batteryPercentage" && value !== null) {
+      value = String(value) + "%";
+    }
+
+    addMeta(box, labels[key] || key, value);
+  });
+
+  section.append(box);
+  return section;
+}
+
+async function loadAttachments(item, container) {
+  container.replaceChildren(
+    make("div", "正在讀取附件…", "attachment-placeholder")
+  );
+
+  try {
+    const response = await fetch(
+      "/dashboard/api/feedback/attachments?feedbackId=" +
+      encodeURIComponent(item.id),
+      {
+        headers:{ "Accept":"application/json" },
+        cache:"no-store"
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) throw new Error();
+
+    const attachments = result.attachments || [];
+    container.replaceChildren();
+
+    if (!attachments.length) {
+      container.append(make("div", "目前沒有附件。", "attachment-placeholder"));
+      return;
+    }
+
+    const grid = make("div", null, "attachment-grid");
+
+    attachments.forEach(function(attachment) {
+      const card = make("div", null, "attachment-card");
+
+      if (
+        attachment.available &&
+        String(attachment.mime_type || "").startsWith("image/")
+      ) {
+        const image = document.createElement("img");
+        image.src = attachment.url;
+        image.alt = attachment.original_filename || "回報附件";
+        image.loading = "lazy";
+        card.append(image);
+      } else {
+        card.append(
+          make(
+            "div",
+            attachment.available ? "附件可讀取" : "附件目前無法讀取",
+            "attachment-placeholder"
+          )
+        );
+      }
+
+      const meta = make("div", null, "attachment-meta");
+      meta.append(
+        make("div", attachment.original_filename || "附件"),
+        make(
+          "div",
+          [
+            attachment.width && attachment.height
+              ? attachment.width + "×" + attachment.height
+              : "",
+            attachment.mime_type || "",
+            attachment.is_public ? "允許公開" : "僅後台"
+          ].filter(Boolean).join(" · ")
+        )
+      );
+
+      if (attachment.expires_at) {
+        meta.append(make("div", "來源連結到期：" + formatDate(attachment.expires_at)));
+      }
+
+      card.append(meta);
+      grid.append(card);
+    });
+
+    container.append(grid);
+  } catch {
+    container.replaceChildren(
+      make("div", "附件讀取失敗。", "attachment-placeholder")
+    );
+  }
 }
 
 function createContentEditor(item) {
@@ -1155,18 +1316,35 @@ function renderFeedback() {
 
     detail.append(createContentEditor(item));
 
+    const privateMetadataSection = renderPrivateMetadata(item);
+    if (privateMetadataSection) detail.append(privateMetadataSection);
+
     const attachmentSection = make("div", null, "detail-section");
     attachmentSection.append(make("h3", "附件"));
-    attachmentSection.append(
+    const attachmentContainer = make("div");
+    attachmentContainer.append(
       make(
         "div",
         Number(item.attachment_count || 0) > 0
-          ? "此回報有 " + Number(item.attachment_count) + " 個附件。附件檢視會在 TestFlight / 網站上傳接入後啟用。"
+          ? "展開此回報後載入 " + Number(item.attachment_count) + " 個附件。"
           : "目前沒有附件。",
         "attachment-placeholder"
       )
     );
+    attachmentSection.append(attachmentContainer);
     detail.append(attachmentSection);
+
+    let attachmentsLoaded = false;
+    details.addEventListener("toggle", function() {
+      if (
+        details.open &&
+        !attachmentsLoaded &&
+        Number(item.attachment_count || 0) > 0
+      ) {
+        attachmentsLoaded = true;
+        loadAttachments(item, attachmentContainer);
+      }
+    });
 
     detail.append(createEditor(item, details));
     details.append(summaryEl, detail);
