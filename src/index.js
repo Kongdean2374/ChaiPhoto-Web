@@ -74,6 +74,217 @@ function parseReportNumber(value) {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
+const feedbackFieldStates = new Set([
+  "provided",
+  "missing",
+  "not_applicable"
+]);
+
+const betaAliases = new Set(["B", "BE", "BET", "BETA"]);
+const testFlightAliases = new Set([
+  "T",
+  "TE",
+  "TES",
+  "TEST",
+  "TF",
+  "FT",
+  "TESTF",
+  "TESTFLIGHT"
+]);
+
+function formatSourceReportId(sourceKey, number) {
+  const prefix = sourceKey === "tf" ? "TF" : "BETA";
+  return prefix + "-" + String(Number(number) || 0).padStart(3, "0");
+}
+
+function parseReportReference(value) {
+  const raw = clean(value, 80).toUpperCase();
+  if (!raw) return null;
+
+  // Treat spaces, dashes, slashes, dots and underscores as optional separators.
+  const normalized = raw.replace(/[\s\-_/\\.]+/g, "");
+  const match = normalized.match(/^([A-Z]*)(\d+)$/);
+
+  if (!match) return null;
+
+  const prefix = match[1];
+  const number = Number.parseInt(match[2], 10);
+
+  if (!Number.isSafeInteger(number) || number < 1) return null;
+
+  if (!prefix) {
+    return { sourceKey: null, number };
+  }
+
+  if (betaAliases.has(prefix)) {
+    return { sourceKey: "beta", number };
+  }
+
+  if (testFlightAliases.has(prefix)) {
+    return { sourceKey: "tf", number };
+  }
+
+  return null;
+}
+
+async function ensureFeedbackV2Schema(env) {
+  await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_v2_meta (
+        feedback_id TEXT PRIMARY KEY,
+        source_key TEXT NOT NULL
+          CHECK (source_key IN ('beta', 'tf')),
+        source_number INTEGER NOT NULL CHECK (source_number >= 1),
+        original_description TEXT,
+        original_steps TEXT,
+        edited_description TEXT,
+        edited_steps TEXT,
+        description_state TEXT NOT NULL DEFAULT 'provided'
+          CHECK (description_state IN ('provided', 'missing', 'not_applicable')),
+        steps_state TEXT NOT NULL DEFAULT 'missing'
+          CHECK (steps_state IN ('provided', 'missing', 'not_applicable')),
+        external_resource_id TEXT,
+        external_event_type TEXT,
+        updated_at TEXT NOT NULL,
+        UNIQUE (source_key, source_number),
+        UNIQUE (source_key, external_resource_id)
+      )`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_source_counter (
+        source_key TEXT PRIMARY KEY
+          CHECK (source_key IN ('beta', 'tf')),
+        next_number INTEGER NOT NULL CHECK (next_number >= 1)
+      )`
+    ),
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO feedback_source_counter (source_key, next_number)
+       VALUES ('beta', 1)`
+    ),
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO feedback_source_counter (source_key, next_number)
+       VALUES ('tf', 1)`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_attachments (
+        id TEXT PRIMARY KEY,
+        feedback_id TEXT NOT NULL,
+        source TEXT NOT NULL CHECK (source IN ('web', 'testflight')),
+        storage_key TEXT,
+        mime_type TEXT,
+        original_filename TEXT,
+        byte_size INTEGER,
+        is_public INTEGER NOT NULL DEFAULT 0 CHECK (is_public IN (0, 1)),
+        created_at TEXT NOT NULL
+      )`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS feedback_ingest_events (
+        event_id TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        event_type TEXT,
+        resource_id TEXT,
+        feedback_id TEXT,
+        received_at TEXT NOT NULL,
+        processed_at TEXT,
+        payload_json TEXT
+      )`
+    )
+  ]);
+}
+
+async function nextSourceNumber(env, sourceKey) {
+  await ensureFeedbackV2Schema(env);
+
+  const row = await env.DB.prepare(
+    `UPDATE feedback_source_counter
+     SET next_number = next_number + 1
+     WHERE source_key = ?
+     RETURNING next_number - 1 AS source_number`
+  )
+    .bind(sourceKey)
+    .first();
+
+  if (!row?.source_number) {
+    throw new Error("Unable to allocate source report number");
+  }
+
+  return Number(row.source_number);
+}
+
+async function ensureFeedbackV2Rows(env) {
+  await ensureFeedbackV2Schema(env);
+
+  const maxBeta = await env.DB.prepare(
+    `SELECT COALESCE(MAX(report_number), 0) AS max_number
+     FROM feedback_tracking`
+  ).first();
+
+  const nextBeta = Number(maxBeta?.max_number || 0) + 1;
+
+  await env.DB.prepare(
+    `UPDATE feedback_source_counter
+     SET next_number = CASE
+       WHEN next_number < ? THEN ?
+       ELSE next_number
+     END
+     WHERE source_key = 'beta'`
+  )
+    .bind(nextBeta, nextBeta)
+    .run();
+
+  const missing = await env.DB.prepare(
+    `SELECT
+       f.id,
+       f.description,
+       f.steps,
+       f.source,
+       t.report_number
+     FROM feedback f
+     JOIN feedback_tracking t ON t.feedback_id = f.id
+     LEFT JOIN feedback_v2_meta m ON m.feedback_id = f.id
+     WHERE m.feedback_id IS NULL
+     ORDER BY f.created_at ASC, f.id ASC
+     LIMIT 500`
+  ).all();
+
+  for (const row of missing.results || []) {
+    const sourceKey = row.source === "testflight" ? "tf" : "beta";
+    const sourceNumber = sourceKey === "beta"
+      ? Number(row.report_number)
+      : await nextSourceNumber(env, "tf");
+
+    const originalDescription = clean(row.description, 5000);
+    const originalSteps = clean(row.steps, 5000);
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO feedback_v2_meta (
+        feedback_id,
+        source_key,
+        source_number,
+        original_description,
+        original_steps,
+        description_state,
+        steps_state,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(
+        row.id,
+        sourceKey,
+        sourceNumber,
+        originalDescription || null,
+        originalSteps || null,
+        originalDescription ? "provided" : "missing",
+        originalSteps ? "provided" : "missing",
+        now
+      )
+      .run();
+  }
+}
+
 function cleanDiagnostics(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -175,6 +386,8 @@ async function ensureTrackingRows(env) {
       .bind(row.id, number)
       .run();
   }
+
+  await ensureFeedbackV2Rows(env);
 }
 
 function etaFromBody(body) {
@@ -222,9 +435,20 @@ async function handleDashboardApi(request, env, url) {
          t.unable_reason,
          t.diagnostics_json,
          t.deleted_at,
-         t.deletion_reason
+         t.deletion_reason,
+         m.source_key,
+         m.source_number,
+         m.original_description,
+         m.original_steps,
+         m.edited_description,
+         m.edited_steps,
+         m.description_state,
+         m.steps_state,
+         m.external_resource_id,
+         m.external_event_type
        FROM feedback f
        JOIN feedback_tracking t ON t.feedback_id = f.id
+       LEFT JOIN feedback_v2_meta m ON m.feedback_id = f.id
        ORDER BY COALESCE(t.deleted_at, f.created_at) DESC
        LIMIT 500`
     ).all();
@@ -394,6 +618,103 @@ async function handleDashboardApi(request, env, url) {
 
     const changed =
       results.some(result => Number(result.meta?.changes || 0) > 0);
+
+    if (!changed) {
+      return json({ ok: false, error: "Feedback not found" }, 404);
+    }
+
+    return json({ ok: true });
+  }
+
+  if (
+    url.pathname === "/dashboard/api/feedback/content" &&
+    request.method === "PATCH"
+  ) {
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== url.origin) {
+      return json({ ok: false, error: "Invalid origin" }, 403);
+    }
+
+    if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+      return json({ ok: false, error: "JSON required" }, 415);
+    }
+
+    let body;
+
+    try {
+      body = await request.json();
+    } catch {
+      return json({ ok: false, error: "Invalid JSON" }, 400);
+    }
+
+    const id = clean(body.id, 80);
+    const description = clean(body.description, 5000);
+    const steps = clean(body.steps, 5000);
+    const descriptionState = clean(body.descriptionState, 30) ||
+      (description ? "provided" : "missing");
+    const stepsState = clean(body.stepsState, 30) ||
+      (steps ? "provided" : "missing");
+
+    if (!id) {
+      return json({ ok: false, error: "Missing feedback id" }, 400);
+    }
+
+    if (
+      !feedbackFieldStates.has(descriptionState) ||
+      !feedbackFieldStates.has(stepsState)
+    ) {
+      return json({ ok: false, error: "Invalid field state" }, 400);
+    }
+
+    if (descriptionState === "provided" && !description) {
+      return json({ ok: false, error: "Description marked provided but empty" }, 400);
+    }
+
+    if (stepsState === "provided" && !steps) {
+      return json({ ok: false, error: "Steps marked provided but empty" }, 400);
+    }
+
+    const now = new Date().toISOString();
+
+    const results = await env.DB.batch([
+      env.DB.prepare(
+        `UPDATE feedback
+         SET description = ?, steps = ?, updated_at = ?
+         WHERE id = ?
+           AND EXISTS (
+             SELECT 1
+             FROM feedback_tracking t
+             WHERE t.feedback_id = feedback.id
+               AND t.deleted_at IS NULL
+           )`
+      ).bind(
+        descriptionState === "provided" ? description : "",
+        stepsState === "provided" ? steps : null,
+        now,
+        id
+      ),
+      env.DB.prepare(
+        `UPDATE feedback_v2_meta
+         SET edited_description = ?,
+             edited_steps = ?,
+             description_state = ?,
+             steps_state = ?,
+             updated_at = ?
+         WHERE feedback_id = ?`
+      ).bind(
+        descriptionState === "provided" ? description : null,
+        stepsState === "provided" ? steps : null,
+        descriptionState,
+        stepsState,
+        now,
+        id
+      )
+    ]);
+
+    const changed = results.some(
+      result => Number(result.meta?.changes || 0) > 0
+    );
 
     if (!changed) {
       return json({ ok: false, error: "Feedback not found" }, 404);
@@ -751,6 +1072,78 @@ export default {
         generatedAt: new Date().toISOString(),
         counts,
         feedback: list.results || []
+      });
+    }
+
+    if (
+      url.pathname === "/api/feedback-lookup-v2" &&
+      request.method === "GET"
+    ) {
+      await ensureTrackingRows(env);
+
+      const parsed = parseReportReference(
+        url.searchParams.get("id")
+      );
+
+      if (!parsed) {
+        return json({ ok: false, error: "Invalid report id" }, 400);
+      }
+
+      const baseSql =
+        `SELECT
+           f.created_at,
+           f.status,
+           f.category,
+           f.is_public,
+           f.public_title,
+           f.public_note,
+           f.fixed_version,
+           f.fixed_build,
+           f.updated_at,
+           t.deleted_at,
+           m.source_key,
+           m.source_number,
+           m.description_state,
+           m.steps_state
+         FROM feedback f
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         JOIN feedback_v2_meta m ON m.feedback_id = f.id`;
+
+      const result = parsed.sourceKey
+        ? await env.DB.prepare(
+            baseSql +
+            " WHERE m.source_key = ? AND m.source_number = ? LIMIT 2"
+          )
+            .bind(parsed.sourceKey, parsed.number)
+            .all()
+        : await env.DB.prepare(
+            baseSql +
+            " WHERE m.source_number = ? ORDER BY m.source_key ASC LIMIT 4"
+          )
+            .bind(parsed.number)
+            .all();
+
+      const matches = (result.results || []).map(item => ({
+        report_id: formatSourceReportId(item.source_key, item.source_number),
+        source: item.source_key,
+        created_at: item.created_at,
+        status: item.deleted_at ? "deleted" : item.status,
+        public_title: Number(item.is_public) === 1
+          ? item.public_title
+          : null,
+        public_note: Number(item.is_public) === 1
+          ? item.public_note
+          : null,
+        fixed_version: item.fixed_version,
+        fixed_build: item.fixed_build,
+        description_state: item.description_state,
+        steps_state: item.steps_state
+      }));
+
+      return json({
+        ok: true,
+        ambiguous: !parsed.sourceKey && matches.length > 1,
+        matches
       });
     }
 
