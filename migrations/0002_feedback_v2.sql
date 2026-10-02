@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS feedback_attachments (
   expires_at TEXT,
   width INTEGER,
   height INTEGER,
+  public_storage_key TEXT,
+  public_mime_type TEXT,
+  public_byte_size INTEGER,
+  public_updated_at TEXT,
   is_public INTEGER NOT NULL DEFAULT 0
     CHECK (is_public IN (0, 1)),
   created_at TEXT NOT NULL,
