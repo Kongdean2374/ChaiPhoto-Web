@@ -265,7 +265,7 @@
     <div class="filters">
       <label class="filter-label search-wrap">
         搜尋
-        <input id="search-filter" type="search" placeholder="BETA ID、問題、建議、版本、裝置">
+        <input id="search-filter" type="search" placeholder="回報編號、問題、功能建議、版本、裝置">
       </label>
 
       <label class="filter-label">
@@ -326,6 +326,20 @@ const statusLabels = {
   closed: "無法處理",
   deleted: "已刪除"
 };
+
+const suggestionStatusLabels = {
+  new: "待評估",
+  in_progress: "評估／開發中",
+  resolved: "已加入",
+  closed: "暫不採用",
+  deleted: "已刪除"
+};
+
+function statusLabelForItem(item, status) {
+  return item && item.category === "suggestion"
+    ? (suggestionStatusLabels[status] || status)
+    : (statusLabels[status] || status);
+}
 
 const categoryLabels = {
   crash: "App 閃退",
@@ -628,7 +642,7 @@ function createEditor(item, details) {
   statusLabel.append(document.createTextNode("狀態"));
   const statusSelect = document.createElement("select");
   ["new","in_progress","resolved","closed"].forEach(function(key) {
-    const option = new Option(statusLabels[key], key);
+    const option = new Option(statusLabelForItem(item, key), key);
     option.selected = item.status === key;
     statusSelect.append(option);
   });
@@ -860,7 +874,7 @@ function renderFeedback() {
     }
     const statusBadge = make(
       "span",
-      statusLabels[shownStatus] || shownStatus,
+      statusLabelForItem(item, shownStatus),
       "mini-badge status-badge-" + shownStatus
     );
     const visibility = make(

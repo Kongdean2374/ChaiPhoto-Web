@@ -420,10 +420,10 @@
   <div id="lookup-panel" class="tab-panel" hidden>
     <section>
       <h2>查詢自己的回報或建議</h2>
-      <p class="helper">可輸入 BETA-001、001、01 或 1，會自動視為同一筆回報。</p>
+      <p class="helper">可輸入完整回報編號（例如 BETA-001），或只輸入 001、01、1。BETA 是沿用的回報編號格式，不代表只限測試版。</p>
 
       <div class="lookup-form">
-        <input id="lookup-input" type="search" inputmode="text" placeholder="例如 BETA-001 或 001">
+        <input id="lookup-input" type="search" inputmode="text" placeholder="輸入回報編號，例如 BETA-001 或 001">
         <button id="lookup-button" class="primary-button" type="button">查詢</button>
       </div>
 
@@ -450,7 +450,7 @@
         <input
           id="issue-search"
           type="search"
-          placeholder="搜尋 BETA ID、問題、版本或 Build">
+          placeholder="搜尋回報編號、問題、功能建議、版本或 Build">
 
         <div class="issue-filter-row">
           <button class="issue-filter active" type="button" data-status="">全部</button>
@@ -478,6 +478,20 @@ const statusLabels = {
   closed: "無法處理",
   deleted: "已移除"
 };
+
+const suggestionStatusLabels = {
+  new: "已收到",
+  in_progress: "評估／開發中",
+  resolved: "已加入",
+  closed: "暫不採用",
+  deleted: "已移除"
+};
+
+function statusLabelForItem(item, status) {
+  return item && item.category === "suggestion"
+    ? (suggestionStatusLabels[status] || status)
+    : (statusLabels[status] || status);
+}
 
 const categoryLabels = {
   crash: "App 閃退",
@@ -867,6 +881,7 @@ function formatDue(value) {
 function createTrackCard(item) {
   const card = document.createElement("div");
   const status = item.status || "new";
+  const isSuggestion = item.category === "suggestion";
   card.className = "track-card status-" + status + "-card";
 
   const top = document.createElement("div");
@@ -878,7 +893,7 @@ function createTrackCard(item) {
 
   const pill = document.createElement("span");
   pill.className = "status-pill";
-  pill.textContent = statusLabels[status] || status;
+  pill.textContent = statusLabelForItem(item, status);
 
   top.append(id, pill);
   card.append(top);
@@ -888,7 +903,7 @@ function createTrackCard(item) {
   title.textContent = item.public_title || (
     status === "deleted"
       ? "此回報已從追蹤系統移除"
-      : "ChaiPhoto 問題回報"
+      : (isSuggestion ? "ChaiPhoto 功能建議" : "ChaiPhoto 問題回報")
   );
   card.append(title);
 
@@ -903,7 +918,11 @@ function createTrackCard(item) {
   meta.className = "track-meta";
 
   if (status === "new") {
-    meta.append(document.createTextNode("已收到回報，等待開發者查看。"));
+    meta.append(document.createTextNode(
+      isSuggestion
+        ? "已收到功能建議，等待開發者評估。"
+        : "已收到問題回報，等待開發者查看。"
+    ));
   }
 
   if (status === "in_progress") {
@@ -926,11 +945,19 @@ function createTrackCard(item) {
 
     const line = document.createElement("div");
     if (version) {
-      line.textContent = Number(item.fix_published) === 1
-        ? "已於 ChaiPhoto " + version + " 修正。"
-        : "預計於 ChaiPhoto " + version + " 提供修正。";
+      if (isSuggestion) {
+        line.textContent = Number(item.fix_published) === 1
+          ? "已於 ChaiPhoto " + version + " 加入此功能。"
+          : "預計於 ChaiPhoto " + version + " 加入此功能。";
+      } else {
+        line.textContent = Number(item.fix_published) === 1
+          ? "已於 ChaiPhoto " + version + " 修正。"
+          : "預計於 ChaiPhoto " + version + " 提供修正。";
+      }
     } else {
-      line.textContent = "此問題已完成修正。";
+      line.textContent = isSuggestion
+        ? "此功能建議已完成處理。"
+        : "此問題已完成修正。";
     }
     meta.append(line);
   }
@@ -939,13 +966,13 @@ function createTrackCard(item) {
     const line = document.createElement("div");
     line.textContent = item.unable_reason
       ? "原因：" + item.unable_reason
-      : "目前無法完成處理。";
+      : (isSuggestion ? "目前暫不採用此功能建議。" : "目前無法完成處理。");
     meta.append(line);
   }
 
   if (status === "deleted") {
     const line = document.createElement("div");
-    line.textContent = "原始回報內容已刪除，此編號不會再次使用。";
+    line.textContent = "此回報已從一般追蹤清單移除，回報編號不會再次使用。";
     meta.append(line);
 
     if (item.deletion_reason) {
@@ -965,7 +992,7 @@ async function lookupReport(value) {
   lookupResult.replaceChildren();
 
   if (!normalized) {
-    lookupStatus.textContent = "請輸入有效的回報 ID。";
+    lookupStatus.textContent = "請輸入有效的回報編號。";
     return;
   }
 

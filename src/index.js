@@ -855,6 +855,7 @@ export default {
           feedback: {
             report_id: formatReportId(reportNumber),
             status: "deleted",
+            category: item.category,
             deleted_at: item.deleted_at,
             deletion_reason: item.deletion_reason || ""
           }
@@ -867,6 +868,7 @@ export default {
           report_id: formatReportId(reportNumber),
           created_at: item.created_at,
           status: item.status,
+          category: item.category,
           eta_seconds: item.eta_seconds,
           eta_due_at: item.eta_due_at,
           fixed_version: item.fixed_version,
