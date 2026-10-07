@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex,nofollow">
-  <title>回報管理 | ChaiPhoto</title>
+  <title>回報與建議管理 | ChaiPhoto</title>
   <link rel="stylesheet" href="/styles.css">
 
   <style>
@@ -22,7 +22,7 @@
 
     .dashboard-summary {
       display:grid;
-      grid-template-columns:repeat(5,minmax(0,1fr));
+      grid-template-columns:repeat(6,minmax(0,1fr));
       gap:7px;
     }
 
@@ -119,6 +119,11 @@
     .status-badge-deleted { color:#777780; }
     .visibility-public { color:#2fa36b; }
     .visibility-private { color:var(--muted); }
+    .suggestion-badge {
+      color:#c8a9ff;
+      border-color:rgba(184,139,255,.36);
+      background:rgba(139,92,246,.10);
+    }
 
     .chevron { color:var(--muted); transition:transform .18s ease; }
     .feedback-item[open] .chevron { transform:rotate(90deg); }
@@ -250,8 +255,8 @@
 <main>
   <div class="hero">
     <p class="muted">ChaiPhoto Dashboard</p>
-    <h1>回報管理</h1>
-    <p>查看 BETA 回報、更新處理進度、設定預計時間、公開資訊與修復版本。</p>
+    <h1>回報與建議管理</h1>
+    <p>集中查看問題回報與功能建議，原有處理進度、公開資訊、預計時間與版本管理功能全部保留。</p>
   </div>
 
   <div class="toolbar-box">
@@ -260,7 +265,7 @@
     <div class="filters">
       <label class="filter-label search-wrap">
         搜尋
-        <input id="search-filter" type="search" placeholder="BETA ID、描述、版本、裝置">
+        <input id="search-filter" type="search" placeholder="BETA ID、問題、建議、版本、裝置">
       </label>
 
       <label class="filter-label">
@@ -432,6 +437,22 @@ function renderSummary(counts) {
     });
     summary.append(button);
   });
+
+  const suggestionCount = loadedItems.filter(function(item) {
+    return !item.deleted_at && item.category === "suggestion";
+  }).length;
+  const suggestionCard = make("button", null, "summary-card");
+  suggestionCard.type = "button";
+  suggestionCard.append(
+    make("span", "功能建議", "summary-label"),
+    make("strong", String(suggestionCount), "summary-count")
+  );
+  suggestionCard.addEventListener("click", function() {
+    statusFilter.value = "";
+    categoryFilter.value = "suggestion";
+    renderFeedback();
+  });
+  summary.append(suggestionCard);
 }
 
 function matchesFilters(item) {
@@ -619,10 +640,22 @@ function createEditor(item, details) {
   publicToggle.checked = Number(item.is_public) === 1;
   publicLabel.append(publicToggle, document.createTextNode("公開到「公開進度」"));
 
-  const titleField = createTextInput("公開標題", item.public_title, "例如：照片滑動放手時偶爾卡頓");
+  const titleField = createTextInput(
+    "公開標題",
+    item.public_title,
+    item.category === "suggestion"
+      ? "例如：加入依照片大小排序功能"
+      : "例如：照片滑動放手時偶爾卡頓"
+  );
   titleField.label.classList.add("wide");
 
-  const noteField = createTextarea("公開說明／處理進度", item.public_note, "給測試者看的說明");
+  const noteField = createTextarea(
+    "公開說明／處理進度",
+    item.public_note,
+    item.category === "suggestion"
+      ? "例如：已評估可行性，預計加入後續版本"
+      : "給使用者看的處理說明"
+  );
   noteField.label.classList.add("wide");
 
   grid.append(statusLabel, publicLabel, titleField.label, noteField.label);
@@ -640,7 +673,10 @@ function createEditor(item, details) {
   etaBox.append(etaGrid);
 
   const fixedBox = make("div", null, "conditional");
-  fixedBox.append(make("strong", "修復版本"));
+  fixedBox.append(make(
+    "strong",
+    item.category === "suggestion" ? "推出版本" : "修復版本"
+  ));
   const fixedGrid = make("div", null, "editor-grid");
   const fixedVersion = createTextInput("版本", item.fixed_version, "例如 1.2.5");
   const fixedBuild = createTextInput("Build", item.fixed_build, "例如 42");
@@ -648,7 +684,12 @@ function createEditor(item, details) {
   const publishedToggle = document.createElement("input");
   publishedToggle.type = "checkbox";
   publishedToggle.checked = Number(item.fix_published) === 1;
-  publishedLabel.append(publishedToggle, document.createTextNode("此修正版本已發布"));
+  publishedLabel.append(
+    publishedToggle,
+    document.createTextNode(
+      item.category === "suggestion" ? "此功能版本已發布" : "此修正版本已發布"
+    )
+  );
   fixedGrid.append(fixedVersion.label, fixedBuild.label, publishedLabel);
   fixedBox.append(fixedGrid);
 
@@ -656,7 +697,9 @@ function createEditor(item, details) {
   unableBox.append(make("strong", "無法處理原因"));
   const unableReason = document.createElement("textarea");
   unableReason.rows = 4;
-  unableReason.placeholder = "例如：目前無法重現此問題，需要更多操作步驟。";
+  unableReason.placeholder = item.category === "suggestion"
+    ? "例如：目前受限於 iOS 權限或技術限制，暫時無法提供。"
+    : "例如：目前無法重現此問題，需要更多操作步驟。";
   unableReason.value = item.unable_reason || "";
   unableBox.append(unableReason);
 
@@ -770,10 +813,10 @@ function renderFeedback() {
   list.replaceChildren();
 
   const items = loadedItems.filter(matchesFilters);
-  statusText.textContent = "顯示 " + items.length + " / " + loadedItems.length + " 筆回報。";
+  statusText.textContent = "顯示 " + items.length + " / " + loadedItems.length + " 筆回報與建議。";
 
   if (!items.length) {
-    list.append(make("div", "目前沒有符合條件的回報。", "empty-state"));
+    list.append(make("div", "目前沒有符合條件的回報或建議。", "empty-state"));
     return;
   }
 
@@ -812,6 +855,9 @@ function renderFeedback() {
     main.append(title, subtitle);
 
     const right = make("div", null, "feedback-right");
+    if (item.category === "suggestion") {
+      right.append(make("span", "功能建議", "mini-badge suggestion-badge"));
+    }
     const statusBadge = make(
       "span",
       statusLabels[shownStatus] || shownStatus,
@@ -837,12 +883,23 @@ function renderFeedback() {
     const detail = make("div", null, "feedback-detail");
 
     const reportSection = make("div", null, "detail-section");
-    reportSection.append(make("h3", "回報內容"));
+    reportSection.append(make(
+      "h3",
+      item.category === "suggestion" ? "功能建議內容" : "回報內容"
+    ));
     reportSection.append(make("p", item.description || "未提供描述", "description-full"));
 
     if (item.steps) {
       const steps = make("div", null, "steps");
-      steps.append(make("strong", "發生時機／重現步驟"), make("div", item.steps));
+      steps.append(
+        make(
+          "strong",
+          item.category === "suggestion"
+            ? "使用情境／補充說明"
+            : "發生時機／重現步驟"
+        ),
+        make("div", item.steps)
+      );
       reportSection.append(steps);
     }
 

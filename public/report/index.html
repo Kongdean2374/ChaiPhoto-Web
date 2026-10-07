@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="回報 ChaiPhoto 問題、查詢回報進度與查看已知問題">
-  <title>問題回報 | ChaiPhoto</title>
+  <meta name="description" content="向 ChaiPhoto 提出功能建議、回報 App 問題、查詢回報進度與查看公開開發進度">
+  <title>意見與問題回報 | ChaiPhoto</title>
   <link rel="stylesheet" href="/styles.css">
 
   <style>
@@ -37,6 +37,49 @@
 
     .tab-button.active { background:var(--accent); color:#fff; }
     .tab-panel[hidden] { display:none; }
+
+    .mode-picker {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;
+      margin-bottom:14px;
+    }
+
+    .mode-button {
+      appearance:none;
+      display:grid;
+      gap:4px;
+      width:100%;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:var(--card);
+      color:var(--text);
+      text-align:left;
+      font:inherit;
+      cursor:pointer;
+    }
+
+    .mode-button strong { font-size:.95rem; }
+    .mode-button span { color:var(--muted); font-size:.78rem; line-height:1.45; }
+    .mode-button.active {
+      border-color:var(--accent);
+      background:color-mix(in srgb,var(--accent) 14%,var(--card));
+    }
+
+    .mode-note {
+      margin:-2px 0 12px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      color:var(--muted);
+      background:var(--card);
+      font-size:.8rem;
+      line-height:1.55;
+    }
+
+    #technical-fields[hidden],
+    #category-field[hidden] { display:none; }
 
     .section-title { margin-bottom:4px; }
     .helper { margin:0; color:var(--muted); font-size:.82rem; line-height:1.55; }
@@ -251,69 +294,84 @@
 <main>
   <nav>
     <a href="/">首頁</a>
-    <a href="/beta">Beta</a>
+    <a href="/beta">TestFlight</a>
     <a href="/support">支援</a>
     <a href="/privacy">隱私政策</a>
-    <a href="/report">問題回報</a>
+    <a href="/report">意見回報</a>
   </nav>
 
   <div class="hero">
     <p class="muted">ChaiPhoto Feedback</p>
-    <h1>問題回報與追蹤</h1>
-    <p>回報 Beta 問題、保存回報 ID，之後可以回來查詢處理進度。</p>
-    <p class="muted">系統資訊全部是選填。沒有提供也可以直接送出問題。</p>
+    <h1>意見與問題回報</h1>
+    <p>遇到 Bug、操作不順，或有想加入的新功能，都可以從這裡告訴我。</p>
+    <p class="muted">每筆送出後都會取得回報 ID，可以回來查詢處理進度。</p>
   </div>
 
   <div class="tabs" role="tablist">
-    <button id="report-tab" class="tab-button active" type="button">回報問題</button>
-    <button id="lookup-tab" class="tab-button" type="button">查詢回報</button>
+    <button id="report-tab" class="tab-button active" type="button">送出回報</button>
+    <button id="lookup-tab" class="tab-button" type="button">查詢進度</button>
     <button id="issues-tab" class="tab-button" type="button">公開進度</button>
   </div>
 
   <div id="report-panel" class="tab-panel">
     <section>
       <form id="feedback-form">
-        <div>
-          <h2 class="section-title">系統資訊（選填）</h2>
-          <p class="helper">可在 ChaiPhoto App「設定」最底下使用「複製系統資訊」，再直接貼到下面。貼上後會自動填入可辨識欄位，仍可自行修改。</p>
+        <div class="mode-picker" aria-label="選擇回報類型">
+          <button id="problem-mode" class="mode-button active" type="button">
+            <strong>🐞 回報問題</strong>
+            <span>閃退、卡頓、顯示異常或其他 App 問題</span>
+          </button>
+          <button id="suggestion-mode" class="mode-button" type="button">
+            <strong>💡 功能建議</strong>
+            <span>告訴我你希望 ChaiPhoto 加入什麼功能</span>
+          </button>
         </div>
 
-        <label>
-          貼上 ChaiPhoto 系統資訊
-          <textarea
-            id="diagnostics-input"
-            class="diagnostics-box"
-            rows="6"
-            placeholder="ChaiPhoto Diagnostics v1&#10;App-Version: ...&#10;Build: ..."></textarea>
-        </label>
+        <p id="mode-note" class="mode-note">回報 App 問題時，可以提供版本與裝置資訊幫助定位；所有技術資訊仍然是選填。</p>
 
-        <div id="parse-result" class="parse-result" aria-live="polite"></div>
-
-        <div class="system-grid">
-          <label>
-            App 版本（建議填寫）
-            <input name="appVersion" maxlength="40" placeholder="例如 1.2.5">
-          </label>
+        <div id="technical-fields">
+          <div>
+            <h2 class="section-title">裝置與版本資訊（選填）</h2>
+            <p class="helper">可在 ChaiPhoto App「設定」最底下使用「複製系統資訊」，再直接貼到下面。貼上後會自動填入可辨識欄位，仍可自行修改。</p>
+          </div>
 
           <label>
-            Build（建議填寫）
-            <input name="buildNumber" maxlength="40" placeholder="例如 42">
+            貼上 ChaiPhoto 系統資訊
+            <textarea
+              id="diagnostics-input"
+              class="diagnostics-box"
+              rows="6"
+              placeholder="ChaiPhoto Diagnostics v1&#10;App-Version: ...&#10;Build: ..."></textarea>
           </label>
 
-          <label>
-            iOS 版本（建議填寫）
-            <input name="iosVersion" maxlength="80" placeholder="例如 27.0.1">
-          </label>
+          <div id="parse-result" class="parse-result" aria-live="polite"></div>
 
-          <label>
-            iPhone 型號（建議填寫）
-            <input name="deviceModel" maxlength="120" placeholder="例如 iPhone18,1">
-          </label>
+          <div class="system-grid">
+            <label>
+              App 版本（建議填寫）
+              <input name="appVersion" maxlength="40" placeholder="例如 1.2.5">
+            </label>
+
+            <label>
+              Build（建議填寫）
+              <input name="buildNumber" maxlength="40" placeholder="例如 42">
+            </label>
+
+            <label>
+              iOS 版本（建議填寫）
+              <input name="iosVersion" maxlength="80" placeholder="例如 27.0.1">
+            </label>
+
+            <label>
+              iPhone 型號（建議填寫）
+              <input name="deviceModel" maxlength="120" placeholder="例如 iPhone18,1">
+            </label>
+          </div>
         </div>
 
-        <label>
-          問題類型
-          <select name="category" required>
+        <label id="category-field">
+          回報類型
+          <select id="category-select" name="category" required>
             <option value="crash">App 閃退</option>
             <option value="performance">卡頓／效能</option>
             <option value="photos">照片整理</option>
@@ -326,8 +384,9 @@
         </label>
 
         <label>
-          問題描述
+          <span id="description-label">問題描述</span>
           <textarea
+            id="description-input"
             name="description"
             rows="7"
             minlength="5"
@@ -337,8 +396,9 @@
         </label>
 
         <label>
-          發生時機／重現步驟（選填）
+          <span id="steps-label">發生時機／重現步驟（選填）</span>
           <textarea
+            id="steps-input"
             name="steps"
             rows="5"
             maxlength="5000"
@@ -359,7 +419,7 @@
 
   <div id="lookup-panel" class="tab-panel" hidden>
     <section>
-      <h2>查詢自己的回報</h2>
+      <h2>查詢自己的回報或建議</h2>
       <p class="helper">可輸入 BETA-001、001、01 或 1，會自動視為同一筆回報。</p>
 
       <div class="lookup-form">
@@ -383,8 +443,8 @@
 
   <div id="issues-panel" class="tab-panel" hidden>
     <div class="issues-header">
-      <h2>已知問題與處理進度</h2>
-      <p class="muted">這裡只顯示開發者選擇公開的問題。</p>
+      <h2>公開回報與開發進度</h2>
+      <p class="muted">這裡顯示開發者選擇公開的問題、功能建議與處理進度。</p>
 
       <div class="issue-toolbar">
         <input
@@ -436,6 +496,58 @@ const parseResult = document.getElementById("parse-result");
 const formStatus = document.getElementById("form-status");
 const submitButton = document.getElementById("submit-button");
 const submitResult = document.getElementById("submit-result");
+const problemMode = document.getElementById("problem-mode");
+const suggestionMode = document.getElementById("suggestion-mode");
+const technicalFields = document.getElementById("technical-fields");
+const categoryField = document.getElementById("category-field");
+const categorySelect = document.getElementById("category-select");
+const modeNote = document.getElementById("mode-note");
+const descriptionLabel = document.getElementById("description-label");
+const descriptionInput = document.getElementById("description-input");
+const stepsLabel = document.getElementById("steps-label");
+const stepsInput = document.getElementById("steps-input");
+
+let feedbackMode = "problem";
+
+function setFeedbackMode(mode) {
+  feedbackMode = mode === "suggestion" ? "suggestion" : "problem";
+  const isSuggestion = feedbackMode === "suggestion";
+
+  problemMode.classList.toggle("active", !isSuggestion);
+  suggestionMode.classList.toggle("active", isSuggestion);
+  technicalFields.hidden = isSuggestion;
+  categoryField.hidden = isSuggestion;
+
+  if (isSuggestion) {
+    categorySelect.value = "suggestion";
+    modeNote.textContent = "功能建議不需要填 App 版本、Build、iOS 或裝置資訊。直接告訴我你想要什麼，以及希望怎麼使用就可以。";
+    descriptionLabel.textContent = "你想要什麼功能？";
+    descriptionInput.placeholder = "例如：希望可以依照片大小排序，先整理最佔空間的照片。";
+    stepsLabel.textContent = "使用情境／補充說明（選填）";
+    stepsInput.placeholder = "例如：手機容量快滿時，我想先從最大的照片開始整理。";
+    submitButton.textContent = "送出功能建議";
+  } else {
+    if (categorySelect.value === "suggestion") categorySelect.value = "other";
+    modeNote.textContent = "回報 App 問題時，可以提供版本與裝置資訊幫助定位；所有技術資訊仍然是選填。";
+    descriptionLabel.textContent = "問題描述";
+    descriptionInput.placeholder = "例如：滑到第三張照片放開手指時，畫面會短暫卡一下。";
+    stepsLabel.textContent = "發生時機／重現步驟（選填）";
+    stepsInput.placeholder = "例如：開啟 App → 選 2026 年 9 月 → 連續右滑三張照片。";
+    submitButton.textContent = "送出回報";
+  }
+}
+
+problemMode.addEventListener("click", function() {
+  setFeedbackMode("problem");
+});
+
+suggestionMode.addEventListener("click", function() {
+  setFeedbackMode("suggestion");
+});
+
+categorySelect.addEventListener("change", function() {
+  if (categorySelect.value === "suggestion") setFeedbackMode("suggestion");
+});
 
 const reportTab = document.getElementById("report-tab");
 const lookupTab = document.getElementById("lookup-tab");
@@ -625,6 +737,7 @@ form.addEventListener("submit", async function(event) {
 
   const data = Object.fromEntries(new FormData(form).entries());
   data.diagnostics = parsedDiagnostics;
+  const submittedCategory = data.category;
 
   try {
     const response = await fetch("/api/feedback", {
@@ -648,12 +761,17 @@ form.addEventListener("submit", async function(event) {
     parseResult.textContent = "";
     parseResult.className = "parse-result";
     formStatus.textContent = "";
+    setFeedbackMode(submittedCategory === "suggestion" ? "suggestion" : "problem");
 
     const title = document.createElement("strong");
-    title.textContent = "問題回報已送出";
+    title.textContent = submittedCategory === "suggestion"
+      ? "功能建議已送出"
+      : "問題回報已送出";
 
     const text = document.createElement("p");
-    text.textContent = "開發者會儘速查看。請保存下面的回報 ID，之後可回來查詢處理進度。";
+    text.textContent = submittedCategory === "suggestion"
+      ? "我會查看你的建議。請保存下面的回報 ID，之後可回來查詢處理進度。"
+      : "我會查看你的問題。請保存下面的回報 ID，之後可回來查詢處理進度。";
 
     const id = document.createElement("div");
     id.className = "success-id";
@@ -975,6 +1093,9 @@ filterButtons.forEach(function(button) {
 
 const params = new URLSearchParams(location.search);
 const initialId = params.get("id");
+const initialCategory = params.get("category");
+
+setFeedbackMode(initialCategory === "suggestion" ? "suggestion" : "problem");
 
 if (location.hash === "#issues") {
   setTab("issues");
