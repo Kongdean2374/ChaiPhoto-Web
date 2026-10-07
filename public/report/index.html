@@ -739,6 +739,14 @@ form.addEventListener("submit", async function(event) {
   data.diagnostics = parsedDiagnostics;
   const submittedCategory = data.category;
 
+  if (submittedCategory === "suggestion") {
+    data.appVersion = "";
+    data.buildNumber = "";
+    data.iosVersion = "";
+    data.deviceModel = "";
+    data.diagnostics = {};
+  }
+
   try {
     const response = await fetch("/api/feedback", {
       method: "POST",
@@ -1041,12 +1049,12 @@ function renderIssues() {
       .includes(keyword);
   });
 
-  issueCount.textContent = "顯示 " + filtered.length + " / " + allIssues.length + " 個公開問題";
+  issueCount.textContent = "顯示 " + filtered.length + " / " + allIssues.length + " 筆公開回報";
 
   if (!filtered.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "目前沒有符合條件的公開問題。";
+    empty.textContent = "目前沒有符合條件的公開回報。";
     issueList.append(empty);
     return;
   }
