@@ -911,9 +911,21 @@ export default {
         return json({ ok: false, error: "Invalid JSON" }, 400);
       }
 
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return json({ ok: false, error: "Invalid JSON" }, 400);
+      }
+
       if (clean(body.website, 200)) {
         return json({ ok: true });
       }
+
+      const platform = clean(body.platform, 20);
+
+      if (platform && platform !== "ios" && platform !== "android") {
+        return json({ ok: false, error: "Invalid platform" }, 400);
+      }
+
+      const isAndroid = platform === "android";
 
       const category =
         clean(body.category, 40) || "other";
@@ -926,11 +938,16 @@ export default {
       const buildNumber =
         clean(body.buildNumber, 40);
       const iosVersion =
-        clean(body.iosVersion, 80);
+        isAndroid ? "" : clean(body.iosVersion, 80);
       const deviceModel =
         clean(body.deviceModel, 120);
-      const diagnostics =
-        cleanDiagnostics(body.diagnostics);
+      const androidDetails = {
+        deviceBrand: clean(body.deviceBrand, 80),
+        androidVersion: clean(body.androidVersion, 80)
+      };
+      const diagnostics = isAndroid
+        ? (Object.values(androidDetails).some(Boolean) ? androidDetails : null)
+        : cleanDiagnostics(body.diagnostics);
 
       if (description.length < 5) {
         return json(
@@ -969,7 +986,7 @@ export default {
                device_model,
                source
              )
-             VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, 'web')`
+             VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?)`
           ).bind(
             id,
             createdAt,
@@ -979,7 +996,8 @@ export default {
             appVersion || null,
             buildNumber || null,
             iosVersion || null,
-            deviceModel || null
+            deviceModel || null,
+            isAndroid ? "android" : "web"
           ),
           env.DB.prepare(
             `INSERT INTO feedback_tracking

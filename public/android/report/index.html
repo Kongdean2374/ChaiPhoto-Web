@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ChaiPhoto Android 體驗版專用問題回報">
+  <title>Android 問題回報 | ChaiPhoto</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    main { width:min(760px,calc(100% - 24px)); }
+    form { display:grid; gap:14px; }
+    label { display:grid; gap:6px; font-weight:650; }
+    input,select,textarea { box-sizing:border-box; width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
+    textarea { min-height:120px; resize:vertical; }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .muted { color:var(--muted); }
+    .honeypot { position:absolute; left:-9999px; }
+    .result { overflow-wrap:anywhere; }
+    button { cursor:pointer; }
+    @media (max-width:600px) { .fields { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <nav>
+    <a href="/">首頁</a>
+    <a href="/android">Android 下載</a>
+    <a href="/android/report" aria-current="page">Android 回報</a>
+    <a href="/support">支援</a>
+  </nav>
+
+  <div class="hero">
+    <p class="muted">ChaiPhoto Android</p>
+    <h1>Android 問題回報</h1>
+    <p>請描述在 Android 體驗版遇到的問題。送出後會取得回報編號，並交由現有 ChaiPhoto 回報系統處理。</p>
+  </div>
+
+  <section>
+    <form id="android-feedback-form">
+      <div class="fields">
+        <label>手機品牌 <input name="deviceBrand" maxlength="80" autocomplete="off" placeholder="例如 Samsung"></label>
+        <label>手機型號 <input name="deviceModel" maxlength="120" autocomplete="off" placeholder="例如 Galaxy S24"></label>
+        <label>Android 版本 <input name="androidVersion" maxlength="80" autocomplete="off" placeholder="例如 Android 14"></label>
+        <label>App 版本 <input name="appVersion" maxlength="40" autocomplete="off" placeholder="例如 1.0.0-experience"></label>
+      </div>
+      <label>問題類型
+        <select name="category" required>
+          <option value="crash">App 閃退</option>
+          <option value="performance">卡頓／效能</option>
+          <option value="photos">照片整理</option>
+          <option value="videos">影片功能</option>
+          <option value="ui">介面／顯示</option>
+          <option value="other" selected>其他</option>
+        </select>
+      </label>
+      <label>問題內容
+        <textarea name="description" minlength="5" maxlength="5000" required placeholder="發生了什麼事？請盡量描述畫面和操作。"></textarea>
+      </label>
+      <label>重現步驟（選填）
+        <textarea name="steps" maxlength="5000" placeholder="例如：開啟 App → 選擇影片 → 向上滑動。"></textarea>
+      </label>
+      <label class="honeypot" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off"></label>
+      <p class="muted">請勿填寫私人媒體路徑、帳號或聯絡資訊。此表單不接受照片、影片或縮圖附件。</p>
+      <button id="submit-button" class="button" type="submit">送出 Android 回報</button>
+      <p id="submit-status" role="status" aria-live="polite"></p>
+      <div id="submit-result" class="result" hidden></div>
+    </form>
+  </section>
+
+  <section>
+    <h2>查詢處理進度</h2>
+    <p class="muted">輸入送出時取得的回報編號。沿用現有 ChaiPhoto 編號與處理狀態。</p>
+    <form id="lookup-form">
+      <label>回報編號 <input id="lookup-id" maxlength="80" placeholder="BETA-001" required></label>
+      <button class="button" type="submit">查詢</button>
+      <p id="lookup-status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section>
+    <p>使用 iPhone？請使用<a href="/report">iOS 意見與問題回報</a>。</p>
+  </section>
+  <footer>© 2026 ChaiPhoto</footer>
+</main>
+<script>
+const form = document.getElementById("android-feedback-form");
+const submitButton = document.getElementById("submit-button");
+const submitStatus = document.getElementById("submit-status");
+const submitResult = document.getElementById("submit-result");
+const lookupForm = document.getElementById("lookup-form");
+const lookupId = document.getElementById("lookup-id");
+const lookupStatus = document.getElementById("lookup-status");
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  submitButton.disabled = true;
+  submitStatus.textContent = "正在送出…";
+  submitResult.hidden = true;
+  submitResult.replaceChildren();
+  try {
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.platform = "android";
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok || !result.id) throw new Error(result.error || "提交失敗");
+    const label = document.createElement("strong");
+    label.textContent = "已收到 Android 回報：" + result.id;
+    submitResult.append(label);
+    submitResult.hidden = false;
+    lookupId.value = result.id;
+    submitStatus.textContent = "請保存回報編號，以便查詢進度。";
+    form.reset();
+  } catch (error) {
+    submitStatus.textContent = "送出失敗：" + error.message;
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+lookupForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  lookupStatus.textContent = "正在查詢…";
+  try {
+    const response = await fetch("/api/feedback-status?id=" + encodeURIComponent(lookupId.value.trim()));
+    const result = await response.json();
+    if (!response.ok || !result.ok || !result.feedback) throw new Error(result.error || "查詢失敗");
+    const names = { new: "待處理", in_progress: "處理中", resolved: "已處理", closed: "已關閉", deleted: "已移除" };
+    lookupStatus.textContent = result.feedback.report_id + "：" + (names[result.feedback.status] || "狀態待確認");
+  } catch (error) {
+    lookupStatus.textContent = "查詢失敗：" + error.message;
+  }
+});
+</script>
+</body>
+</html>
