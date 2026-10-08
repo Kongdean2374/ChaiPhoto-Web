@@ -1,4 +1,5 @@
 import { handleAndroidApi, handleAndroidDashboardApi } from "./android.js";
+import { verifyAccessJwt } from "./access.js";
 
 const json = (data, status = 200) =>
   Response.json(data, {
@@ -50,13 +51,6 @@ function isDashboardRequest(url) {
   return (
     url.pathname === "/dashboard" ||
     url.pathname.startsWith("/dashboard/")
-  );
-}
-
-function hasAccessIdentity(request) {
-  return Boolean(
-    request.headers.get("Cf-Access-Authenticated-User-Email") ||
-    request.headers.get("Cf-Access-Jwt-Assertion")
   );
 }
 
@@ -555,7 +549,7 @@ export default {
     if (isDashboardRequest(url)) {
       if (
         url.hostname !== dashboardHost ||
-        !hasAccessIdentity(request)
+        !await verifyAccessJwt(request, env)
       ) {
         return new Response("Not found", {
           status: 404,

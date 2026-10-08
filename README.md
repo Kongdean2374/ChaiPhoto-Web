@@ -15,7 +15,9 @@
 
 ### R2 與環境變數
 
-目前沒有 APK，也沒有已知 R2 bucket 名稱，因此 `wrangler.jsonc` 不預設綁定。準備發布時，請你在 Cloudflare 建立或選定官方私有 R2 bucket，將 `ANDROID_APK_BUCKET` 加入 Worker 的 R2 binding，並上傳 `android/…apk` 物件。發布用物件必須有 SHA-256 checksum；Worker 在發布版本時比對 R2 的 checksum 及檔案大小。若沒有 checksum，版本不能標記為已發布。請另外人工驗證 APK 簽章指紋，再在 Android 後台填入版本、Build、R2 路徑、大小、SHA-256、指紋與更新紀錄。簽章私鑰不得提交到 GitHub 或 R2。
+目前沒有 APK，也沒有已知 R2 bucket 名稱，因此 `wrangler.jsonc` 不預設綁定。準備發布時，請你在 Cloudflare 建立或選定官方私有 R2 bucket，將 `ANDROID_APK_BUCKET` 加入 Worker 的 R2 binding。每個 APK 使用專屬路徑 `android/<版本>/build-<Build>/<SHA-256>.apk`，發布後不要覆蓋該物件；更新版本請使用新路徑。發布用物件必須有 R2 SHA-256 checksum；Worker 在發布及每次下載時都比對 checksum 與檔案大小。若檔案被替換或缺少 checksum，下載會被拒絕。請另外人工驗證 APK 簽章指紋，再在 Android 後台填入版本、Build、R2 路徑、大小、SHA-256、指紋與更新紀錄。簽章私鑰不得提交到 GitHub 或 R2。
+
+Dashboard 沿用原有 Cloudflare Access 應用程式，Worker 現在也會驗證 Access JWT 的簽章、issuer、有效期限及應用程式 audience。部署前由你在 Worker 環境設定 `CF_ACCESS_TEAM_DOMAIN`（例如 `https://<team>.cloudflareaccess.com`）及 `CF_ACCESS_AUD`（該 `/dashboard` Access 應用程式的 Audience Tag）。這兩個值缺少或錯誤時，整個 `/dashboard` 會拒絕存取，包含 iOS 管理；因此必須在部署前設定並於部署後實際登入驗證。不要只填入使用者 Email 標頭，該標頭不再構成授權。Cloudflare Access 原有登入與策略仍需保留。
 
 將 `ANDROID_HASH_SECRET` 設為長而隨機的 Worker Secret。它用於 Android 安裝識別碼與短期 IP 限流鍵的 HMAC，不能放在前端或 Git。Secret 缺少時 Android 回報會保守拒絕；Android 首次開啟 API 回傳 503。現有 iOS API 不依賴此 Secret。`android_rate_limits` 中到期資料可定期刪除（`DELETE FROM android_rate_limits WHERE expires_at < strftime('%Y-%m-%dT%H:%M:%fZ','now')`），不影響統計。
 
@@ -31,5 +33,7 @@ Android App 首次成功啟動時產生並本機保存隨機 UUID，向 `POST /a
 - `/report`：BETA 編號及既有 iOS 流程。
 - `/dashboard`：Cloudflare Access 保護、iOS／Android Tab、資料隔離、刪除及復原。
 - `/api/android/release`、`/api/android/download`：未發布時不返回假下載。
+
+本地測試使用自產 RSA 簽章與模擬 R2 checksum；正式 Cloudflare Access JWT、JWKS 輪換、R2 物件 checksum 與下載串流仍須在測試或正式環境確認。
 
 正式 Cloudflare Access 規則、D1 實際資料、R2 物件、APK 簽章與 Android App 實機行為需要由你在正式環境核對；本地程式檢查不能代替這些驗證。

@@ -6,6 +6,13 @@ const idFor = number => "AND-" + String(number).padStart(3, "0");
 const sameOrigin = (request, url) => !request.headers.get("Origin") || request.headers.get("Origin") === url.origin;
 const jsonRequest = request => (request.headers.get("Content-Type") || "").toLowerCase().startsWith("application/json");
 const date = () => new Date().toISOString();
+const releaseKey = (version, build, sha) => `android/${version}/build-${build}/${sha}.apk`;
+const objectSha256 = object => {
+  const checksum = object?.checksums?.sha256;
+  if (!checksum) return null;
+  const bytes = new Uint8Array(checksum);
+  return bytes.length === 32 ? Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("") : null;
+};
 
 async function bodyFrom(request) {
   if (!jsonRequest(request)) return null;
@@ -44,10 +51,16 @@ export async function handleAndroidApi(request, env, url) {
     return reply({ ok: true, release: row || null, history: history.results || [], downloadUrl: row && env.ANDROID_APK_BUCKET ? "/api/android/download" : null });
   }
   if (path === "/api/android/download" && request.method === "GET") {
-    const release = await env.DB.prepare(`SELECT version,r2_key,file_size FROM android_release WHERE singleton=1 AND published=1`).first();
+    const release = await env.DB.prepare(`SELECT version,build_number,r2_key,file_size,sha256 FROM android_release WHERE singleton=1 AND published=1`).first();
     if (!release || !env.ANDROID_APK_BUCKET) return reply({ ok: false, error: "Download unavailable" }, 404);
+    if (release.r2_key !== releaseKey(release.version, release.build_number, release.sha256)) return reply({ ok: false, error: "Download integrity check failed" }, 409);
     const object = await env.ANDROID_APK_BUCKET.get(release.r2_key);
-    if (!object || object.size !== Number(release.file_size)) return reply({ ok: false, error: "Download unavailable" }, 404);
+    if (!object || object.size !== Number(release.file_size) || objectSha256(object) !== release.sha256) {
+      if (object?.body?.cancel) {
+        try { await object.body.cancel(); } catch { /* Integrity failure still rejects the download. */ }
+      }
+      return reply({ ok: false, error: "Download integrity check failed" }, 409);
+    }
     await env.DB.prepare(`INSERT INTO android_downloads (release_version,downloaded_at) VALUES (?,?)`).bind(release.version, date()).run();
     return new Response(object.body, { headers: { "Content-Type": "application/vnd.android.package-archive", "Content-Disposition": `attachment; filename="ChaiPhoto-Android.apk"`, "Content-Length": String(object.size), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
   }
@@ -128,13 +141,13 @@ export async function handleAndroidDashboardApi(request, env, url) {
     const sha = clean(body.sha256, 64).toLowerCase();
     const size = Number(body.fileSize);
     const published = body.published === true;
-    if (!version || !build || !/^android\/[-\w./]+\.apk$/i.test(key) || key.includes("..") || !/^[a-f0-9]{64}$/.test(sha) || !fingerprint || !Number.isSafeInteger(size) || size < 1) return reply({ ok: false, error: "Invalid release metadata" }, 400);
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/.test(version) || !/^[0-9]{1,20}$/.test(build) ||
+      key !== releaseKey(version, build, sha) || !/^[a-f0-9]{64}$/.test(sha) ||
+      !fingerprint || !Number.isSafeInteger(size) || size < 1) return reply({ ok: false, error: "Invalid release metadata" }, 400);
     if (published) {
       if (!env.ANDROID_APK_BUCKET) return reply({ ok: false, error: "R2 binding unavailable" }, 503);
       const object = await env.ANDROID_APK_BUCKET.head(key);
-      const checksum = object?.checksums?.sha256;
-      const actualSha = checksum ? Array.from(new Uint8Array(checksum), byte => byte.toString(16).padStart(2, "0")).join("") : "";
-      if (!object || object.size !== size || actualSha !== sha) return reply({ ok: false, error: "R2 size or SHA-256 checksum mismatch" }, 409);
+      if (!object || object.size !== size || objectSha256(object) !== sha) return reply({ ok: false, error: "R2 size or SHA-256 checksum mismatch" }, 409);
     }
     await env.DB.prepare(`INSERT INTO android_release (singleton,version,build_number,released_at,file_size,r2_key,sha256,signing_fingerprint,notes,published)
       VALUES (1,?,?,?,?,?,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET version=excluded.version,build_number=excluded.build_number,released_at=excluded.released_at,file_size=excluded.file_size,r2_key=excluded.r2_key,sha256=excluded.sha256,signing_fingerprint=excluded.signing_fingerprint,notes=excluded.notes,published=excluded.published`)
