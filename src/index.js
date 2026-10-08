@@ -225,7 +225,14 @@ async function handleDashboardApi(request, env, url) {
          t.deletion_reason
        FROM feedback f
        JOIN feedback_tracking t ON t.feedback_id = f.id
-       ORDER BY COALESCE(t.deleted_at, f.created_at) DESC
+       ORDER BY CASE
+         WHEN t.deleted_at IS NOT NULL THEN 3
+         WHEN f.status = 'new' THEN 0
+         WHEN f.status = 'in_progress' THEN 1
+         ELSE 2
+       END,
+       f.created_at DESC,
+       t.report_number DESC
        LIMIT 500`
     ).all();
 
