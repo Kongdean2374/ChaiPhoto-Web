@@ -1,3 +1,5 @@
+import { handleAndroidApi, handleAndroidDashboardApi } from "./android.js";
+
 const json = (data, status = 200) =>
   Response.json(data, {
     status,
@@ -564,6 +566,9 @@ export default {
         });
       }
 
+      const androidApiResponse = await handleAndroidDashboardApi(request, env, url);
+      if (androidApiResponse) return androidApiResponse;
+
       const apiResponse = await handleDashboardApi(
         request,
         env,
@@ -586,6 +591,9 @@ export default {
         headers
       });
     }
+
+    const androidApiResponse = await handleAndroidApi(request, env, url);
+    if (androidApiResponse) return androidApiResponse;
 
     if (url.pathname === "/api/health") {
       return json({

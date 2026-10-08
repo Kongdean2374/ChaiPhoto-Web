@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Android 回報與進度 | ChaiPhoto</title><link rel="stylesheet" href="/styles.css">
+<style>
+  .android-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0}.android-tabs button{padding:10px 15px;border:1px solid #bbb;border-radius:8px;background:white;cursor:pointer}
+  .android-tabs button[aria-selected=true]{background:#253b56;color:white}.android-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .android-fields label,.android-form label{display:grid;gap:6px;margin:12px 0}.android-form input,.android-form select,.android-form textarea,#lookup-id{width:100%;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit}
+  .android-card{border:1px solid #ddd;border-radius:10px;padding:16px;margin:12px 0}.android-hidden{display:none!important}.android-hp{position:absolute;left:-9999px}
+</style></head><body><main>
+<nav><a href="/">首頁</a><a href="/android">Android 測試版</a><a href="/android/report">Android 回報</a></nav>
+<div class="hero"><p class="muted">ChaiPhoto Android 測試版</p><h1>Android 回報與進度</h1><p>Android 回報使用 AND 編號，與 iPhone 回報分開。請勿貼上照片內容或其他敏感資料。</p></div>
+<div class="android-tabs" role="tablist"><button type="button" data-tab="submit" aria-selected="true">送出回報</button><button type="button" data-tab="lookup" aria-selected="false">查詢進度</button><button type="button" data-tab="public" aria-selected="false">公開處理進度</button></div>
+<section id="submit-panel"><h2>送出 Android 回報</h2><form id="android-form" class="android-form">
+<label>回報模式<select name="mode" id="mode"><option value="problem">問題回報</option><option value="suggestion">功能建議</option></select></label>
+<div id="technical"><div class="android-fields"><label>Android App 版本（選填）<input name="appVersion" maxlength="40"></label><label>Build（選填）<input name="buildNumber" maxlength="40"></label><label>Android 系統版本（選填）<input name="androidVersion" maxlength="80"></label><label>裝置型號（選填）<input name="deviceModel" maxlength="120"></label></div>
+<label>問題類型<select name="category"><option value="crash">App 閃退</option><option value="performance">卡頓／效能</option><option value="photos">照片整理</option><option value="videos">影片功能</option><option value="ui">介面／顯示</option><option value="other">其他</option></select></label></div>
+<label id="description-label">問題描述／希望新增的功能<textarea name="description" minlength="5" maxlength="5000" rows="6" required></textarea></label>
+<label id="steps-label">重現步驟／使用情境<textarea name="steps" maxlength="5000" rows="4"></textarea></label>
+<label id="diagnostics-label">診斷資訊（選填，僅管理後台可見）<textarea name="diagnostics" maxlength="2000" rows="3"></textarea></label>
+<label class="android-hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+<button class="button" type="submit">送出</button><p id="form-status" role="status"></p></form></section>
+<section id="lookup-panel" hidden><h2>查詢個別進度</h2><p>輸入完整 AND 編號，例如 AND-001。查詢結果只顯示進度與公開欄位，不顯示回報原文或私人診斷資訊。</p><input id="lookup-id" placeholder="AND-001"><button class="button" id="lookup-button" type="button">查詢</button><div id="lookup-result" role="status"></div></section>
+<section id="public-panel" hidden><h2>Android 公開處理進度</h2><p>僅顯示管理員設定為公開的 Android 回報。</p><button class="button" id="reload-public" type="button">重新整理</button><div id="public-list"></div></section>
+<footer>© 2026 ChaiPhoto · <a href="/privacy">隱私政策</a></footer>
+</main><script>
+const panels={submit:document.getElementById("submit-panel"),lookup:document.getElementById("lookup-panel"),public:document.getElementById("public-panel")};
+function tab(name){for(const [key,panel] of Object.entries(panels))panel.hidden=key!==name;document.querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.tab===name)));if(name==="public")loadPublic()}
+document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{location.hash=b.dataset.tab;tab(b.dataset.tab)}));
+const mode=document.getElementById("mode"),technical=document.getElementById("technical"),diagnostics=document.getElementById("diagnostics-label");
+function setMode(){const suggestion=mode.value==="suggestion";technical.hidden=suggestion;diagnostics.hidden=suggestion;document.getElementById("description-label").firstChild.textContent=suggestion?"希望新增的功能":"問題描述";document.getElementById("steps-label").firstChild.textContent=suggestion?"使用情境與補充說明":"重現步驟"}
+mode.addEventListener("change",setMode);setMode();
+const statusLabels={new:"待處理",in_progress:"處理中",resolved:"已更新",closed:"無法處理",deleted:"已移除"};
+function card(item){const box=document.createElement("div");box.className="android-card";const title=document.createElement("strong");title.textContent=`${item.report_id} · ${statusLabels[item.status]||item.status}`;box.append(title);for(const value of [item.public_title,item.public_note,item.unable_reason,item.fixed_version?`版本：${item.fixed_version}`:null,item.eta_due_at?`預計：${item.eta_due_at}`:null])if(value){const p=document.createElement("p");p.textContent=value;box.append(p)}return box}
+document.getElementById("android-form").addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget,s=document.getElementById("form-status"),data=Object.fromEntries(new FormData(form).entries());data.category=data.mode==="suggestion"?"suggestion":data.category;s.textContent="正在送出…";try{const response=await fetch("/api/android/feedback",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const result=await response.json();if(!response.ok||!result.id)throw Error(result.error||"送出失敗");s.replaceChildren();const p=document.createElement("span");p.textContent=`已送出，回報編號：${result.id}。請保存此編號。 `;const a=document.createElement("a");a.href=`/android/report?id=${encodeURIComponent(result.id)}#lookup`;a.textContent="查看進度";s.append(p,a);form.reset();setMode()}catch(error){s.textContent=error.message}});
+async function lookup(){const target=document.getElementById("lookup-result"),id=document.getElementById("lookup-id").value.trim();target.textContent="查詢中…";try{const r=await fetch(`/api/android/feedback-status?id=${encodeURIComponent(id)}`),data=await r.json();if(!r.ok)throw Error(data.error||"查詢失敗");target.replaceChildren(card(data.feedback))}catch(error){target.textContent=error.message}}
+document.getElementById("lookup-button").addEventListener("click",lookup);document.getElementById("lookup-id").addEventListener("keydown",e=>{if(e.key==="Enter")lookup()});
+async function loadPublic(){const target=document.getElementById("public-list");target.textContent="讀取中…";try{const r=await fetch("/api/android/public-feedback"),data=await r.json();if(!r.ok)throw Error();target.replaceChildren();if(!data.feedback.length)target.textContent="目前沒有公開回報。";else data.feedback.forEach(item=>target.append(card(item)))}catch{target.textContent="讀取失敗，請稍後再試。"}}
+document.getElementById("reload-public").addEventListener("click",loadPublic);
+const initial=location.hash.slice(1);tab(panels[initial]?initial:"submit");const query=new URLSearchParams(location.search);if(query.get("mode")==="suggestion"){mode.value="suggestion";setMode()}if(query.get("id")){document.getElementById("lookup-id").value=query.get("id");tab("lookup");lookup()}
+</script></body></html>

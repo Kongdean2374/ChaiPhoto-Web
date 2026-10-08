@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Android 測試版 | ChaiPhoto</title>
+  <meta name="description" content="ChaiPhoto Android 測試版資訊、下載狀態及專用回報入口。">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .android-badge{display:inline-block;background:#eef2f5;color:#42556b;border-radius:999px;padding:6px 12px;font-size:.85rem}
+    .android-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+    .android-grid section{margin:0}.android-note{background:#f5f6f8;padding:16px;border-radius:12px}
+    .android-muted{color:#656b73}.android-actions{display:flex;flex-wrap:wrap;gap:10px}
+  </style>
+</head>
+<body><main>
+  <nav><a href="/">首頁</a><a href="/android">Android 測試版</a><a href="/android/report">Android 回報</a><a href="/privacy">隱私政策</a></nav>
+  <div class="hero"><span class="android-badge">Android 測試版</span><h1>ChaiPhoto Android</h1>
+    <p>Android 版本仍在準備中。這裡會公布實際可下載的測試 APK、版本資訊與處理進度；目前沒有可核實的 APK。</p></div>
+  <div class="android-grid">
+    <section><h2>目前階段</h2><p>Android 網站與專用回報流程建置中。Android App 的功能與相容性尚待實機驗證，暫無已確認的功能清單。</p></section>
+    <section><h2>功能與更新紀錄</h2><p>尚無已驗證 Android 版本。發布後會在這裡列出實際功能、版本與修正內容。</p><div id="history">目前沒有更新紀錄。</div></section>
+  </div>
+  <section id="download"><h2>官方 APK 下載</h2><div id="release">尚未提供下載。版本、日期、檔案大小、SHA-256 與簽章資訊均待正式 APK 驗證後公布。</div>
+    <p class="android-muted">只有本頁在發布後提供的官方連結才應作為下載來源。請核對 SHA-256 與簽章指紋；此頁不宣稱 APK 已通過 Google Play 審核，也不保證絕對安全。</p></section>
+  <section><h2>安裝提醒</h2><ol><li>發布後從此頁下載 APK，確認版本與雜湊值。</li><li>Android 如要求允許此來源安裝，請只對可信來源暫時開啟。</li><li>安裝前留意系統警告與要求的權限；測試版可能不穩定。安裝後可關閉該來源的安裝權限。</li></ol></section>
+  <section><h2>回報與進度</h2><div class="android-actions"><a class="button" href="/android/report">問題回報</a><a class="button" href="/android/report?mode=suggestion">功能建議</a><a class="button" href="/android/report#lookup">查詢回報進度</a><a class="button" href="/android/report#public">公開處理進度</a></div></section>
+  <footer>© 2026 ChaiPhoto · <a href="/">iPhone 正式版首頁</a></footer>
+</main><script>
+fetch("/api/android/release").then(r=>r.json()).then(data=>{
+  if(data.history?.length){const history=document.getElementById("history");history.replaceChildren();for(const entry of data.history){const p=document.createElement("p");p.textContent=`${entry.version} (Build ${entry.build_number}) · ${entry.released_at}${entry.notes?" — "+entry.notes:""}`;history.append(p)}}
+  if(!data.ok||!data.release)return;
+  const r=data.release, box=document.getElementById("release");box.replaceChildren();
+  const p=document.createElement("p");p.textContent=`版本 ${r.version} (Build ${r.build_number}) · 更新 ${r.released_at} · ${(r.file_size/1048576).toFixed(1)} MB`;box.append(p);
+  const hash=document.createElement("p");hash.textContent=`公布的 SHA-256：${r.sha256}；簽章指紋：${r.signing_fingerprint}`;box.append(hash);
+  if(r.notes){const notes=document.createElement("p");notes.textContent=r.notes;box.append(notes)}
+  if(data.downloadUrl){const a=document.createElement("a");a.className="button";a.href=data.downloadUrl;a.textContent="從官方網站下載 APK";box.append(a)}
+}).catch(()=>{});
+</script></body></html>

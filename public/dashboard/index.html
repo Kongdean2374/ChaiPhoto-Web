@@ -259,6 +259,16 @@
     <p>集中查看問題回報與功能建議，原有處理進度、公開資訊、預計時間與版本管理功能全部保留。</p>
   </div>
 
+  <div role="tablist" aria-label="管理平台" style="display:flex;gap:8px;margin:16px 0">
+    <button class="button" id="ios-tab" type="button" aria-selected="true">iOS 管理</button>
+    <button class="button" id="android-tab" type="button" aria-selected="false">Android 管理</button>
+  </div>
+  <section id="android-stats" hidden><h2>Android 測試版</h2><p id="android-stat-values">正在讀取統計…</p><p class="muted">下載、首次開啟及近 30 天活躍安裝皆為近似數據；App 尚未整合上報時顯示 0。</p><p id="android-release-state"></p>
+    <details><summary>Android 版本管理</summary><p>正式發布前，請先人工驗證 APK 簽章。發布時 Worker 會比對 R2 物件的大小與 SHA-256 checksum；缺少 checksum 時無法發布。</p>
+      <form id="android-release-form"><label>版本<input name="version" required maxlength="40"></label><label>Build<input name="buildNumber" required maxlength="40"></label><label>R2 物件路徑（android/…apk）<input name="r2Key" required maxlength="300"></label><label>檔案大小（bytes）<input name="fileSize" type="number" min="1" required></label><label>SHA-256<input name="sha256" required minlength="64" maxlength="64"></label><label>簽章指紋（人工核對後填寫）<input name="signingFingerprint" required maxlength="160"></label><label>更新紀錄<textarea name="notes" maxlength="2000"></textarea></label><label><input type="checkbox" name="published"> 發布並開放下載</label><button class="button" type="submit">儲存版本</button><p id="release-form-status" role="status"></p></form>
+    </details>
+  </section>
+
   <div class="toolbar-box">
     <div class="dashboard-summary" id="summary"></div>
 
@@ -296,7 +306,7 @@
       </label>
 
       <label class="filter-label">
-        iOS
+        <span id="system-version-label">iOS</span>
         <select id="ios-filter"><option value="">全部</option></select>
       </label>
 
@@ -363,6 +373,10 @@ const buildFilter = document.getElementById("build-filter");
 const iosFilter = document.getElementById("ios-filter");
 const deviceFilter = document.getElementById("device-filter");
 const refresh = document.getElementById("refresh-button");
+const iosTab = document.getElementById("ios-tab");
+const androidTab = document.getElementById("android-tab");
+let platform = "ios";
+const apiBase = () => platform === "android" ? "/dashboard/api/android/feedback" : "/dashboard/api/feedback";
 
 let loadedItems = [];
 
@@ -374,7 +388,7 @@ function make(tag, text, className) {
 }
 
 function reportId(item) {
-  return "BETA-" + String(Number(item.report_number) || 0).padStart(3, "0");
+  return (platform === "android" ? "AND-" : "BETA-") + String(Number(item.report_number) || 0).padStart(3, "0");
 }
 
 function displayStatus(item) {
@@ -604,7 +618,7 @@ function createEditor(item, details) {
       restoreStatus.textContent = "正在復原…";
 
       try {
-        const response = await fetch("/dashboard/api/feedback/restore", {
+        const response = await fetch(apiBase() + "/restore", {
           method:"POST",
           headers:{ "Content-Type":"application/json" },
           body:JSON.stringify({ id:item.id })
@@ -752,7 +766,7 @@ function createEditor(item, details) {
     saveStatus.textContent = "正在儲存…";
 
     try {
-      const response = await fetch("/dashboard/api/feedback", {
+      const response = await fetch(apiBase(), {
         method:"PATCH",
         headers:{ "Content-Type":"application/json" },
         body:JSON.stringify({
@@ -796,7 +810,7 @@ function createEditor(item, details) {
     saveStatus.textContent = "正在刪除…";
 
     try {
-      const response = await fetch("/dashboard/api/feedback", {
+      const response = await fetch(apiBase(), {
         method:"DELETE",
         headers:{ "Content-Type":"application/json" },
         body:JSON.stringify({
@@ -964,23 +978,26 @@ function attachFilterEvents() {
 }
 
 async function loadFeedback() {
+  const requestedPlatform = platform;
   refresh.disabled = true;
   statusText.textContent = "正在載入…";
 
   try {
-    const response = await fetch("/dashboard/api/feedback", {
+    const response = await fetch(apiBase(), {
       headers:{ "Accept":"application/json" },
       cache:"no-store"
     });
 
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error();
+    if (requestedPlatform !== platform) return;
 
     loadedItems = result.feedback || [];
     renderSummary(result.counts || {});
     setupFilters();
     renderFeedback();
   } catch {
+    if (requestedPlatform !== platform) return;
     statusText.textContent = "讀取失敗，請稍後再試。";
     list.replaceChildren();
   } finally {
@@ -989,6 +1006,55 @@ async function loadFeedback() {
 }
 
 refresh.addEventListener("click", loadFeedback);
+async function changePlatform(next) {
+  platform = next;
+  iosTab.setAttribute("aria-selected", String(next === "ios"));
+  androidTab.setAttribute("aria-selected", String(next === "android"));
+  document.getElementById("android-stats").hidden = next !== "android";
+  document.getElementById("system-version-label").textContent = next === "android" ? "Android" : "iOS";
+  searchFilter.value = "";
+  statusFilter.value = "";
+  categoryFilter.value = "";
+  versionFilter.value = "";
+  buildFilter.value = "";
+  iosFilter.value = "";
+  deviceFilter.value = "";
+  loadedItems = [];
+  list.replaceChildren();
+  await loadFeedback();
+  if (next === "android") {
+    try {
+      const response = await fetch("/dashboard/api/android/stats", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw Error();
+      document.getElementById("android-stat-values").textContent = `APK 下載 ${data.downloads} 次 · 首次開啟 ${data.firstOpens} 次 · 近 30 天活躍安裝 ${data.active30Days} 個`;
+      document.getElementById("android-release-state").textContent = data.release
+        ? `目前版本：${data.release.version} (Build ${data.release.build_number}) · ${data.release.published ? "已發布" : "未發布"}`
+        : "尚未提供 Android APK；版本資料待建立。";
+      if (data.release) {
+        const form = document.getElementById("android-release-form");
+        for (const [name, value] of Object.entries({ version: data.release.version, buildNumber: data.release.build_number, r2Key: data.release.r2_key, fileSize: data.release.file_size, sha256: data.release.sha256, signingFingerprint: data.release.signing_fingerprint, notes: data.release.notes || "" })) form.elements[name].value = value;
+        form.elements.published.checked = Boolean(data.release.published);
+      }
+    } catch { document.getElementById("android-stat-values").textContent = "統計讀取失敗。"; }
+  }
+}
+iosTab.addEventListener("click", () => changePlatform("ios"));
+androidTab.addEventListener("click", () => changePlatform("android"));
+document.getElementById("android-release-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget, message = document.getElementById("release-form-status");
+  const values = Object.fromEntries(new FormData(form).entries());
+  values.published = form.elements.published.checked;
+  message.textContent = "正在儲存…";
+  try {
+    const response = await fetch("/dashboard/api/android/release", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw Error(data.error || "儲存失敗");
+    message.textContent = "已儲存。";
+    await changePlatform("android");
+  } catch (error) { message.textContent = error.message; }
+});
 attachFilterEvents();
 loadFeedback();
 </script>
