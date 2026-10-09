@@ -12,6 +12,38 @@ const json = (data, status = 200) =>
 const clean = (value, max) =>
   typeof value === "string" ? value.trim().slice(0, max) : "";
 
+async function readFeedbackJson(request) {
+  const maxBytes = 16 * 1024;
+  const declaredLength = Number(request.headers.get("Content-Length"));
+  if (declaredLength > maxBytes) return { error: "too_large" };
+  if (!request.body) return { error: "invalid" };
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > maxBytes) {
+        await reader.cancel();
+        return { error: "too_large" };
+      }
+      chunks.push(value);
+    }
+    const buffer = new Uint8Array(bytes);
+    let position = 0;
+    for (const chunk of chunks) {
+      buffer.set(chunk, position);
+      position += chunk.byteLength;
+    }
+    return { value: JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(buffer)) };
+  } catch {
+    return { error: "invalid" };
+  }
+}
+
 const allowedStatuses = new Set([
   "new",
   "in_progress",
@@ -191,6 +223,11 @@ async function handleDashboardApi(request, env, url) {
     url.pathname === "/dashboard/api/feedback" &&
     request.method === "GET"
   ) {
+    const offsetValue = Number(url.searchParams.get("offset") || 0);
+    if (!Number.isSafeInteger(offsetValue) || offsetValue < 0) {
+      return json({ ok: false, error: "Invalid offset" }, 400);
+    }
+    const pageSize = 500;
     const list = await env.DB.prepare(
       `SELECT
          f.id,
@@ -228,29 +265,36 @@ async function handleDashboardApi(request, env, url) {
        END,
        f.created_at DESC,
        t.report_number DESC
-       LIMIT 500`
-    ).all();
+       LIMIT ? OFFSET ?`
+    ).bind(pageSize, offsetValue).all();
+
+    const totals = await env.DB.prepare(
+      `SELECT
+         COUNT(*) AS total,
+         SUM(CASE WHEN t.deleted_at IS NULL AND f.status = 'new' THEN 1 ELSE 0 END) AS new_count,
+         SUM(CASE WHEN t.deleted_at IS NULL AND f.status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_count,
+         SUM(CASE WHEN t.deleted_at IS NULL AND f.status = 'resolved' THEN 1 ELSE 0 END) AS resolved_count,
+         SUM(CASE WHEN t.deleted_at IS NULL AND f.status = 'closed' THEN 1 ELSE 0 END) AS closed_count,
+         SUM(CASE WHEN t.deleted_at IS NOT NULL THEN 1 ELSE 0 END) AS deleted_count,
+         SUM(CASE WHEN t.deleted_at IS NULL AND f.category = 'suggestion' THEN 1 ELSE 0 END) AS suggestion_count
+       FROM feedback f
+       JOIN feedback_tracking t ON t.feedback_id = f.id`
+    ).first();
 
     const counts = {
-      new: 0,
-      in_progress: 0,
-      resolved: 0,
-      closed: 0,
-      deleted: 0
+      new: Number(totals?.new_count || 0),
+      in_progress: Number(totals?.in_progress_count || 0),
+      resolved: Number(totals?.resolved_count || 0),
+      closed: Number(totals?.closed_count || 0),
+      deleted: Number(totals?.deleted_count || 0),
+      suggestion: Number(totals?.suggestion_count || 0)
     };
-
-    for (const item of list.results || []) {
-      if (item.deleted_at) {
-        counts.deleted += 1;
-      } else if (Object.hasOwn(counts, item.status)) {
-        counts[item.status] += 1;
-      }
-    }
 
     return json({
       ok: true,
       feedback: list.results || [],
-      counts
+      counts,
+      total: Number(totals?.total || 0)
     });
   }
 
@@ -900,13 +944,14 @@ export default {
         return json({ ok: false, error: "JSON required" }, 415);
       }
 
-      let body;
-
-      try {
-        body = await request.json();
-      } catch {
+      const parsed = await readFeedbackJson(request);
+      if (parsed.error === "too_large") {
+        return json({ ok: false, error: "Report is too large" }, 413);
+      }
+      if (parsed.error) {
         return json({ ok: false, error: "Invalid JSON" }, 400);
       }
+      const body = parsed.value;
 
       if (!body || typeof body !== "object" || Array.isArray(body)) {
         return json({ ok: false, error: "Invalid JSON" }, 400);

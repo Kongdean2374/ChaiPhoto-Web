@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, createSign } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import worker from "../src/index.js";
 import { verifyAccessRequest } from "../src/access-auth.js";
@@ -115,5 +116,89 @@ test("iOS and Android report submissions retain their existing source mapping", 
     assert.equal(response.status, 201);
     assert.equal((await response.json()).id, "BETA-001");
     assert.equal(inserted[0].values.at(-1), expectedSource);
+  }
+});
+
+test("oversized feedback is rejected before D1 is accessed", async () => {
+  let databaseCalls = 0;
+  const response = await worker.fetch(new Request("https://photo.chaihome.cc/api/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description: "X".repeat(17 * 1024) })
+  }), { DB: { prepare() { databaseCalls++; throw new Error("D1 must not be used"); } } });
+  assert.equal(response.status, 413);
+  assert.equal(databaseCalls, 0);
+});
+
+function dashboardFixture(state) {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`CREATE TABLE feedback (
+    id TEXT PRIMARY KEY, created_at TEXT, status TEXT, category TEXT,
+    description TEXT, steps TEXT, app_version TEXT, build_number TEXT,
+    ios_version TEXT, device_model TEXT, source TEXT, is_public INTEGER,
+    public_title TEXT, public_note TEXT, fixed_version TEXT,
+    fixed_build TEXT, updated_at TEXT);
+    CREATE TABLE feedback_tracking (
+      feedback_id TEXT PRIMARY KEY, report_number INTEGER UNIQUE,
+      eta_seconds INTEGER, eta_due_at TEXT, fix_published INTEGER,
+      unable_reason TEXT, diagnostics_json TEXT, deleted_at TEXT,
+      deletion_reason TEXT);`);
+  const insertFeedback = db.prepare("INSERT INTO feedback (id, created_at, status, category, description) VALUES (?, ?, ?, 'other', 'generated')");
+  const insertTracking = db.prepare("INSERT INTO feedback_tracking (feedback_id, report_number, deleted_at) VALUES (?, ?, ?)");
+  for (let number = 1; number <= 505; number++) {
+    const status = state === "mixed" ? ["new", "in_progress", "resolved", "closed"][number % 4] : state;
+    const deleted = state === "deleted" || (state === "mixed" && number % 7 === 0);
+    // Same timestamps exercise the stable report-number tie breaker.
+    const createdAt = `2026-10-${String(1 + (number % 9)).padStart(2, "0")}T00:00:00Z`;
+    insertFeedback.run(String(number), createdAt, status === "deleted" ? "new" : status);
+    insertTracking.run(String(number), number, deleted ? "2026-10-09T00:00:00Z" : null);
+  }
+  const binding = {
+    prepare(sql) {
+      return {
+        bind(...args) { this.args = args; return this; },
+        async all() { return { results: db.prepare(sql).all(...(this.args || [])) }; },
+        async first() { return db.prepare(sql).get(...(this.args || [])) || null; },
+        async run() { return { meta: db.prepare(sql).run(...(this.args || [])) }; }
+      };
+    },
+    async batch(statements) { for (const statement of statements) await statement.run(); }
+  };
+  return { DB: binding, ACCESS_TEAM_DOMAIN: teamDomain, ACCESS_AUD: audience, close: () => db.close() };
+}
+
+test("dashboard paging covers all reports and orders mixed, deleted and new groups", async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = certs;
+  try {
+    for (const state of ["mixed", "deleted", "new"]) {
+      const env = dashboardFixture(state);
+      try {
+        const token = sign(claims());
+        const all = [];
+        let counts;
+        for (const offset of [0, 500]) {
+          const response = await worker.fetch(new Request(`https://photo.chaihome.cc/dashboard/api/feedback?offset=${offset}`, {
+            headers: { "Cf-Access-Jwt-Assertion": token }
+          }), env);
+          assert.equal(response.status, 200);
+          const result = await response.json();
+          assert.equal(result.total, 505);
+          counts = result.counts;
+          all.push(...result.feedback);
+        }
+        assert.equal(all.length, 505);
+        assert.equal(new Set(all.map(item => item.id)).size, 505);
+        assert.equal(Object.values(counts).slice(0, 5).reduce((sum, value) => sum + value, 0), 505);
+        const rank = item => item.deleted_at ? 3 : item.status === "new" ? 0 : item.status === "in_progress" ? 1 : 2;
+        const expected = [...all].sort((a, b) => rank(a) - rank(b) ||
+          b.created_at.localeCompare(a.created_at) || b.report_number - a.report_number);
+        assert.deepEqual(all.map(item => item.id), expected.map(item => item.id));
+      } finally {
+        env.close();
+      }
+    }
+  } finally {
+    globalThis.fetch = previousFetch;
   }
 });

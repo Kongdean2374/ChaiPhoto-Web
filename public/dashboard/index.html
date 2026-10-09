@@ -452,9 +452,7 @@ function renderSummary(counts) {
     summary.append(button);
   });
 
-  const suggestionCount = loadedItems.filter(function(item) {
-    return !item.deleted_at && item.category === "suggestion";
-  }).length;
+  const suggestionCount = Number(counts.suggestion || 0);
   const suggestionCard = make("button", null, "summary-card");
   suggestionCard.type = "button";
   suggestionCard.append(
@@ -968,16 +966,28 @@ async function loadFeedback() {
   statusText.textContent = "正在載入…";
 
   try {
-    const response = await fetch("/dashboard/api/feedback", {
-      headers:{ "Accept":"application/json" },
-      cache:"no-store"
-    });
+    const items = [];
+    let counts = {};
+    let total = 0;
+    do {
+      const response = await fetch("/dashboard/api/feedback?offset=" + items.length, {
+        headers:{ "Accept":"application/json" },
+        cache:"no-store"
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok || !Array.isArray(result.feedback)) throw new Error();
+      if (items.length === 0) {
+        counts = result.counts || {};
+        total = Number(result.total);
+        if (!Number.isSafeInteger(total) || total < 0) throw new Error();
+      }
+      if (result.feedback.length === 0 && items.length < total) throw new Error();
+      items.push(...result.feedback);
+      statusText.textContent = "正在載入 " + items.length + " / " + total + " 筆…";
+    } while (items.length < total);
 
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error();
-
-    loadedItems = result.feedback || [];
-    renderSummary(result.counts || {});
+    loadedItems = items;
+    renderSummary(counts);
     setupFilters();
     renderFeedback();
   } catch {

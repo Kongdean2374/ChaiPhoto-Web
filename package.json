@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "db:migrate": "wrangler d1 migrations apply DB --remote",
-    "deploy": "npm run db:migrate && wrangler deploy"
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.102.0"
