@@ -1,3 +1,5 @@
+import { verifyAccessRequest } from "./access-auth.js";
+
 const json = (data, status = 200) =>
   Response.json(data, {
     status,
@@ -48,13 +50,6 @@ function isDashboardRequest(url) {
   return (
     url.pathname === "/dashboard" ||
     url.pathname.startsWith("/dashboard/")
-  );
-}
-
-function hasAccessIdentity(request) {
-  return Boolean(
-    request.headers.get("Cf-Access-Authenticated-User-Email") ||
-    request.headers.get("Cf-Access-Jwt-Assertion")
   );
 }
 
@@ -560,7 +555,7 @@ export default {
     if (isDashboardRequest(url)) {
       if (
         url.hostname !== dashboardHost ||
-        !hasAccessIdentity(request)
+        !(await verifyAccessRequest(request, env))
       ) {
         return new Response("Not found", {
           status: 404,
@@ -789,8 +784,7 @@ export default {
            t.report_number,
            t.eta_seconds,
            t.eta_due_at,
-           t.fix_published,
-           t.unable_reason
+           t.fix_published
          FROM feedback f
          JOIN feedback_tracking t ON t.feedback_id = f.id
          WHERE f.is_public = 1
@@ -841,9 +835,7 @@ export default {
            t.eta_seconds,
            t.eta_due_at,
            t.fix_published,
-           t.unable_reason,
-           t.deleted_at,
-           t.deletion_reason
+           t.deleted_at
          FROM feedback f
          JOIN feedback_tracking t ON t.feedback_id = f.id
          WHERE t.report_number = ?
@@ -863,8 +855,7 @@ export default {
             report_id: formatReportId(reportNumber),
             status: "deleted",
             category: item.category,
-            deleted_at: item.deleted_at,
-            deletion_reason: item.deletion_reason || ""
+            deleted_at: item.deleted_at
           }
         });
       }
@@ -881,7 +872,6 @@ export default {
           fixed_version: item.fixed_version,
           fixed_build: item.fixed_build,
           fix_published: item.fix_published,
-          unable_reason: item.unable_reason,
           public_title: Number(item.is_public) === 1
             ? item.public_title
             : null,
