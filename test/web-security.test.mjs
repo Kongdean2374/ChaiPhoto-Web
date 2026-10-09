@@ -135,6 +135,7 @@ test("public lookup never returns internal reasons, including deleted and privat
 function reportFixture() {
   const db = new DatabaseSync(":memory:");
   db.exec(readFileSync(new URL("../migrations/0001_create_feedback.sql", import.meta.url), "utf8"));
+  db.exec(readFileSync(new URL("../migrations/0002_feedback_tracking_v2.sql", import.meta.url), "utf8"));
   db.exec(`ALTER TABLE feedback ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE feedback ADD COLUMN public_title TEXT;
     ALTER TABLE feedback ADD COLUMN public_note TEXT;
@@ -145,10 +146,8 @@ function reportFixture() {
       feedback_id TEXT PRIMARY KEY, report_number INTEGER NOT NULL UNIQUE,
       eta_seconds INTEGER, eta_due_at TEXT, fix_published INTEGER NOT NULL DEFAULT 0,
       unable_reason TEXT, diagnostics_json TEXT, deleted_at TEXT, deletion_reason TEXT
-    );
-    CREATE TABLE feedback_counter (singleton INTEGER PRIMARY KEY, next_number INTEGER NOT NULL);
-    INSERT INTO feedback_counter VALUES (1, 1);`);
-  db.exec(readFileSync(new URL("../migrations/0002_feedback_lookup_tokens.sql", import.meta.url), "utf8"));
+    );`);
+  db.exec(readFileSync(new URL("../migrations/0003_feedback_lookup_tokens.sql", import.meta.url), "utf8"));
   const DB = {
     prepare(sql) {
       return {
