@@ -421,10 +421,10 @@
   <div id="lookup-panel" class="tab-panel" hidden>
     <section>
       <h2>查詢自己的回報或建議</h2>
-      <p class="helper">可輸入完整回報編號（例如 BETA-001），或只輸入 001、01、1。BETA 是沿用的回報編號格式，不代表只限測試版。</p>
+      <p class="helper">舊回報可輸入 BETA 編號或數字；新回報請使用送出時取得的查詢憑證。憑證遺失後無法找回，請自行安全保存。</p>
 
       <div class="lookup-form">
-        <input id="lookup-input" type="search" inputmode="text" placeholder="輸入回報編號，例如 BETA-001 或 001">
+        <input id="lookup-input" type="search" inputmode="text" placeholder="輸入舊回報編號或新查詢憑證">
         <button id="lookup-button" class="primary-button" type="button">查詢</button>
       </div>
 
@@ -588,6 +588,13 @@ let parsedDiagnostics = {};
 let allIssues = [];
 let activeStatus = "";
 let issuesLoaded = false;
+let pendingSubmission = null;
+
+function createLookupToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return "CPR-" + btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 function setTab(name) {
   const states = {
@@ -696,6 +703,8 @@ diagnosticsInput.addEventListener("input", function() {
 });
 
 function normalizeReportId(value) {
+  const token = String(value || "").trim();
+  if (/^CPR-[A-Za-z0-9_-]{43}$/.test(token)) return token;
   let raw = String(value || "").trim().toUpperCase().replace(/\s+/g, "");
   raw = raw.replace(/^BETA[-_]?/, "");
   if (!/^\d+$/.test(raw)) return "";
@@ -762,6 +771,12 @@ form.addEventListener("submit", async function(event) {
     data.diagnostics = {};
   }
 
+  const payload = JSON.stringify(data);
+  if (!pendingSubmission || pendingSubmission.payload !== payload) {
+    pendingSubmission = { payload, token: createLookupToken() };
+  }
+  data.lookupToken = pendingSubmission.token;
+
   try {
     const response = await fetch("/api/feedback", {
       method: "POST",
@@ -776,7 +791,8 @@ form.addEventListener("submit", async function(event) {
     }
 
     const reportId = result.id;
-    saveRecent(reportId);
+    const lookupToken = result.lookupToken;
+    pendingSubmission = null;
 
     form.reset();
     diagnosticsInput.value = "";
@@ -793,12 +809,15 @@ form.addEventListener("submit", async function(event) {
 
     const text = document.createElement("p");
     text.textContent = submittedCategory === "suggestion"
-      ? "我會查看你的建議。請保存下面的回報 ID，之後可回來查詢處理進度。"
-      : "我會查看你的問題。請保存下面的回報 ID，之後可回來查詢處理進度。";
+      ? "我會查看你的建議。請保存下方查詢憑證；回報 ID 僅供辨識，不能查詢新回報。"
+      : "我會查看你的問題。請保存下方查詢憑證；回報 ID 僅供辨識，不能查詢新回報。";
 
     const id = document.createElement("div");
     id.className = "success-id";
     id.textContent = reportId;
+
+    const tokenDisplay = document.createElement("p");
+    tokenDisplay.textContent = "查詢憑證：" + lookupToken;
 
     const actions = document.createElement("div");
     actions.className = "action-row";
@@ -806,26 +825,14 @@ form.addEventListener("submit", async function(event) {
     const copyId = document.createElement("button");
     copyId.type = "button";
     copyId.className = "small-button primary";
-    copyId.textContent = "複製回報 ID";
+    copyId.textContent = "複製查詢憑證";
     copyId.addEventListener("click", async function() {
-      await navigator.clipboard.writeText(reportId);
+      await navigator.clipboard.writeText(lookupToken);
       copyId.textContent = "已複製";
     });
-
-    const copyLink = document.createElement("button");
-    copyLink.type = "button";
-    copyLink.className = "small-button";
-    copyLink.textContent = "複製查詢連結";
-    copyLink.addEventListener("click", async function() {
-      const link = location.origin + "/report?id=" + encodeURIComponent(reportId) + "#lookup";
-      await navigator.clipboard.writeText(link);
-      copyLink.textContent = "已複製";
-    });
-
-    actions.append(copyId, copyLink);
-    submitResult.append(title, text, id, actions);
+    actions.append(copyId);
+    submitResult.append(title, text, id, tokenDisplay, actions);
     submitResult.hidden = false;
-    renderRecent();
   } catch (error) {
     formStatus.textContent = "送出失敗，請稍後再試。";
   } finally {
@@ -1002,10 +1009,12 @@ async function lookupReport(value) {
   lookupStatus.textContent = "正在查詢…";
 
   try {
-    const response = await fetch("/api/feedback-status?id=" + encodeURIComponent(normalized), {
-      headers: { "Accept": "application/json" },
-      cache: "no-store"
-    });
+    const isToken = normalized.startsWith("CPR-");
+    const response = await fetch(isToken ? "/api/feedback-status" :
+      "/api/feedback-status?id=" + encodeURIComponent(normalized), isToken ? {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: normalized }), cache: "no-store"
+    } : { headers: { "Accept": "application/json" }, cache: "no-store" });
 
     const result = await response.json();
 
@@ -1020,8 +1029,7 @@ async function lookupReport(value) {
 
     lookupStatus.textContent = "";
     lookupResult.append(createTrackCard(result.feedback));
-    saveRecent(normalized);
-    renderRecent();
+    if (!isToken) { saveRecent(normalized); renderRecent(); }
   } catch {
     lookupStatus.textContent = "查詢失敗，請稍後再試。";
   } finally {
