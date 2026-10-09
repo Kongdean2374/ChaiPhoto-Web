@@ -71,6 +71,24 @@ test("all dashboard route variants reject spoofed headers before assets or D1", 
   }
 });
 
+test("valid Access assertion reaches both dashboard page variants", async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = certs;
+  try {
+    for (const path of ["/dashboard", "/dashboard/"]) {
+      const env = fakeEnvironment({});
+      env.ACCESS_TEAM_DOMAIN = teamDomain;
+      env.ACCESS_AUD = audience;
+      env.ASSETS = { async fetch() { return new Response("dashboard fixture", { status: 200 }); } };
+      const response = await worker.fetch(new Request(`https://photo.chaihome.cc${path}`, {
+        headers: { "Cf-Access-Jwt-Assertion": sign(claims()) }
+      }), env);
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "dashboard fixture");
+    }
+  } finally { globalThis.fetch = previousFetch; }
+});
+
 function fakeEnvironment(item, observedSql = []) {
   return {
     FEEDBACK_LOOKUP_LIMITER: { async limit() { return { success: true }; } },
