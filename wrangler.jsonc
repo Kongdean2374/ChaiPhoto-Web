@@ -18,5 +18,17 @@
       "database_id": "91dadc10-8e16-4015-b4ad-282a667488ee",
       "migrations_dir": "migrations"
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "FEEDBACK_SUBMIT_LIMITER",
+      "namespace_id": "2026100901",
+      "simple": { "limit": 6, "period": 60 }
+    },
+    {
+      "name": "FEEDBACK_LOOKUP_LIMITER",
+      "namespace_id": "2026100902",
+      "simple": { "limit": 30, "period": 60 }
+    }
   ]
 }

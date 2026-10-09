@@ -78,6 +78,31 @@ const diagnosticKeys = new Set([
 
 const dashboardHost = "photo.chaihome.cc";
 
+const lookupTokenPattern = /^CPR-[A-Za-z0-9_-]{43}$/;
+
+async function lookupTokenHash(token) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function newLookupToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return "CPR-" + btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function enforceFeedbackLimit(request, env, bindingName) {
+  const limiter = env[bindingName];
+  if (!limiter?.limit) return json({ ok: false, error: "Report service unavailable" }, 503);
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  try {
+    const result = await limiter.limit({ key: ip });
+    return result.success ? null : json({ ok: false, error: "Too many requests" }, 429);
+  } catch {
+    return json({ ok: false, error: "Report service unavailable" }, 503);
+  }
+}
+
 function isDashboardRequest(url) {
   return (
     url.pathname === "/dashboard" ||
@@ -850,56 +875,66 @@ export default {
       });
     }
 
-    if (
-      url.pathname === "/api/feedback-status" &&
-      request.method === "GET"
-    ) {
-      await ensureTrackingRows(env);
-
-      const reportNumber = parseReportNumber(
-        url.searchParams.get("id")
-      );
-
-      if (!reportNumber) {
-        return json({ ok: false, error: "Invalid report id" }, 400);
+    if (url.pathname === "/api/feedback-status" &&
+        (request.method === "GET" || request.method === "POST")) {
+      const limited = await enforceFeedbackLimit(request, env, "FEEDBACK_LOOKUP_LIMITER");
+      if (limited) return limited;
+      let item;
+      let authorized = false;
+      if (request.method === "POST") {
+        if (!(request.headers.get("Content-Type") || "").includes("application/json")) {
+          return json({ ok: false, error: "JSON required" }, 415);
+        }
+        const parsed = await readFeedbackJson(request);
+        if (parsed.error) return json({ ok: false, error: "Invalid lookup" }, 400);
+        const token = parsed.value?.token;
+        if (typeof token !== "string" || !lookupTokenPattern.test(token)) {
+          return json({ ok: false, error: "Invalid lookup" }, 400);
+        }
+        await ensureTrackingRows(env);
+        item = await env.DB.prepare(
+          `SELECT f.created_at, f.status, f.category, f.is_public,
+                  f.public_title, f.public_note, f.fixed_version, f.fixed_build,
+                  f.updated_at, t.report_number, t.eta_seconds, t.eta_due_at,
+                  t.fix_published, t.deleted_at
+           FROM feedback_lookup_tokens l
+           JOIN feedback f ON f.id = l.feedback_id
+           JOIN feedback_tracking t ON t.feedback_id = f.id
+           WHERE l.token_hash = ? LIMIT 1`
+        ).bind(await lookupTokenHash(token)).first();
+        authorized = true;
+      } else {
+        const reportNumber = parseReportNumber(url.searchParams.get("id"));
+        if (!reportNumber) return json({ ok: false, error: "Invalid report id" }, 400);
+        await ensureTrackingRows(env);
+        item = await env.DB.prepare(
+          `SELECT f.status, t.report_number, t.deleted_at,
+                  l.feedback_id AS has_token
+           FROM feedback f JOIN feedback_tracking t ON t.feedback_id = f.id
+           LEFT JOIN feedback_lookup_tokens l ON l.feedback_id = f.id
+           WHERE t.report_number = ? LIMIT 1`
+        ).bind(reportNumber).first();
       }
 
-      const item = await env.DB.prepare(
-        `SELECT
-           f.created_at,
-           f.status,
-           f.category,
-           f.is_public,
-           f.public_title,
-           f.public_note,
-           f.fixed_version,
-           f.fixed_build,
-           f.updated_at,
-           t.report_number,
-           t.eta_seconds,
-           t.eta_due_at,
-           t.fix_published,
-           t.deleted_at
-         FROM feedback f
-         JOIN feedback_tracking t ON t.feedback_id = f.id
-         WHERE t.report_number = ?
-         LIMIT 1`
-      )
-        .bind(reportNumber)
-        .first();
-
-      if (!item) {
+      if (!item || (!authorized && item.has_token)) {
         return json({ ok: false, error: "Not found" }, 404);
+      }
+
+      const reportId = formatReportId(item.report_number);
+      if (!authorized) {
+        return json({ ok: true, feedback: {
+          report_id: reportId,
+          status: item.deleted_at ? "deleted" : item.status
+        } });
       }
 
       if (item.deleted_at) {
         return json({
           ok: true,
           feedback: {
-            report_id: formatReportId(reportNumber),
+            report_id: reportId,
             status: "deleted",
-            category: item.category,
-            deleted_at: item.deleted_at
+            category: item.category
           }
         });
       }
@@ -907,7 +942,7 @@ export default {
       return json({
         ok: true,
         feedback: {
-          report_id: formatReportId(reportNumber),
+          report_id: reportId,
           created_at: item.created_at,
           status: item.status,
           category: item.category,
@@ -948,6 +983,9 @@ export default {
       if (parsed.error === "too_large") {
         return json({ ok: false, error: "Report is too large" }, 413);
       }
+
+      const limited = await enforceFeedbackLimit(request, env, "FEEDBACK_SUBMIT_LIMITER");
+      if (limited) return limited;
       if (parsed.error) {
         return json({ ok: false, error: "Invalid JSON" }, 400);
       }
@@ -1007,9 +1045,41 @@ export default {
 
       await ensureTrackingRows(env);
 
+      const suppliedToken = body.lookupToken;
+      if (suppliedToken !== undefined &&
+          (typeof suppliedToken !== "string" || !lookupTokenPattern.test(suppliedToken))) {
+        return json({ ok: false, error: "Invalid lookup token" }, 400);
+      }
+      const lookupToken = suppliedToken || newLookupToken();
+      const tokenHash = await lookupTokenHash(lookupToken);
+      const diagnosticsJson = diagnostics ? JSON.stringify(diagnostics) : null;
+      const source = isAndroid ? "android" : "web";
+      const existing = async () => env.DB.prepare(
+        `SELECT f.category, f.description, f.steps, f.app_version,
+                f.build_number, f.ios_version, f.device_model, f.source,
+                t.diagnostics_json, t.report_number
+         FROM feedback_lookup_tokens l
+         JOIN feedback f ON f.id = l.feedback_id
+         JOIN feedback_tracking t ON t.feedback_id = f.id
+         WHERE l.token_hash = ? LIMIT 1`
+      ).bind(tokenHash).first();
+      const sameSubmission = row => row &&
+        row.category === category && row.description === description &&
+        (row.steps || null) === (steps || null) &&
+        (row.app_version || null) === (appVersion || null) &&
+        (row.build_number || null) === (buildNumber || null) &&
+        (row.ios_version || null) === (iosVersion || null) &&
+        (row.device_model || null) === (deviceModel || null) &&
+        row.source === source &&
+        (row.diagnostics_json || null) === diagnosticsJson;
+      const duplicate = suppliedToken ? await existing() : null;
+      if (duplicate) {
+        if (!sameSubmission(duplicate)) return json({ ok: false, error: "Lookup token already used" }, 409);
+        return json({ ok: true, id: formatReportId(duplicate.report_number), lookupToken });
+      }
+
       const id = crypto.randomUUID();
       const createdAt = new Date().toISOString();
-      const reportNumber = await nextReportNumber(env);
 
       try {
         await env.DB.batch([
@@ -1039,34 +1109,44 @@ export default {
             buildNumber || null,
             iosVersion || null,
             deviceModel || null,
-            isAndroid ? "android" : "web"
+            source
           ),
           env.DB.prepare(
-            `INSERT INTO feedback_tracking
-             (
-               feedback_id,
-               report_number,
-               diagnostics_json
-             )
+            `UPDATE feedback_counter SET next_number = next_number + 1 WHERE singleton = 1`
+          ),
+          env.DB.prepare(
+            `INSERT INTO feedback_tracking (feedback_id, report_number, diagnostics_json)
+             SELECT ?, next_number - 1, ? FROM feedback_counter WHERE singleton = 1`
+          ).bind(id, diagnosticsJson),
+          env.DB.prepare(
+            `INSERT INTO feedback_lookup_tokens (feedback_id, token_hash, created_at)
              VALUES (?, ?, ?)`
-          ).bind(
-            id,
-            reportNumber,
-            diagnostics ? JSON.stringify(diagnostics) : null
-          )
+          ).bind(id, tokenHash, createdAt)
         ]);
       } catch (error) {
-        console.error("Feedback insert failed", error);
+        // A racing retry can lose the unique-token insert. The whole D1 batch rolls back.
+        const duplicateAfterRace = suppliedToken ? await existing() : null;
+        if (duplicateAfterRace) {
+          if (!sameSubmission(duplicateAfterRace)) return json({ ok: false, error: "Lookup token already used" }, 409);
+          return json({ ok: true, id: formatReportId(duplicateAfterRace.report_number), lookupToken });
+        }
+        console.error("Feedback insert failed");
         return json(
           { ok: false, error: "Unable to save feedback" },
           500
         );
       }
 
+      const tracking = await env.DB.prepare(
+        `SELECT report_number FROM feedback_tracking WHERE feedback_id = ? LIMIT 1`
+      ).bind(id).first();
+      if (!tracking?.report_number) return json({ ok: false, error: "Unable to confirm feedback" }, 500);
+
       return json(
         {
           ok: true,
-          id: formatReportId(reportNumber)
+          id: formatReportId(tracking.report_number),
+          lookupToken
         },
         201
       );

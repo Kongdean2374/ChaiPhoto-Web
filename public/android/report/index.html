@@ -69,9 +69,9 @@
 
   <section>
     <h2>查詢處理進度</h2>
-    <p class="muted">輸入送出時取得的回報編號。沿用現有 ChaiPhoto 編號與處理狀態。</p>
+    <p class="muted">舊回報使用 BETA 編號；新回報請保存並輸入送出時取得的查詢憑證。憑證遺失後無法找回。</p>
     <form id="lookup-form">
-      <label>回報編號 <input id="lookup-id" maxlength="80" placeholder="BETA-001" required></label>
+      <label>舊回報編號或新查詢憑證 <input id="lookup-id" maxlength="80" placeholder="BETA-001 或 CPR-…" required></label>
       <button class="button" type="submit">查詢</button>
       <p id="lookup-status" role="status" aria-live="polite"></p>
     </form>
@@ -90,6 +90,13 @@ const submitResult = document.getElementById("submit-result");
 const lookupForm = document.getElementById("lookup-form");
 const lookupId = document.getElementById("lookup-id");
 const lookupStatus = document.getElementById("lookup-status");
+let pendingSubmission = null;
+
+function createLookupToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return "CPR-" + btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 form.addEventListener("submit", async event => {
   event.preventDefault();
@@ -100,6 +107,11 @@ form.addEventListener("submit", async event => {
   try {
     const data = Object.fromEntries(new FormData(form).entries());
     data.platform = "android";
+    const payload = JSON.stringify(data);
+    if (!pendingSubmission || pendingSubmission.payload !== payload) {
+      pendingSubmission = { payload, token: createLookupToken() };
+    }
+    data.lookupToken = pendingSubmission.token;
     const response = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -109,10 +121,13 @@ form.addEventListener("submit", async event => {
     if (!response.ok || !result.ok || !result.id) throw new Error(result.error || "提交失敗");
     const label = document.createElement("strong");
     label.textContent = "已收到 Android 回報：" + result.id;
-    submitResult.append(label);
+    const token = document.createElement("p");
+    token.textContent = "請保存查詢憑證：" + result.lookupToken;
+    submitResult.append(label, token);
     submitResult.hidden = false;
-    lookupId.value = result.id;
-    submitStatus.textContent = "請保存回報編號，以便查詢進度。";
+    lookupId.value = result.lookupToken;
+    pendingSubmission = null;
+    submitStatus.textContent = "回報編號供辨識；查詢新回報須使用憑證。憑證不會放進網址。";
     form.reset();
   } catch (error) {
     submitStatus.textContent = "送出失敗：" + error.message;
@@ -125,7 +140,13 @@ lookupForm.addEventListener("submit", async event => {
   event.preventDefault();
   lookupStatus.textContent = "正在查詢…";
   try {
-    const response = await fetch("/api/feedback-status?id=" + encodeURIComponent(lookupId.value.trim()));
+    const lookup = lookupId.value.trim();
+    const isToken = /^CPR-[A-Za-z0-9_-]{43}$/.test(lookup);
+    const response = await fetch(isToken ? "/api/feedback-status" :
+      "/api/feedback-status?id=" + encodeURIComponent(lookup), isToken ? {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: lookup }), cache: "no-store"
+    } : { cache: "no-store" });
     const result = await response.json();
     if (!response.ok || !result.ok || !result.feedback) throw new Error(result.error || "查詢失敗");
     const names = { new: "待處理", in_progress: "處理中", resolved: "已處理", closed: "已關閉", deleted: "已移除" };
